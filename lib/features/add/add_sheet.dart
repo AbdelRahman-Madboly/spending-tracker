@@ -56,13 +56,18 @@ class _AddSheetState extends State<AddSheet> {
                 style: AppText.title,
               ),
             ),
-          GridView.count(
-            crossAxisCount: 3,
+          // Cap tile WIDTH rather than fixing a column count. Tile height derives
+          // from tile width, so a fixed count makes tiles balloon on a wide surface
+          // and collapse below the 48dp touch target if the ratio is tuned to
+          // compensate. Capping width holds tiles near 58dp tall on a phone (3
+          // columns) and simply reflows to more columns on anything wider.
+          GridView.extent(
+            maxCrossAxisExtent: 130,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: AppSpacing.xs,
+            mainAxisSpacing: AppSpacing.sm,
             crossAxisSpacing: AppSpacing.sm,
-            childAspectRatio: 2.8,
+            childAspectRatio: 1.5,
             children: [
               for (final item in _items)
                 InkWell(
@@ -78,14 +83,26 @@ class _AddSheetState extends State<AddSheet> {
                         width: 2,
                       ),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(item.nameAr, style: AppText.body),
-                        if (item.defaultAmountPiastres != null)
-                          Text(formatPiastres(item.defaultAmountPiastres!),
-                              style: AppText.caption),
-                      ],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Always one line. Item names become user-supplied, and a
+                          // long one must truncate rather than wrap and overflow
+                          // the tile.
+                          Text(
+                            item.nameAr,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.body,
+                          ),
+                          if (item.defaultAmountPiastres != null)
+                            Text(formatPiastres(item.defaultAmountPiastres!),
+                                style: AppText.caption),
+                        ],
+                      ),
                     ),
                   ),
                 ),
