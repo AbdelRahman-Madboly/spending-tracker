@@ -24,18 +24,25 @@ class PeriodSummaryCard extends StatelessWidget {
         children: [
           Text('باقي ${summary.daysRemaining} يوم', style: AppText.caption),
           const SizedBox(height: AppSpacing.md),
-          Text(
-            formatPiastres(left),
-            style: AppText.hero.copyWith(
-              color: overspent ? AppColors.negative : AppColors.textPrimary,
+          // The hero figure is the largest thing on screen and nothing upstream
+          // bounds its width. scaleDown shrinks an unusually long amount instead
+          // of overflowing; ordinary amounts render unchanged.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              formatPiastres(left),
+              maxLines: 1,
+              style: AppText.hero.copyWith(
+                color: overspent ? AppColors.negative : AppColors.textPrimary,
+              ),
             ),
           ),
-          Text('الباقي', style: AppText.caption),
+          const Text('الباقي', style: AppText.caption),
           const SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('صرفت ', style: AppText.caption),
+              const Text('صرفت ', style: AppText.caption),
               Text(formatPiastres(summary.spentPiastres), style: AppText.body),
               Text('  من ${formatPiastres(summary.salaryPiastres)}',
                   style: AppText.caption),
