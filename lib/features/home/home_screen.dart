@@ -43,10 +43,10 @@ class HomeScreen extends StatelessWidget {
               },
             ),
             const SizedBox(height: AppSpacing.md),
-            Align(
+            const Align(
               alignment: AlignmentDirectional.centerStart,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: Text('النهاردة', style: AppText.title),
               ),
             ),

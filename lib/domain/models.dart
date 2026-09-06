@@ -44,7 +44,8 @@ class EntryView extends Equatable {
   });
 
   @override
-  List<Object?> get props => [id, displayName, amountPiastres, categoryKey, date];
+  List<Object?> get props =>
+      [id, displayName, amountPiastres, categoryKey, date];
 }
 
 class QuickPickItem extends Equatable {

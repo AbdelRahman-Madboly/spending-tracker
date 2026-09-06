@@ -64,18 +64,66 @@ class FixtureSpendingRepository implements SpendingRepository {
 
   @override
   Future<List<QuickPickItem>> topItems(int limit) async => const [
-        QuickPickItem(id: 'i1', nameAr: 'شويبس', categoryKey: 'Food/Social', defaultAmountPiastres: 4000),
-        QuickPickItem(id: 'i2', nameAr: 'إندومي', categoryKey: 'Food/Social', defaultAmountPiastres: 1000),
-        QuickPickItem(id: 'i3', nameAr: 'لبن', categoryKey: 'Food/Social', defaultAmountPiastres: 3500),
-        QuickPickItem(id: 'i4', nameAr: 'تاكسي', categoryKey: 'Transport', defaultAmountPiastres: 3500),
-        QuickPickItem(id: 'i5', nameAr: 'مخبز', categoryKey: 'Food/Social', defaultAmountPiastres: 2500),
-        QuickPickItem(id: 'i6', nameAr: 'شيبسي', categoryKey: 'Food/Social', defaultAmountPiastres: 1000),
-        QuickPickItem(id: 'i7', nameAr: 'فطار', categoryKey: 'Food/Social', defaultAmountPiastres: 1500),
-        QuickPickItem(id: 'i8', nameAr: 'مواصلات', categoryKey: 'Transport', defaultAmountPiastres: 700),
-        QuickPickItem(id: 'i9', nameAr: 'عصير', categoryKey: 'Food/Social', defaultAmountPiastres: 2000),
-        QuickPickItem(id: 'i10', nameAr: 'حلاقة', categoryKey: 'Personal Care', defaultAmountPiastres: 10000),
-        QuickPickItem(id: 'i11', nameAr: 'شحن رصيد', categoryKey: 'Bills', defaultAmountPiastres: 10000),
-        QuickPickItem(id: 'i12', nameAr: 'شوكولاتة', categoryKey: 'Food/Social', defaultAmountPiastres: 500),
+        QuickPickItem(
+            id: 'i1',
+            nameAr: 'شويبس',
+            categoryKey: 'Food/Social',
+            defaultAmountPiastres: 4000),
+        QuickPickItem(
+            id: 'i2',
+            nameAr: 'إندومي',
+            categoryKey: 'Food/Social',
+            defaultAmountPiastres: 1000),
+        QuickPickItem(
+            id: 'i3',
+            nameAr: 'لبن',
+            categoryKey: 'Food/Social',
+            defaultAmountPiastres: 3500),
+        QuickPickItem(
+            id: 'i4',
+            nameAr: 'تاكسي',
+            categoryKey: 'Transport',
+            defaultAmountPiastres: 3500),
+        QuickPickItem(
+            id: 'i5',
+            nameAr: 'مخبز',
+            categoryKey: 'Food/Social',
+            defaultAmountPiastres: 2500),
+        QuickPickItem(
+            id: 'i6',
+            nameAr: 'شيبسي',
+            categoryKey: 'Food/Social',
+            defaultAmountPiastres: 1000),
+        QuickPickItem(
+            id: 'i7',
+            nameAr: 'فطار',
+            categoryKey: 'Food/Social',
+            defaultAmountPiastres: 1500),
+        QuickPickItem(
+            id: 'i8',
+            nameAr: 'مواصلات',
+            categoryKey: 'Transport',
+            defaultAmountPiastres: 700),
+        QuickPickItem(
+            id: 'i9',
+            nameAr: 'عصير',
+            categoryKey: 'Food/Social',
+            defaultAmountPiastres: 2000),
+        QuickPickItem(
+            id: 'i10',
+            nameAr: 'حلاقة',
+            categoryKey: 'Personal Care',
+            defaultAmountPiastres: 10000),
+        QuickPickItem(
+            id: 'i11',
+            nameAr: 'شحن رصيد',
+            categoryKey: 'Bills',
+            defaultAmountPiastres: 10000),
+        QuickPickItem(
+            id: 'i12',
+            nameAr: 'شوكولاتة',
+            categoryKey: 'Food/Social',
+            defaultAmountPiastres: 500),
       ].take(limit).toList();
 
   @override

@@ -40,7 +40,8 @@ void main() {
   });
 
   test('saving an entry adds it to today', () async {
-    final before = (await repo.watchEntriesForDay(DateTime(2026, 9, 6)).first).length;
+    final before =
+        (await repo.watchEntriesForDay(DateTime(2026, 9, 6)).first).length;
     await repo.saveEntry(const DraftEntry(
       amountPiastres: 3500,
       description: 'لبن',
@@ -48,7 +49,8 @@ void main() {
       paymentMethod: 'Cash',
       source: EntrySource.quickPick,
     ));
-    final after = (await repo.watchEntriesForDay(DateTime(2026, 9, 6)).first).length;
+    final after =
+        (await repo.watchEntriesForDay(DateTime(2026, 9, 6)).first).length;
     expect(after, before + 1);
   });
 }

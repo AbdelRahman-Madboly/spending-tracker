@@ -5,7 +5,8 @@ import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/features/home/widgets/period_summary_card.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
-      home: Directionality(textDirection: TextDirection.rtl, child: Scaffold(body: child)),
+      home: Directionality(
+          textDirection: TextDirection.rtl, child: Scaffold(body: child)),
     );
 
 void main() {

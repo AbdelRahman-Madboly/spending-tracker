@@ -84,8 +84,8 @@ class _AddSheetState extends State<AddSheet> {
                       ),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xs),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -109,10 +109,10 @@ class _AddSheetState extends State<AddSheet> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Row(
-            key: const Key('capture-icons'),
+          const Row(
+            key: Key('capture-icons'),
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: const [
+            children: [
               Icon(Icons.photo_camera_outlined, color: AppColors.textSecondary),
               Icon(Icons.qr_code_scanner, color: AppColors.textSecondary),
               Icon(Icons.mic_none, color: AppColors.textSecondary),

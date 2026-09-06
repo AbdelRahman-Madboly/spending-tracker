@@ -18,7 +18,9 @@ class StatisticsScreen extends StatelessWidget {
         future: repository.spendByCategoryForPeriod(),
         builder: (context, snapshot) {
           final data = snapshot.data;
-          if (data == null) return const Center(child: CircularProgressIndicator());
+          if (data == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final rows = data.entries.toList()
             ..sort((a, b) => b.value.compareTo(a.value));
           return ListView(
@@ -26,7 +28,8 @@ class StatisticsScreen extends StatelessWidget {
               for (final row in rows)
                 ListTile(
                   title: Text(row.key, style: AppText.body),
-                  trailing: Text(formatPiastres(row.value), style: AppText.body),
+                  trailing:
+                      Text(formatPiastres(row.value), style: AppText.body),
                 ),
             ],
           );

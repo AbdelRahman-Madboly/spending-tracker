@@ -13,7 +13,8 @@ void main() {
 
   test('hero text is the largest style and uses tabular figures', () {
     expect(AppText.hero.fontSize, greaterThan(AppText.title.fontSize!));
-    expect(AppText.hero.fontFeatures, contains(const FontFeature.tabularFigures()));
+    expect(AppText.hero.fontFeatures,
+        contains(const FontFeature.tabularFigures()));
   });
 
   test('negative and positive colours are distinguishable', () {
