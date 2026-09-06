@@ -22,7 +22,12 @@ class PeriodSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text('باقي ${summary.daysRemaining} يوم', style: AppText.caption),
+          // A late salary drives daysRemaining negative; showing "-13 days left"
+          // is nonsense, so the count floors at zero.
+          Text(
+            'باقي ${summary.daysRemaining < 0 ? 0 : summary.daysRemaining} يوم',
+            style: AppText.caption,
+          ),
           const SizedBox(height: AppSpacing.md),
           // The hero figure is the largest thing on screen and nothing upstream
           // bounds its width. scaleDown shrinks an unusually long amount instead

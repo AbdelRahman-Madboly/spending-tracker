@@ -7,6 +7,9 @@ import 'package:spending_tracker/features/add/add_sheet.dart';
 void main() {
   testWidgets('shows twelve quick pick items and five capture icons',
       (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(
       home: Directionality(
         textDirection: TextDirection.rtl,
@@ -26,6 +29,9 @@ void main() {
 
   testWidgets('tapping an item submits a complete draft in one tap',
       (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
     DraftEntry? captured;
     await tester.pumpWidget(MaterialApp(
       home: Directionality(

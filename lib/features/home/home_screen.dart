@@ -56,6 +56,7 @@ class HomeScreen extends StatelessWidget {
                 builder: (context, snapshot) {
                   final entries = snapshot.data ?? const <EntryView>[];
                   return ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 88),
                     itemCount: entries.length,
                     itemBuilder: (context, i) => ListTile(
                       title: Text(entries[i].displayName, style: AppText.body),
@@ -82,6 +83,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         backgroundColor: AppColors.accent,
+        foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('إضافة'),
       ),
