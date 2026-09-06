@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 class SpendingApp extends StatelessWidget {
   const SpendingApp({super.key});
@@ -9,6 +10,11 @@ class SpendingApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: ThemeData(fontFamily: 'IBMPlexSansArabic'),
       builder: (context, child) => Directionality(
         textDirection: TextDirection.rtl,
