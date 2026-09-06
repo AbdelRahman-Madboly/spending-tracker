@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'data/fixture_spending_repository.dart';
+import 'features/home/home_screen.dart';
+
 class SpendingApp extends StatelessWidget {
   const SpendingApp({super.key});
 
@@ -20,7 +23,7 @@ class SpendingApp extends StatelessWidget {
         textDirection: TextDirection.rtl,
         child: child ?? const SizedBox.shrink(),
       ),
-      home: const Scaffold(body: SizedBox.shrink()),
+      home: HomeScreen(repository: FixtureSpendingRepository()),
     );
   }
 }
