@@ -5,6 +5,7 @@ import '../../core/money.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../add/add_sheet.dart';
+import '../statistics/statistics_screen.dart';
 import 'widgets/period_summary_card.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -16,6 +17,20 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => StatisticsScreen(repository: repository),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [

@@ -59,7 +59,7 @@ class _AddSheetState extends State<AddSheet> {
           // Cap tile WIDTH rather than fixing a column count. Tile height derives
           // from tile width, so a fixed count makes tiles balloon on a wide surface
           // and collapse below the 48dp touch target if the ratio is tuned to
-          // compensate. Capping width holds tiles near 58dp tall on a phone (3
+          // compensate. Capping width holds tiles near 69dp tall on a phone (3
           // columns) and simply reflows to more columns on anything wider.
           GridView.extent(
             maxCrossAxisExtent: 130,
