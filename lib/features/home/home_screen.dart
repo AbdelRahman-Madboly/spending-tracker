@@ -4,6 +4,7 @@ import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
+import '../add/add_sheet.dart';
 import 'widgets/period_summary_card.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -54,7 +55,17 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => AddSheet(
+            repository: repository,
+            onSubmit: (draft) async {
+              await repository.saveEntry(draft);
+              if (context.mounted) Navigator.of(context).pop();
+            },
+          ),
+        ),
         backgroundColor: AppColors.accent,
         icon: const Icon(Icons.add),
         label: const Text('إضافة'),
