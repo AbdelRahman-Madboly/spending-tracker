@@ -7,6 +7,11 @@ abstract class SpendingRepository {
   Future<void> saveEntry(DraftEntry draft);
   Future<Map<String, int>> spendByCategoryForPeriod();
   Future<List<CategoryView>> categories();
+
+  /// Non-archived subcategories under [categoryKey], the second level of
+  /// the Category -> Subcategory -> Item structure.
+  Future<List<SubcategoryView>> subcategories(String categoryKey);
+
   Future<List<QuickPickItem>> itemsInCategory(String categoryKey, int limit);
   Future<QuickPickItem> createItem({
     required String nameAr,
@@ -31,8 +36,7 @@ abstract class SpendingRepository {
   /// included with a zero total rather than omitted, so a gap in a chart
   /// never gets mistaken for missing data. `label` is the day-of-month
   /// number as a Latin-digit string.
-  Future<List<({String label, int totalPiastres})>> dailyTotals(
-      int lastNDays);
+  Future<List<({String label, int totalPiastres})>> dailyTotals(int lastNDays);
 
   /// Totals for the last [lastNWeeks] non-overlapping 7-day windows, oldest
   /// first, ending with the 7-day window that includes today. Excludes

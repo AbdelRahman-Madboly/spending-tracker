@@ -63,6 +63,23 @@ class CategoryView extends Equatable {
   List<Object?> get props => [key, labelAr, iconName];
 }
 
+class SubcategoryView extends Equatable {
+  final String key;
+  final String categoryKey;
+  final String labelAr;
+  final String iconName;
+
+  const SubcategoryView({
+    required this.key,
+    required this.categoryKey,
+    required this.labelAr,
+    required this.iconName,
+  });
+
+  @override
+  List<Object?> get props => [key, categoryKey, labelAr, iconName];
+}
+
 class QuickPickItem extends Equatable {
   final String id;
   final String nameAr;

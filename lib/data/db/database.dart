@@ -12,7 +12,8 @@ import 'tables.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Categories, Items, Entries, SalaryPeriods])
+@DriftDatabase(
+    tables: [Categories, Items, Entries, SalaryPeriods, Subcategories])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
@@ -37,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
       rootBundle.loadString('assets/seed/seed.json');
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -53,9 +54,25 @@ class AppDatabase extends _$AppDatabase {
         onCreate: (m) async {
           await m.createAll();
           await _seedCategories(this);
+          await _seedSubcategories(this);
           final loadSeedJson = seedJsonLoader;
           if (loadSeedJson != null) {
             await seedFromJsonString(await loadSeedJson());
+          }
+        },
+        // v1 -> v2 introduces the Subcategories table (the second level of
+        // the Category -> Subcategory -> Item structure) plus a nullable
+        // `subcategoryKey` on both Items and Entries. This is an additive
+        // migration only — it never drops or rewrites an existing table,
+        // so every row the user already has on their phone (his real
+        // spending history) survives untouched; existing rows simply get
+        // `subcategoryKey = NULL` until re-categorised.
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(subcategories);
+            await m.addColumn(items, items.subcategoryKey);
+            await m.addColumn(entries, entries.subcategoryKey);
+            await _seedSubcategories(this);
           }
         },
         // SQLite ignores foreign key constraints unless this pragma is set
@@ -85,64 +102,66 @@ class AppDatabase extends _$AppDatabase {
       // Items before entries: entries reference items by id via itemId.
       for (final item in items) {
         await into(this.items).insert(
-              ItemsCompanion.insert(
-                id: item['id'] as String,
-                nameAr: item['nameAr'] as String,
-                nameEn: item['nameEn'] as String,
-                categoryKey: item['categoryKey'] as String,
-                defaultAmountPiastres: Value(
-                  item['defaultAmountPiastres'] as int?,
-                ),
-                barcode: Value(item['barcode'] as String?),
-                useCount: Value(item['useCount'] as int? ?? 0),
-                lastUsedAt: Value(
-                  item['lastUsedAt'] == null
-                      ? null
-                      : DateTime.parse(item['lastUsedAt'] as String),
-                ),
-                archived: Value(item['archived'] as bool? ?? false),
-              ),
-            );
+          ItemsCompanion.insert(
+            id: item['id'] as String,
+            nameAr: item['nameAr'] as String,
+            nameEn: item['nameEn'] as String,
+            categoryKey: item['categoryKey'] as String,
+            subcategoryKey: Value(item['subcategoryKey'] as String?),
+            defaultAmountPiastres: Value(
+              item['defaultAmountPiastres'] as int?,
+            ),
+            barcode: Value(item['barcode'] as String?),
+            useCount: Value(item['useCount'] as int? ?? 0),
+            lastUsedAt: Value(
+              item['lastUsedAt'] == null
+                  ? null
+                  : DateTime.parse(item['lastUsedAt'] as String),
+            ),
+            archived: Value(item['archived'] as bool? ?? false),
+          ),
+        );
       }
 
       for (final row in entryRows) {
         await into(entries).insert(
-              EntriesCompanion.insert(
-                id: row['id'] as String,
-                date: row['date'] as String,
-                amountPiastres: row['amountPiastres'] as int,
-                categoryKey: row['categoryKey'] as String,
-                itemId: Value(row['itemId'] as String?),
-                description: Value(row['description'] as String? ?? ''),
-                paymentMethod: Value(
-                  row['paymentMethod'] as String? ?? 'Cash',
-                ),
-                photoPath: Value(row['photoPath'] as String?),
-                source: Value(row['source'] as String? ?? 'manual'),
-                note: Value(row['note'] as String?),
-                createdAt: DateTime.parse(row['createdAt'] as String),
-                updatedAt: DateTime.parse(row['updatedAt'] as String),
-                deletedAt: Value(
-                  row['deletedAt'] == null
-                      ? null
-                      : DateTime.parse(row['deletedAt'] as String),
-                ),
-              ),
-            );
+          EntriesCompanion.insert(
+            id: row['id'] as String,
+            date: row['date'] as String,
+            amountPiastres: row['amountPiastres'] as int,
+            categoryKey: row['categoryKey'] as String,
+            subcategoryKey: Value(row['subcategoryKey'] as String?),
+            itemId: Value(row['itemId'] as String?),
+            description: Value(row['description'] as String? ?? ''),
+            paymentMethod: Value(
+              row['paymentMethod'] as String? ?? 'Cash',
+            ),
+            photoPath: Value(row['photoPath'] as String?),
+            source: Value(row['source'] as String? ?? 'manual'),
+            note: Value(row['note'] as String?),
+            createdAt: DateTime.parse(row['createdAt'] as String),
+            updatedAt: DateTime.parse(row['updatedAt'] as String),
+            deletedAt: Value(
+              row['deletedAt'] == null
+                  ? null
+                  : DateTime.parse(row['deletedAt'] as String),
+            ),
+          ),
+        );
       }
 
       for (final row in salaryRows) {
         await into(salaryPeriods).insert(
-              SalaryPeriodsCompanion.insert(
-                id: row['id'] as String,
-                datePaid: row['datePaid'] as String,
-                amountPiastres: row['amountPiastres'] as int,
-                evidencePhotoPath: Value(
-                  row['evidencePhotoPath'] as String?,
-                ),
-                note: Value(row['note'] as String?),
-              ),
-            );
+          SalaryPeriodsCompanion.insert(
+            id: row['id'] as String,
+            datePaid: row['datePaid'] as String,
+            amountPiastres: row['amountPiastres'] as int,
+            evidencePhotoPath: Value(
+              row['evidencePhotoPath'] as String?,
+            ),
+            note: Value(row['note'] as String?),
+          ),
+        );
       }
     });
   }
@@ -169,6 +188,54 @@ Future<void> _seedCategories(AppDatabase db) async {
     await db.into(db.categories).insert(
           CategoriesCompanion.insert(
             key: key,
+            labelAr: labelAr,
+            iconName: iconName,
+            sortOrder: Value(i),
+          ),
+        );
+  }
+}
+
+/// The subcategories seeded under each of the ten categories above — the
+/// second level of the Category -> Subcategory -> Item structure. Keys are
+/// English and never shown to the user; labels are Arabic.
+const _seedSubcategoryRows = [
+  ('Soda', 'Drinks', 'صودا', 'local_bar'),
+  ('Water', 'Drinks', 'مياه', 'water_drop'),
+  ('Milk', 'Drinks', 'لبن', 'local_drink'),
+  ('Juice', 'Drinks', 'عصير', 'emoji_food_beverage'),
+  ('HotDrinks', 'Drinks', 'مشروبات ساخنة', 'local_cafe'),
+  ('Chips', 'Snacks', 'شيبسي', 'tapas'),
+  ('Chocolate', 'Snacks', 'شوكولاتة', 'cake'),
+  ('Biscuits', 'Snacks', 'بسكوت', 'cookie'),
+  ('Sweets', 'Snacks', 'حلويات', 'icecream'),
+  ('FastFood', 'Snacks', 'وجبات سريعة', 'fastfood'),
+  ('Breakfast', 'Food', 'فطار', 'free_breakfast'),
+  ('Lunch', 'Food', 'غدا', 'lunch_dining'),
+  ('Dinner', 'Food', 'عشا', 'dinner_dining'),
+  ('Groceries', 'Food', 'بقالة', 'local_grocery_store'),
+  ('PublicTransport', 'Transport', 'مواصلات عامة', 'directions_bus'),
+  ('Taxi', 'Transport', 'تاكسي', 'local_taxi'),
+  ('PhoneBill', 'Bills', 'فاتورة موبايل', 'smartphone'),
+  ('HomeInternet', 'Bills', 'إنترنت المنزل', 'wifi'),
+  ('Haircut', 'Personal Care', 'حلاقة', 'content_cut'),
+  ('Cosmetics', 'Personal Care', 'مستحضرات', 'spa'),
+  ('Clothes', 'Shopping', 'ملابس', 'checkroom'),
+  ('Electronics', 'Shopping', 'إلكترونيات', 'devices'),
+  ('OnlineShopping', 'Shopping', 'تسوق أونلاين', 'shopping_cart'),
+  ('Trips', 'Family/Social', 'رحلات', 'flight'),
+  ('Visits', 'Family/Social', 'زيارات', 'people'),
+  ('Gifts', 'Gifts', 'هدايا', 'card_giftcard'),
+  ('Loans', 'Loans', 'سلف', 'handshake'),
+];
+
+Future<void> _seedSubcategories(AppDatabase db) async {
+  for (var i = 0; i < _seedSubcategoryRows.length; i++) {
+    final (key, categoryKey, labelAr, iconName) = _seedSubcategoryRows[i];
+    await db.into(db.subcategories).insert(
+          SubcategoriesCompanion.insert(
+            key: key,
+            categoryKey: categoryKey,
             labelAr: labelAr,
             iconName: iconName,
             sortOrder: Value(i),

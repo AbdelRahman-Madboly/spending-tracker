@@ -22,6 +22,144 @@ const _categories = [
   CategoryView(key: 'Loans', labelAr: 'سلف', iconName: 'handshake'),
 ];
 
+/// Mirrors the subcategory catalogue seeded into the real database (see
+/// `lib/data/db/database.dart`'s `_seedSubcategoryRows`), so widget tests
+/// exercise the same Category -> Subcategory structure the app ships with.
+const _subcategories = [
+  SubcategoryView(
+      key: 'Soda',
+      categoryKey: 'Drinks',
+      labelAr: 'صودا',
+      iconName: 'local_bar'),
+  SubcategoryView(
+      key: 'Water',
+      categoryKey: 'Drinks',
+      labelAr: 'مياه',
+      iconName: 'water_drop'),
+  SubcategoryView(
+      key: 'Milk',
+      categoryKey: 'Drinks',
+      labelAr: 'لبن',
+      iconName: 'local_drink'),
+  SubcategoryView(
+      key: 'Juice',
+      categoryKey: 'Drinks',
+      labelAr: 'عصير',
+      iconName: 'emoji_food_beverage'),
+  SubcategoryView(
+      key: 'HotDrinks',
+      categoryKey: 'Drinks',
+      labelAr: 'مشروبات ساخنة',
+      iconName: 'local_cafe'),
+  SubcategoryView(
+      key: 'Chips', categoryKey: 'Snacks', labelAr: 'شيبسي', iconName: 'tapas'),
+  SubcategoryView(
+      key: 'Chocolate',
+      categoryKey: 'Snacks',
+      labelAr: 'شوكولاتة',
+      iconName: 'cake'),
+  SubcategoryView(
+      key: 'Biscuits',
+      categoryKey: 'Snacks',
+      labelAr: 'بسكوت',
+      iconName: 'cookie'),
+  SubcategoryView(
+      key: 'Sweets',
+      categoryKey: 'Snacks',
+      labelAr: 'حلويات',
+      iconName: 'icecream'),
+  SubcategoryView(
+      key: 'FastFood',
+      categoryKey: 'Snacks',
+      labelAr: 'وجبات سريعة',
+      iconName: 'fastfood'),
+  SubcategoryView(
+      key: 'Breakfast',
+      categoryKey: 'Food',
+      labelAr: 'فطار',
+      iconName: 'free_breakfast'),
+  SubcategoryView(
+      key: 'Lunch',
+      categoryKey: 'Food',
+      labelAr: 'غدا',
+      iconName: 'lunch_dining'),
+  SubcategoryView(
+      key: 'Dinner',
+      categoryKey: 'Food',
+      labelAr: 'عشا',
+      iconName: 'dinner_dining'),
+  SubcategoryView(
+      key: 'Groceries',
+      categoryKey: 'Food',
+      labelAr: 'بقالة',
+      iconName: 'local_grocery_store'),
+  SubcategoryView(
+      key: 'PublicTransport',
+      categoryKey: 'Transport',
+      labelAr: 'مواصلات عامة',
+      iconName: 'directions_bus'),
+  SubcategoryView(
+      key: 'Taxi',
+      categoryKey: 'Transport',
+      labelAr: 'تاكسي',
+      iconName: 'local_taxi'),
+  SubcategoryView(
+      key: 'PhoneBill',
+      categoryKey: 'Bills',
+      labelAr: 'فاتورة موبايل',
+      iconName: 'smartphone'),
+  SubcategoryView(
+      key: 'HomeInternet',
+      categoryKey: 'Bills',
+      labelAr: 'إنترنت المنزل',
+      iconName: 'wifi'),
+  SubcategoryView(
+      key: 'Haircut',
+      categoryKey: 'Personal Care',
+      labelAr: 'حلاقة',
+      iconName: 'content_cut'),
+  SubcategoryView(
+      key: 'Cosmetics',
+      categoryKey: 'Personal Care',
+      labelAr: 'مستحضرات',
+      iconName: 'spa'),
+  SubcategoryView(
+      key: 'Clothes',
+      categoryKey: 'Shopping',
+      labelAr: 'ملابس',
+      iconName: 'checkroom'),
+  SubcategoryView(
+      key: 'Electronics',
+      categoryKey: 'Shopping',
+      labelAr: 'إلكترونيات',
+      iconName: 'devices'),
+  SubcategoryView(
+      key: 'OnlineShopping',
+      categoryKey: 'Shopping',
+      labelAr: 'تسوق أونلاين',
+      iconName: 'shopping_cart'),
+  SubcategoryView(
+      key: 'Trips',
+      categoryKey: 'Family/Social',
+      labelAr: 'رحلات',
+      iconName: 'flight'),
+  SubcategoryView(
+      key: 'Visits',
+      categoryKey: 'Family/Social',
+      labelAr: 'زيارات',
+      iconName: 'people'),
+  SubcategoryView(
+      key: 'Gifts',
+      categoryKey: 'Gifts',
+      labelAr: 'هدايا',
+      iconName: 'card_giftcard'),
+  SubcategoryView(
+      key: 'Loans',
+      categoryKey: 'Loans',
+      labelAr: 'سلف',
+      iconName: 'handshake'),
+];
+
 class FixtureSpendingRepository implements SpendingRepository {
   static const _defaultSalary = 900000;
   static const _today = 6;
@@ -190,12 +328,15 @@ class FixtureSpendingRepository implements SpendingRepository {
   Future<List<CategoryView>> categories() async => _categories;
 
   @override
+  Future<List<SubcategoryView>> subcategories(String categoryKey) async =>
+      _subcategories.where((s) => s.categoryKey == categoryKey).toList();
+
+  @override
   Future<List<QuickPickItem>> itemsInCategory(
           String categoryKey, int limit) async =>
       _items
           .where((i) =>
-              i.categoryKey == categoryKey &&
-              !_archivedItemIds.contains(i.id))
+              i.categoryKey == categoryKey && !_archivedItemIds.contains(i.id))
           .take(limit)
           .toList();
 

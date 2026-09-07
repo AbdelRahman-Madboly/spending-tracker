@@ -24,10 +24,9 @@ class DriftSpendingRepository implements SpendingRepository {
 
   @override
   Stream<PeriodSummary> watchCurrentPeriod() {
-    final periodsStream =
-        (_db.select(_db.salaryPeriods)
-              ..orderBy([(t) => OrderingTerm.desc(t.datePaid)]))
-            .watch();
+    final periodsStream = (_db.select(_db.salaryPeriods)
+          ..orderBy([(t) => OrderingTerm.desc(t.datePaid)]))
+        .watch();
     // asyncExpand switches to a fresh `entries` stream whenever the salary
     // periods change, but otherwise keeps forwarding entry-table updates
     // straight through — so this reacts to both tables without a second
@@ -47,14 +46,17 @@ class DriftSpendingRepository implements SpendingRepository {
         daysRemaining: 0,
       );
     }
-    final sorted = [...periods]..sort((a, b) => b.datePaid.compareTo(a.datePaid));
+    final sorted = [...periods]
+      ..sort((a, b) => b.datePaid.compareTo(a.datePaid));
     final current = sorted.first;
     final periodLengthDays = _periodLengthDays(sorted);
-    final elapsed = DateTime.now().difference(DateTime.parse(current.datePaid)).inDays;
+    final elapsed =
+        DateTime.now().difference(DateTime.parse(current.datePaid)).inDays;
     final daysRemaining = periodLengthDays - elapsed;
 
     final spent = entries
-        .where((e) => e.deletedAt == null && e.date.compareTo(current.datePaid) >= 0)
+        .where((e) =>
+            e.deletedAt == null && e.date.compareTo(current.datePaid) >= 0)
         .fold(0, (sum, e) => sum + e.amountPiastres);
 
     return PeriodSummary(
@@ -78,8 +80,9 @@ class DriftSpendingRepository implements SpendingRepository {
     }
     gaps.sort();
     final mid = gaps.length ~/ 2;
-    final median =
-        gaps.length.isOdd ? gaps[mid] : ((gaps[mid - 1] + gaps[mid]) / 2).round();
+    final median = gaps.length.isOdd
+        ? gaps[mid]
+        : ((gaps[mid - 1] + gaps[mid]) / 2).round();
     return median.clamp(25, 35);
   }
 
@@ -87,8 +90,8 @@ class DriftSpendingRepository implements SpendingRepository {
   Stream<List<EntryView>> watchEntriesForDay(DateTime day) {
     final dateStr = _formatDate(day);
     final query = _db.select(_db.entries).join([
-      innerJoin(
-          _db.categories, _db.categories.key.equalsExp(_db.entries.categoryKey)),
+      innerJoin(_db.categories,
+          _db.categories.key.equalsExp(_db.entries.categoryKey)),
       leftOuterJoin(_db.items, _db.items.id.equalsExp(_db.entries.itemId)),
     ])
       ..where(_db.entries.date.equals(dateStr) & _db.entries.deletedAt.isNull())
@@ -98,8 +101,9 @@ class DriftSpendingRepository implements SpendingRepository {
           final entry = row.readTable(_db.entries);
           final category = row.readTable(_db.categories);
           final item = row.readTableOrNull(_db.items);
-          final name =
-              entry.description.isNotEmpty ? entry.description : (item?.nameAr ?? '');
+          final name = entry.description.isNotEmpty
+              ? entry.description
+              : (item?.nameAr ?? '');
           return EntryView(
             id: entry.id,
             displayName: name,
@@ -113,8 +117,9 @@ class DriftSpendingRepository implements SpendingRepository {
 
   @override
   Future<List<QuickPickItem>> topItems(int limit) async {
-    final rows =
-        await (_db.select(_db.items)..where((t) => t.archived.equals(false))).get();
+    final rows = await (_db.select(_db.items)
+          ..where((t) => t.archived.equals(false)))
+        .get();
     return _topScored(rows, limit);
   }
 
@@ -165,6 +170,23 @@ class DriftSpendingRepository implements SpendingRepository {
               key: c.key,
               labelAr: c.labelAr,
               iconName: c.iconName,
+            ))
+        .toList();
+  }
+
+  @override
+  Future<List<SubcategoryView>> subcategories(String categoryKey) async {
+    final rows = await (_db.select(_db.subcategories)
+          ..where((t) =>
+              t.categoryKey.equals(categoryKey) & t.archived.equals(false))
+          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+        .get();
+    return rows
+        .map((s) => SubcategoryView(
+              key: s.key,
+              categoryKey: s.categoryKey,
+              labelAr: s.labelAr,
+              iconName: s.iconName,
             ))
         .toList();
   }
@@ -222,9 +244,9 @@ class DriftSpendingRepository implements SpendingRepository {
 
     final itemId = draft.itemId;
     if (itemId != null) {
-      final item =
-          await (_db.select(_db.items)..where((t) => t.id.equals(itemId)))
-              .getSingleOrNull();
+      final item = await (_db.select(_db.items)
+            ..where((t) => t.id.equals(itemId)))
+          .getSingleOrNull();
       if (item != null) {
         await (_db.update(_db.items)..where((t) => t.id.equals(itemId))).write(
           ItemsCompanion(
@@ -240,7 +262,8 @@ class DriftSpendingRepository implements SpendingRepository {
   Future<Map<String, int>> spendByCategoryForPeriod() async {
     final periods = await _db.select(_db.salaryPeriods).get();
     if (periods.isEmpty) return {};
-    final sorted = [...periods]..sort((a, b) => b.datePaid.compareTo(a.datePaid));
+    final sorted = [...periods]
+      ..sort((a, b) => b.datePaid.compareTo(a.datePaid));
     final currentStart = sorted.first.datePaid;
 
     final rows = await (_db.select(_db.entries)
@@ -345,9 +368,9 @@ class DriftSpendingRepository implements SpendingRepository {
 
   @override
   Future<List<QuickPickItem>> allItems() async {
-    final rows =
-        await (_db.select(_db.items)..where((t) => t.archived.equals(false)))
-            .get();
+    final rows = await (_db.select(_db.items)
+          ..where((t) => t.archived.equals(false)))
+        .get();
     return rows
         .map((i) => QuickPickItem(
               id: i.id,

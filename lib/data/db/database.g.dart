@@ -313,6 +313,360 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   }
 }
 
+class $SubcategoriesTable extends Subcategories
+    with TableInfo<$SubcategoriesTable, Subcategory> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SubcategoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+      'key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _categoryKeyMeta =
+      const VerificationMeta('categoryKey');
+  @override
+  late final GeneratedColumn<String> categoryKey = GeneratedColumn<String>(
+      'category_key', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES categories ("key")'));
+  static const VerificationMeta _labelArMeta =
+      const VerificationMeta('labelAr');
+  @override
+  late final GeneratedColumn<String> labelAr = GeneratedColumn<String>(
+      'label_ar', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _iconNameMeta =
+      const VerificationMeta('iconName');
+  @override
+  late final GeneratedColumn<String> iconName = GeneratedColumn<String>(
+      'icon_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _archivedMeta =
+      const VerificationMeta('archived');
+  @override
+  late final GeneratedColumn<bool> archived = GeneratedColumn<bool>(
+      'archived', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("archived" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [key, categoryKey, labelAr, iconName, sortOrder, archived];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'subcategories';
+  @override
+  VerificationContext validateIntegrity(Insertable<Subcategory> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+          _keyMeta, key.isAcceptableOrUnknown(data['key']!, _keyMeta));
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('category_key')) {
+      context.handle(
+          _categoryKeyMeta,
+          categoryKey.isAcceptableOrUnknown(
+              data['category_key']!, _categoryKeyMeta));
+    } else if (isInserting) {
+      context.missing(_categoryKeyMeta);
+    }
+    if (data.containsKey('label_ar')) {
+      context.handle(_labelArMeta,
+          labelAr.isAcceptableOrUnknown(data['label_ar']!, _labelArMeta));
+    } else if (isInserting) {
+      context.missing(_labelArMeta);
+    }
+    if (data.containsKey('icon_name')) {
+      context.handle(_iconNameMeta,
+          iconName.isAcceptableOrUnknown(data['icon_name']!, _iconNameMeta));
+    } else if (isInserting) {
+      context.missing(_iconNameMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    if (data.containsKey('archived')) {
+      context.handle(_archivedMeta,
+          archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  Subcategory map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Subcategory(
+      key: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}key'])!,
+      categoryKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category_key'])!,
+      labelAr: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}label_ar'])!,
+      iconName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}icon_name'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      archived: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}archived'])!,
+    );
+  }
+
+  @override
+  $SubcategoriesTable createAlias(String alias) {
+    return $SubcategoriesTable(attachedDatabase, alias);
+  }
+}
+
+class Subcategory extends DataClass implements Insertable<Subcategory> {
+  final String key;
+  final String categoryKey;
+  final String labelAr;
+  final String iconName;
+  final int sortOrder;
+  final bool archived;
+  const Subcategory(
+      {required this.key,
+      required this.categoryKey,
+      required this.labelAr,
+      required this.iconName,
+      required this.sortOrder,
+      required this.archived});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['category_key'] = Variable<String>(categoryKey);
+    map['label_ar'] = Variable<String>(labelAr);
+    map['icon_name'] = Variable<String>(iconName);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['archived'] = Variable<bool>(archived);
+    return map;
+  }
+
+  SubcategoriesCompanion toCompanion(bool nullToAbsent) {
+    return SubcategoriesCompanion(
+      key: Value(key),
+      categoryKey: Value(categoryKey),
+      labelAr: Value(labelAr),
+      iconName: Value(iconName),
+      sortOrder: Value(sortOrder),
+      archived: Value(archived),
+    );
+  }
+
+  factory Subcategory.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Subcategory(
+      key: serializer.fromJson<String>(json['key']),
+      categoryKey: serializer.fromJson<String>(json['categoryKey']),
+      labelAr: serializer.fromJson<String>(json['labelAr']),
+      iconName: serializer.fromJson<String>(json['iconName']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      archived: serializer.fromJson<bool>(json['archived']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'categoryKey': serializer.toJson<String>(categoryKey),
+      'labelAr': serializer.toJson<String>(labelAr),
+      'iconName': serializer.toJson<String>(iconName),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'archived': serializer.toJson<bool>(archived),
+    };
+  }
+
+  Subcategory copyWith(
+          {String? key,
+          String? categoryKey,
+          String? labelAr,
+          String? iconName,
+          int? sortOrder,
+          bool? archived}) =>
+      Subcategory(
+        key: key ?? this.key,
+        categoryKey: categoryKey ?? this.categoryKey,
+        labelAr: labelAr ?? this.labelAr,
+        iconName: iconName ?? this.iconName,
+        sortOrder: sortOrder ?? this.sortOrder,
+        archived: archived ?? this.archived,
+      );
+  Subcategory copyWithCompanion(SubcategoriesCompanion data) {
+    return Subcategory(
+      key: data.key.present ? data.key.value : this.key,
+      categoryKey:
+          data.categoryKey.present ? data.categoryKey.value : this.categoryKey,
+      labelAr: data.labelAr.present ? data.labelAr.value : this.labelAr,
+      iconName: data.iconName.present ? data.iconName.value : this.iconName,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      archived: data.archived.present ? data.archived.value : this.archived,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Subcategory(')
+          ..write('key: $key, ')
+          ..write('categoryKey: $categoryKey, ')
+          ..write('labelAr: $labelAr, ')
+          ..write('iconName: $iconName, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('archived: $archived')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(key, categoryKey, labelAr, iconName, sortOrder, archived);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Subcategory &&
+          other.key == this.key &&
+          other.categoryKey == this.categoryKey &&
+          other.labelAr == this.labelAr &&
+          other.iconName == this.iconName &&
+          other.sortOrder == this.sortOrder &&
+          other.archived == this.archived);
+}
+
+class SubcategoriesCompanion extends UpdateCompanion<Subcategory> {
+  final Value<String> key;
+  final Value<String> categoryKey;
+  final Value<String> labelAr;
+  final Value<String> iconName;
+  final Value<int> sortOrder;
+  final Value<bool> archived;
+  final Value<int> rowid;
+  const SubcategoriesCompanion({
+    this.key = const Value.absent(),
+    this.categoryKey = const Value.absent(),
+    this.labelAr = const Value.absent(),
+    this.iconName = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.archived = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SubcategoriesCompanion.insert({
+    required String key,
+    required String categoryKey,
+    required String labelAr,
+    required String iconName,
+    this.sortOrder = const Value.absent(),
+    this.archived = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : key = Value(key),
+        categoryKey = Value(categoryKey),
+        labelAr = Value(labelAr),
+        iconName = Value(iconName);
+  static Insertable<Subcategory> custom({
+    Expression<String>? key,
+    Expression<String>? categoryKey,
+    Expression<String>? labelAr,
+    Expression<String>? iconName,
+    Expression<int>? sortOrder,
+    Expression<bool>? archived,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (categoryKey != null) 'category_key': categoryKey,
+      if (labelAr != null) 'label_ar': labelAr,
+      if (iconName != null) 'icon_name': iconName,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (archived != null) 'archived': archived,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SubcategoriesCompanion copyWith(
+      {Value<String>? key,
+      Value<String>? categoryKey,
+      Value<String>? labelAr,
+      Value<String>? iconName,
+      Value<int>? sortOrder,
+      Value<bool>? archived,
+      Value<int>? rowid}) {
+    return SubcategoriesCompanion(
+      key: key ?? this.key,
+      categoryKey: categoryKey ?? this.categoryKey,
+      labelAr: labelAr ?? this.labelAr,
+      iconName: iconName ?? this.iconName,
+      sortOrder: sortOrder ?? this.sortOrder,
+      archived: archived ?? this.archived,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (categoryKey.present) {
+      map['category_key'] = Variable<String>(categoryKey.value);
+    }
+    if (labelAr.present) {
+      map['label_ar'] = Variable<String>(labelAr.value);
+    }
+    if (iconName.present) {
+      map['icon_name'] = Variable<String>(iconName.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (archived.present) {
+      map['archived'] = Variable<bool>(archived.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SubcategoriesCompanion(')
+          ..write('key: $key, ')
+          ..write('categoryKey: $categoryKey, ')
+          ..write('labelAr: $labelAr, ')
+          ..write('iconName: $iconName, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('archived: $archived, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -342,6 +696,15 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
       requiredDuringInsert: true,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES categories ("key")'));
+  static const VerificationMeta _subcategoryKeyMeta =
+      const VerificationMeta('subcategoryKey');
+  @override
+  late final GeneratedColumn<String> subcategoryKey = GeneratedColumn<String>(
+      'subcategory_key', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES subcategories ("key")'));
   static const VerificationMeta _defaultAmountPiastresMeta =
       const VerificationMeta('defaultAmountPiastres');
   @override
@@ -384,6 +747,7 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         nameAr,
         nameEn,
         categoryKey,
+        subcategoryKey,
         defaultAmountPiastres,
         barcode,
         useCount,
@@ -424,6 +788,12 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
               data['category_key']!, _categoryKeyMeta));
     } else if (isInserting) {
       context.missing(_categoryKeyMeta);
+    }
+    if (data.containsKey('subcategory_key')) {
+      context.handle(
+          _subcategoryKeyMeta,
+          subcategoryKey.isAcceptableOrUnknown(
+              data['subcategory_key']!, _subcategoryKeyMeta));
     }
     if (data.containsKey('default_amount_piastres')) {
       context.handle(
@@ -466,6 +836,8 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
           .read(DriftSqlType.string, data['${effectivePrefix}name_en'])!,
       categoryKey: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}category_key'])!,
+      subcategoryKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}subcategory_key']),
       defaultAmountPiastres: attachedDatabase.typeMapping.read(
           DriftSqlType.int, data['${effectivePrefix}default_amount_piastres']),
       barcode: attachedDatabase.typeMapping
@@ -490,6 +862,7 @@ class Item extends DataClass implements Insertable<Item> {
   final String nameAr;
   final String nameEn;
   final String categoryKey;
+  final String? subcategoryKey;
   final int? defaultAmountPiastres;
   final String? barcode;
   final int useCount;
@@ -500,6 +873,7 @@ class Item extends DataClass implements Insertable<Item> {
       required this.nameAr,
       required this.nameEn,
       required this.categoryKey,
+      this.subcategoryKey,
       this.defaultAmountPiastres,
       this.barcode,
       required this.useCount,
@@ -512,6 +886,9 @@ class Item extends DataClass implements Insertable<Item> {
     map['name_ar'] = Variable<String>(nameAr);
     map['name_en'] = Variable<String>(nameEn);
     map['category_key'] = Variable<String>(categoryKey);
+    if (!nullToAbsent || subcategoryKey != null) {
+      map['subcategory_key'] = Variable<String>(subcategoryKey);
+    }
     if (!nullToAbsent || defaultAmountPiastres != null) {
       map['default_amount_piastres'] = Variable<int>(defaultAmountPiastres);
     }
@@ -532,6 +909,9 @@ class Item extends DataClass implements Insertable<Item> {
       nameAr: Value(nameAr),
       nameEn: Value(nameEn),
       categoryKey: Value(categoryKey),
+      subcategoryKey: subcategoryKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subcategoryKey),
       defaultAmountPiastres: defaultAmountPiastres == null && nullToAbsent
           ? const Value.absent()
           : Value(defaultAmountPiastres),
@@ -554,6 +934,7 @@ class Item extends DataClass implements Insertable<Item> {
       nameAr: serializer.fromJson<String>(json['nameAr']),
       nameEn: serializer.fromJson<String>(json['nameEn']),
       categoryKey: serializer.fromJson<String>(json['categoryKey']),
+      subcategoryKey: serializer.fromJson<String?>(json['subcategoryKey']),
       defaultAmountPiastres:
           serializer.fromJson<int?>(json['defaultAmountPiastres']),
       barcode: serializer.fromJson<String?>(json['barcode']),
@@ -570,6 +951,7 @@ class Item extends DataClass implements Insertable<Item> {
       'nameAr': serializer.toJson<String>(nameAr),
       'nameEn': serializer.toJson<String>(nameEn),
       'categoryKey': serializer.toJson<String>(categoryKey),
+      'subcategoryKey': serializer.toJson<String?>(subcategoryKey),
       'defaultAmountPiastres': serializer.toJson<int?>(defaultAmountPiastres),
       'barcode': serializer.toJson<String?>(barcode),
       'useCount': serializer.toJson<int>(useCount),
@@ -583,6 +965,7 @@ class Item extends DataClass implements Insertable<Item> {
           String? nameAr,
           String? nameEn,
           String? categoryKey,
+          Value<String?> subcategoryKey = const Value.absent(),
           Value<int?> defaultAmountPiastres = const Value.absent(),
           Value<String?> barcode = const Value.absent(),
           int? useCount,
@@ -593,6 +976,8 @@ class Item extends DataClass implements Insertable<Item> {
         nameAr: nameAr ?? this.nameAr,
         nameEn: nameEn ?? this.nameEn,
         categoryKey: categoryKey ?? this.categoryKey,
+        subcategoryKey:
+            subcategoryKey.present ? subcategoryKey.value : this.subcategoryKey,
         defaultAmountPiastres: defaultAmountPiastres.present
             ? defaultAmountPiastres.value
             : this.defaultAmountPiastres,
@@ -608,6 +993,9 @@ class Item extends DataClass implements Insertable<Item> {
       nameEn: data.nameEn.present ? data.nameEn.value : this.nameEn,
       categoryKey:
           data.categoryKey.present ? data.categoryKey.value : this.categoryKey,
+      subcategoryKey: data.subcategoryKey.present
+          ? data.subcategoryKey.value
+          : this.subcategoryKey,
       defaultAmountPiastres: data.defaultAmountPiastres.present
           ? data.defaultAmountPiastres.value
           : this.defaultAmountPiastres,
@@ -626,6 +1014,7 @@ class Item extends DataClass implements Insertable<Item> {
           ..write('nameAr: $nameAr, ')
           ..write('nameEn: $nameEn, ')
           ..write('categoryKey: $categoryKey, ')
+          ..write('subcategoryKey: $subcategoryKey, ')
           ..write('defaultAmountPiastres: $defaultAmountPiastres, ')
           ..write('barcode: $barcode, ')
           ..write('useCount: $useCount, ')
@@ -636,8 +1025,17 @@ class Item extends DataClass implements Insertable<Item> {
   }
 
   @override
-  int get hashCode => Object.hash(id, nameAr, nameEn, categoryKey,
-      defaultAmountPiastres, barcode, useCount, lastUsedAt, archived);
+  int get hashCode => Object.hash(
+      id,
+      nameAr,
+      nameEn,
+      categoryKey,
+      subcategoryKey,
+      defaultAmountPiastres,
+      barcode,
+      useCount,
+      lastUsedAt,
+      archived);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -646,6 +1044,7 @@ class Item extends DataClass implements Insertable<Item> {
           other.nameAr == this.nameAr &&
           other.nameEn == this.nameEn &&
           other.categoryKey == this.categoryKey &&
+          other.subcategoryKey == this.subcategoryKey &&
           other.defaultAmountPiastres == this.defaultAmountPiastres &&
           other.barcode == this.barcode &&
           other.useCount == this.useCount &&
@@ -658,6 +1057,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
   final Value<String> nameAr;
   final Value<String> nameEn;
   final Value<String> categoryKey;
+  final Value<String?> subcategoryKey;
   final Value<int?> defaultAmountPiastres;
   final Value<String?> barcode;
   final Value<int> useCount;
@@ -669,6 +1069,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.nameAr = const Value.absent(),
     this.nameEn = const Value.absent(),
     this.categoryKey = const Value.absent(),
+    this.subcategoryKey = const Value.absent(),
     this.defaultAmountPiastres = const Value.absent(),
     this.barcode = const Value.absent(),
     this.useCount = const Value.absent(),
@@ -681,6 +1082,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     required String nameAr,
     required String nameEn,
     required String categoryKey,
+    this.subcategoryKey = const Value.absent(),
     this.defaultAmountPiastres = const Value.absent(),
     this.barcode = const Value.absent(),
     this.useCount = const Value.absent(),
@@ -696,6 +1098,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Expression<String>? nameAr,
     Expression<String>? nameEn,
     Expression<String>? categoryKey,
+    Expression<String>? subcategoryKey,
     Expression<int>? defaultAmountPiastres,
     Expression<String>? barcode,
     Expression<int>? useCount,
@@ -708,6 +1111,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       if (nameAr != null) 'name_ar': nameAr,
       if (nameEn != null) 'name_en': nameEn,
       if (categoryKey != null) 'category_key': categoryKey,
+      if (subcategoryKey != null) 'subcategory_key': subcategoryKey,
       if (defaultAmountPiastres != null)
         'default_amount_piastres': defaultAmountPiastres,
       if (barcode != null) 'barcode': barcode,
@@ -723,6 +1127,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       Value<String>? nameAr,
       Value<String>? nameEn,
       Value<String>? categoryKey,
+      Value<String?>? subcategoryKey,
       Value<int?>? defaultAmountPiastres,
       Value<String?>? barcode,
       Value<int>? useCount,
@@ -734,6 +1139,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       nameAr: nameAr ?? this.nameAr,
       nameEn: nameEn ?? this.nameEn,
       categoryKey: categoryKey ?? this.categoryKey,
+      subcategoryKey: subcategoryKey ?? this.subcategoryKey,
       defaultAmountPiastres:
           defaultAmountPiastres ?? this.defaultAmountPiastres,
       barcode: barcode ?? this.barcode,
@@ -758,6 +1164,9 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     }
     if (categoryKey.present) {
       map['category_key'] = Variable<String>(categoryKey.value);
+    }
+    if (subcategoryKey.present) {
+      map['subcategory_key'] = Variable<String>(subcategoryKey.value);
     }
     if (defaultAmountPiastres.present) {
       map['default_amount_piastres'] =
@@ -788,6 +1197,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
           ..write('nameAr: $nameAr, ')
           ..write('nameEn: $nameEn, ')
           ..write('categoryKey: $categoryKey, ')
+          ..write('subcategoryKey: $subcategoryKey, ')
           ..write('defaultAmountPiastres: $defaultAmountPiastres, ')
           ..write('barcode: $barcode, ')
           ..write('useCount: $useCount, ')
@@ -829,6 +1239,15 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
       requiredDuringInsert: true,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES categories ("key")'));
+  static const VerificationMeta _subcategoryKeyMeta =
+      const VerificationMeta('subcategoryKey');
+  @override
+  late final GeneratedColumn<String> subcategoryKey = GeneratedColumn<String>(
+      'subcategory_key', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES subcategories ("key")'));
   static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
   @override
   late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
@@ -892,6 +1311,7 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
         date,
         amountPiastres,
         categoryKey,
+        subcategoryKey,
         itemId,
         description,
         paymentMethod,
@@ -938,6 +1358,12 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
               data['category_key']!, _categoryKeyMeta));
     } else if (isInserting) {
       context.missing(_categoryKeyMeta);
+    }
+    if (data.containsKey('subcategory_key')) {
+      context.handle(
+          _subcategoryKeyMeta,
+          subcategoryKey.isAcceptableOrUnknown(
+              data['subcategory_key']!, _subcategoryKeyMeta));
     }
     if (data.containsKey('item_id')) {
       context.handle(_itemIdMeta,
@@ -1000,6 +1426,8 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
           .read(DriftSqlType.int, data['${effectivePrefix}amount_piastres'])!,
       categoryKey: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}category_key'])!,
+      subcategoryKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}subcategory_key']),
       itemId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}item_id']),
       description: attachedDatabase.typeMapping
@@ -1032,6 +1460,7 @@ class Entry extends DataClass implements Insertable<Entry> {
   final String date;
   final int amountPiastres;
   final String categoryKey;
+  final String? subcategoryKey;
   final String? itemId;
   final String description;
   final String paymentMethod;
@@ -1046,6 +1475,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       required this.date,
       required this.amountPiastres,
       required this.categoryKey,
+      this.subcategoryKey,
       this.itemId,
       required this.description,
       required this.paymentMethod,
@@ -1062,6 +1492,9 @@ class Entry extends DataClass implements Insertable<Entry> {
     map['date'] = Variable<String>(date);
     map['amount_piastres'] = Variable<int>(amountPiastres);
     map['category_key'] = Variable<String>(categoryKey);
+    if (!nullToAbsent || subcategoryKey != null) {
+      map['subcategory_key'] = Variable<String>(subcategoryKey);
+    }
     if (!nullToAbsent || itemId != null) {
       map['item_id'] = Variable<String>(itemId);
     }
@@ -1088,6 +1521,9 @@ class Entry extends DataClass implements Insertable<Entry> {
       date: Value(date),
       amountPiastres: Value(amountPiastres),
       categoryKey: Value(categoryKey),
+      subcategoryKey: subcategoryKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subcategoryKey),
       itemId:
           itemId == null && nullToAbsent ? const Value.absent() : Value(itemId),
       description: Value(description),
@@ -1113,6 +1549,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       date: serializer.fromJson<String>(json['date']),
       amountPiastres: serializer.fromJson<int>(json['amountPiastres']),
       categoryKey: serializer.fromJson<String>(json['categoryKey']),
+      subcategoryKey: serializer.fromJson<String?>(json['subcategoryKey']),
       itemId: serializer.fromJson<String?>(json['itemId']),
       description: serializer.fromJson<String>(json['description']),
       paymentMethod: serializer.fromJson<String>(json['paymentMethod']),
@@ -1132,6 +1569,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       'date': serializer.toJson<String>(date),
       'amountPiastres': serializer.toJson<int>(amountPiastres),
       'categoryKey': serializer.toJson<String>(categoryKey),
+      'subcategoryKey': serializer.toJson<String?>(subcategoryKey),
       'itemId': serializer.toJson<String?>(itemId),
       'description': serializer.toJson<String>(description),
       'paymentMethod': serializer.toJson<String>(paymentMethod),
@@ -1149,6 +1587,7 @@ class Entry extends DataClass implements Insertable<Entry> {
           String? date,
           int? amountPiastres,
           String? categoryKey,
+          Value<String?> subcategoryKey = const Value.absent(),
           Value<String?> itemId = const Value.absent(),
           String? description,
           String? paymentMethod,
@@ -1163,6 +1602,8 @@ class Entry extends DataClass implements Insertable<Entry> {
         date: date ?? this.date,
         amountPiastres: amountPiastres ?? this.amountPiastres,
         categoryKey: categoryKey ?? this.categoryKey,
+        subcategoryKey:
+            subcategoryKey.present ? subcategoryKey.value : this.subcategoryKey,
         itemId: itemId.present ? itemId.value : this.itemId,
         description: description ?? this.description,
         paymentMethod: paymentMethod ?? this.paymentMethod,
@@ -1182,6 +1623,9 @@ class Entry extends DataClass implements Insertable<Entry> {
           : this.amountPiastres,
       categoryKey:
           data.categoryKey.present ? data.categoryKey.value : this.categoryKey,
+      subcategoryKey: data.subcategoryKey.present
+          ? data.subcategoryKey.value
+          : this.subcategoryKey,
       itemId: data.itemId.present ? data.itemId.value : this.itemId,
       description:
           data.description.present ? data.description.value : this.description,
@@ -1204,6 +1648,7 @@ class Entry extends DataClass implements Insertable<Entry> {
           ..write('date: $date, ')
           ..write('amountPiastres: $amountPiastres, ')
           ..write('categoryKey: $categoryKey, ')
+          ..write('subcategoryKey: $subcategoryKey, ')
           ..write('itemId: $itemId, ')
           ..write('description: $description, ')
           ..write('paymentMethod: $paymentMethod, ')
@@ -1223,6 +1668,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       date,
       amountPiastres,
       categoryKey,
+      subcategoryKey,
       itemId,
       description,
       paymentMethod,
@@ -1240,6 +1686,7 @@ class Entry extends DataClass implements Insertable<Entry> {
           other.date == this.date &&
           other.amountPiastres == this.amountPiastres &&
           other.categoryKey == this.categoryKey &&
+          other.subcategoryKey == this.subcategoryKey &&
           other.itemId == this.itemId &&
           other.description == this.description &&
           other.paymentMethod == this.paymentMethod &&
@@ -1256,6 +1703,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
   final Value<String> date;
   final Value<int> amountPiastres;
   final Value<String> categoryKey;
+  final Value<String?> subcategoryKey;
   final Value<String?> itemId;
   final Value<String> description;
   final Value<String> paymentMethod;
@@ -1271,6 +1719,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     this.date = const Value.absent(),
     this.amountPiastres = const Value.absent(),
     this.categoryKey = const Value.absent(),
+    this.subcategoryKey = const Value.absent(),
     this.itemId = const Value.absent(),
     this.description = const Value.absent(),
     this.paymentMethod = const Value.absent(),
@@ -1287,6 +1736,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     required String date,
     required int amountPiastres,
     required String categoryKey,
+    this.subcategoryKey = const Value.absent(),
     this.itemId = const Value.absent(),
     this.description = const Value.absent(),
     this.paymentMethod = const Value.absent(),
@@ -1308,6 +1758,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     Expression<String>? date,
     Expression<int>? amountPiastres,
     Expression<String>? categoryKey,
+    Expression<String>? subcategoryKey,
     Expression<String>? itemId,
     Expression<String>? description,
     Expression<String>? paymentMethod,
@@ -1324,6 +1775,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
       if (date != null) 'date': date,
       if (amountPiastres != null) 'amount_piastres': amountPiastres,
       if (categoryKey != null) 'category_key': categoryKey,
+      if (subcategoryKey != null) 'subcategory_key': subcategoryKey,
       if (itemId != null) 'item_id': itemId,
       if (description != null) 'description': description,
       if (paymentMethod != null) 'payment_method': paymentMethod,
@@ -1342,6 +1794,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
       Value<String>? date,
       Value<int>? amountPiastres,
       Value<String>? categoryKey,
+      Value<String?>? subcategoryKey,
       Value<String?>? itemId,
       Value<String>? description,
       Value<String>? paymentMethod,
@@ -1357,6 +1810,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
       date: date ?? this.date,
       amountPiastres: amountPiastres ?? this.amountPiastres,
       categoryKey: categoryKey ?? this.categoryKey,
+      subcategoryKey: subcategoryKey ?? this.subcategoryKey,
       itemId: itemId ?? this.itemId,
       description: description ?? this.description,
       paymentMethod: paymentMethod ?? this.paymentMethod,
@@ -1384,6 +1838,9 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     }
     if (categoryKey.present) {
       map['category_key'] = Variable<String>(categoryKey.value);
+    }
+    if (subcategoryKey.present) {
+      map['subcategory_key'] = Variable<String>(subcategoryKey.value);
     }
     if (itemId.present) {
       map['item_id'] = Variable<String>(itemId.value);
@@ -1425,6 +1882,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
           ..write('date: $date, ')
           ..write('amountPiastres: $amountPiastres, ')
           ..write('categoryKey: $categoryKey, ')
+          ..write('subcategoryKey: $subcategoryKey, ')
           ..write('itemId: $itemId, ')
           ..write('description: $description, ')
           ..write('paymentMethod: $paymentMethod, ')
@@ -1764,6 +2222,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $CategoriesTable categories = $CategoriesTable(this);
+  late final $SubcategoriesTable subcategories = $SubcategoriesTable(this);
   late final $ItemsTable items = $ItemsTable(this);
   late final $EntriesTable entries = $EntriesTable(this);
   late final $SalaryPeriodsTable salaryPeriods = $SalaryPeriodsTable(this);
@@ -1772,7 +2231,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [categories, items, entries, salaryPeriods];
+      [categories, subcategories, items, entries, salaryPeriods];
 }
 
 typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
@@ -1795,6 +2254,21 @@ typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
 final class $$CategoriesTableReferences
     extends BaseReferences<_$AppDatabase, $CategoriesTable, Category> {
   $$CategoriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$SubcategoriesTable, List<Subcategory>>
+      _subcategoriesRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.subcategories,
+              aliasName: $_aliasNameGenerator(
+                  db.categories.key, db.subcategories.categoryKey));
+
+  $$SubcategoriesTableProcessedTableManager get subcategoriesRefs {
+    final manager = $$SubcategoriesTableTableManager($_db, $_db.subcategories)
+        .filter((f) => f.categoryKey.key($_item.key));
+
+    final cache = $_typedResult.readTableOrNull(_subcategoriesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 
   static MultiTypedResultKey<$ItemsTable, List<Item>> _itemsRefsTable(
           _$AppDatabase db) =>
@@ -1850,6 +2324,27 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<bool> get archived => $composableBuilder(
       column: $table.archived, builder: (column) => ColumnFilters(column));
+
+  Expression<bool> subcategoriesRefs(
+      Expression<bool> Function($$SubcategoriesTableFilterComposer f) f) {
+    final $$SubcategoriesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.key,
+        referencedTable: $db.subcategories,
+        getReferencedColumn: (t) => t.categoryKey,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SubcategoriesTableFilterComposer(
+              $db: $db,
+              $table: $db.subcategories,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 
   Expression<bool> itemsRefs(
       Expression<bool> Function($$ItemsTableFilterComposer f) f) {
@@ -1943,6 +2438,27 @@ class $$CategoriesTableAnnotationComposer
   GeneratedColumn<bool> get archived =>
       $composableBuilder(column: $table.archived, builder: (column) => column);
 
+  Expression<T> subcategoriesRefs<T extends Object>(
+      Expression<T> Function($$SubcategoriesTableAnnotationComposer a) f) {
+    final $$SubcategoriesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.key,
+        referencedTable: $db.subcategories,
+        getReferencedColumn: (t) => t.categoryKey,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SubcategoriesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.subcategories,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
   Expression<T> itemsRefs<T extends Object>(
       Expression<T> Function($$ItemsTableAnnotationComposer a) f) {
     final $$ItemsTableAnnotationComposer composer = $composerBuilder(
@@ -1997,7 +2513,8 @@ class $$CategoriesTableTableManager extends RootTableManager<
     $$CategoriesTableUpdateCompanionBuilder,
     (Category, $$CategoriesTableReferences),
     Category,
-    PrefetchHooks Function({bool itemsRefs, bool entriesRefs})> {
+    PrefetchHooks Function(
+        {bool subcategoriesRefs, bool itemsRefs, bool entriesRefs})> {
   $$CategoriesTableTableManager(_$AppDatabase db, $CategoriesTable table)
       : super(TableManagerState(
           db: db,
@@ -2046,16 +2563,32 @@ class $$CategoriesTableTableManager extends RootTableManager<
                     $$CategoriesTableReferences(db, table, e)
                   ))
               .toList(),
-          prefetchHooksCallback: ({itemsRefs = false, entriesRefs = false}) {
+          prefetchHooksCallback: (
+              {subcategoriesRefs = false,
+              itemsRefs = false,
+              entriesRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
+                if (subcategoriesRefs) db.subcategories,
                 if (itemsRefs) db.items,
                 if (entriesRefs) db.entries
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
+                  if (subcategoriesRefs)
+                    await $_getPrefetchedData(
+                        currentTable: table,
+                        referencedTable: $$CategoriesTableReferences
+                            ._subcategoriesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$CategoriesTableReferences(db, table, p0)
+                                .subcategoriesRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.categoryKey == item.key),
+                        typedResults: items),
                   if (itemsRefs)
                     await $_getPrefetchedData(
                         currentTable: table,
@@ -2098,12 +2631,449 @@ typedef $$CategoriesTableProcessedTableManager = ProcessedTableManager<
     $$CategoriesTableUpdateCompanionBuilder,
     (Category, $$CategoriesTableReferences),
     Category,
-    PrefetchHooks Function({bool itemsRefs, bool entriesRefs})>;
+    PrefetchHooks Function(
+        {bool subcategoriesRefs, bool itemsRefs, bool entriesRefs})>;
+typedef $$SubcategoriesTableCreateCompanionBuilder = SubcategoriesCompanion
+    Function({
+  required String key,
+  required String categoryKey,
+  required String labelAr,
+  required String iconName,
+  Value<int> sortOrder,
+  Value<bool> archived,
+  Value<int> rowid,
+});
+typedef $$SubcategoriesTableUpdateCompanionBuilder = SubcategoriesCompanion
+    Function({
+  Value<String> key,
+  Value<String> categoryKey,
+  Value<String> labelAr,
+  Value<String> iconName,
+  Value<int> sortOrder,
+  Value<bool> archived,
+  Value<int> rowid,
+});
+
+final class $$SubcategoriesTableReferences
+    extends BaseReferences<_$AppDatabase, $SubcategoriesTable, Subcategory> {
+  $$SubcategoriesTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $CategoriesTable _categoryKeyTable(_$AppDatabase db) =>
+      db.categories.createAlias($_aliasNameGenerator(
+          db.subcategories.categoryKey, db.categories.key));
+
+  $$CategoriesTableProcessedTableManager get categoryKey {
+    final manager = $$CategoriesTableTableManager($_db, $_db.categories)
+        .filter((f) => f.key($_item.categoryKey));
+    final item = $_typedResult.readTableOrNull(_categoryKeyTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static MultiTypedResultKey<$ItemsTable, List<Item>> _itemsRefsTable(
+          _$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.items,
+          aliasName: $_aliasNameGenerator(
+              db.subcategories.key, db.items.subcategoryKey));
+
+  $$ItemsTableProcessedTableManager get itemsRefs {
+    final manager = $$ItemsTableTableManager($_db, $_db.items)
+        .filter((f) => f.subcategoryKey.key($_item.key));
+
+    final cache = $_typedResult.readTableOrNull(_itemsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$EntriesTable, List<Entry>> _entriesRefsTable(
+          _$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.entries,
+          aliasName: $_aliasNameGenerator(
+              db.subcategories.key, db.entries.subcategoryKey));
+
+  $$EntriesTableProcessedTableManager get entriesRefs {
+    final manager = $$EntriesTableTableManager($_db, $_db.entries)
+        .filter((f) => f.subcategoryKey.key($_item.key));
+
+    final cache = $_typedResult.readTableOrNull(_entriesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+}
+
+class $$SubcategoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $SubcategoriesTable> {
+  $$SubcategoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+      column: $table.key, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get labelAr => $composableBuilder(
+      column: $table.labelAr, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get iconName => $composableBuilder(
+      column: $table.iconName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get archived => $composableBuilder(
+      column: $table.archived, builder: (column) => ColumnFilters(column));
+
+  $$CategoriesTableFilterComposer get categoryKey {
+    final $$CategoriesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.categoryKey,
+        referencedTable: $db.categories,
+        getReferencedColumn: (t) => t.key,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$CategoriesTableFilterComposer(
+              $db: $db,
+              $table: $db.categories,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  Expression<bool> itemsRefs(
+      Expression<bool> Function($$ItemsTableFilterComposer f) f) {
+    final $$ItemsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.key,
+        referencedTable: $db.items,
+        getReferencedColumn: (t) => t.subcategoryKey,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ItemsTableFilterComposer(
+              $db: $db,
+              $table: $db.items,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> entriesRefs(
+      Expression<bool> Function($$EntriesTableFilterComposer f) f) {
+    final $$EntriesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.key,
+        referencedTable: $db.entries,
+        getReferencedColumn: (t) => t.subcategoryKey,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$EntriesTableFilterComposer(
+              $db: $db,
+              $table: $db.entries,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+}
+
+class $$SubcategoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SubcategoriesTable> {
+  $$SubcategoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+      column: $table.key, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get labelAr => $composableBuilder(
+      column: $table.labelAr, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get iconName => $composableBuilder(
+      column: $table.iconName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get archived => $composableBuilder(
+      column: $table.archived, builder: (column) => ColumnOrderings(column));
+
+  $$CategoriesTableOrderingComposer get categoryKey {
+    final $$CategoriesTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.categoryKey,
+        referencedTable: $db.categories,
+        getReferencedColumn: (t) => t.key,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$CategoriesTableOrderingComposer(
+              $db: $db,
+              $table: $db.categories,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$SubcategoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SubcategoriesTable> {
+  $$SubcategoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get labelAr =>
+      $composableBuilder(column: $table.labelAr, builder: (column) => column);
+
+  GeneratedColumn<String> get iconName =>
+      $composableBuilder(column: $table.iconName, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<bool> get archived =>
+      $composableBuilder(column: $table.archived, builder: (column) => column);
+
+  $$CategoriesTableAnnotationComposer get categoryKey {
+    final $$CategoriesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.categoryKey,
+        referencedTable: $db.categories,
+        getReferencedColumn: (t) => t.key,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$CategoriesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.categories,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  Expression<T> itemsRefs<T extends Object>(
+      Expression<T> Function($$ItemsTableAnnotationComposer a) f) {
+    final $$ItemsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.key,
+        referencedTable: $db.items,
+        getReferencedColumn: (t) => t.subcategoryKey,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ItemsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.items,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<T> entriesRefs<T extends Object>(
+      Expression<T> Function($$EntriesTableAnnotationComposer a) f) {
+    final $$EntriesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.key,
+        referencedTable: $db.entries,
+        getReferencedColumn: (t) => t.subcategoryKey,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$EntriesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.entries,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+}
+
+class $$SubcategoriesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SubcategoriesTable,
+    Subcategory,
+    $$SubcategoriesTableFilterComposer,
+    $$SubcategoriesTableOrderingComposer,
+    $$SubcategoriesTableAnnotationComposer,
+    $$SubcategoriesTableCreateCompanionBuilder,
+    $$SubcategoriesTableUpdateCompanionBuilder,
+    (Subcategory, $$SubcategoriesTableReferences),
+    Subcategory,
+    PrefetchHooks Function(
+        {bool categoryKey, bool itemsRefs, bool entriesRefs})> {
+  $$SubcategoriesTableTableManager(_$AppDatabase db, $SubcategoriesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SubcategoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SubcategoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SubcategoriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> key = const Value.absent(),
+            Value<String> categoryKey = const Value.absent(),
+            Value<String> labelAr = const Value.absent(),
+            Value<String> iconName = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<bool> archived = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SubcategoriesCompanion(
+            key: key,
+            categoryKey: categoryKey,
+            labelAr: labelAr,
+            iconName: iconName,
+            sortOrder: sortOrder,
+            archived: archived,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String key,
+            required String categoryKey,
+            required String labelAr,
+            required String iconName,
+            Value<int> sortOrder = const Value.absent(),
+            Value<bool> archived = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SubcategoriesCompanion.insert(
+            key: key,
+            categoryKey: categoryKey,
+            labelAr: labelAr,
+            iconName: iconName,
+            sortOrder: sortOrder,
+            archived: archived,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$SubcategoriesTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: (
+              {categoryKey = false, itemsRefs = false, entriesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (itemsRefs) db.items,
+                if (entriesRefs) db.entries
+              ],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (categoryKey) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.categoryKey,
+                    referencedTable:
+                        $$SubcategoriesTableReferences._categoryKeyTable(db),
+                    referencedColumn: $$SubcategoriesTableReferences
+                        ._categoryKeyTable(db)
+                        .key,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (itemsRefs)
+                    await $_getPrefetchedData(
+                        currentTable: table,
+                        referencedTable:
+                            $$SubcategoriesTableReferences._itemsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$SubcategoriesTableReferences(db, table, p0)
+                                .itemsRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.subcategoryKey == item.key),
+                        typedResults: items),
+                  if (entriesRefs)
+                    await $_getPrefetchedData(
+                        currentTable: table,
+                        referencedTable: $$SubcategoriesTableReferences
+                            ._entriesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$SubcategoriesTableReferences(db, table, p0)
+                                .entriesRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.subcategoryKey == item.key),
+                        typedResults: items)
+                ];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$SubcategoriesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SubcategoriesTable,
+    Subcategory,
+    $$SubcategoriesTableFilterComposer,
+    $$SubcategoriesTableOrderingComposer,
+    $$SubcategoriesTableAnnotationComposer,
+    $$SubcategoriesTableCreateCompanionBuilder,
+    $$SubcategoriesTableUpdateCompanionBuilder,
+    (Subcategory, $$SubcategoriesTableReferences),
+    Subcategory,
+    PrefetchHooks Function(
+        {bool categoryKey, bool itemsRefs, bool entriesRefs})>;
 typedef $$ItemsTableCreateCompanionBuilder = ItemsCompanion Function({
   required String id,
   required String nameAr,
   required String nameEn,
   required String categoryKey,
+  Value<String?> subcategoryKey,
   Value<int?> defaultAmountPiastres,
   Value<String?> barcode,
   Value<int> useCount,
@@ -2116,6 +3086,7 @@ typedef $$ItemsTableUpdateCompanionBuilder = ItemsCompanion Function({
   Value<String> nameAr,
   Value<String> nameEn,
   Value<String> categoryKey,
+  Value<String?> subcategoryKey,
   Value<int?> defaultAmountPiastres,
   Value<String?> barcode,
   Value<int> useCount,
@@ -2136,6 +3107,20 @@ final class $$ItemsTableReferences
     final manager = $$CategoriesTableTableManager($_db, $_db.categories)
         .filter((f) => f.key($_item.categoryKey));
     final item = $_typedResult.readTableOrNull(_categoryKeyTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $SubcategoriesTable _subcategoryKeyTable(_$AppDatabase db) =>
+      db.subcategories.createAlias(
+          $_aliasNameGenerator(db.items.subcategoryKey, db.subcategories.key));
+
+  $$SubcategoriesTableProcessedTableManager? get subcategoryKey {
+    if ($_item.subcategoryKey == null) return null;
+    final manager = $$SubcategoriesTableTableManager($_db, $_db.subcategories)
+        .filter((f) => f.key($_item.subcategoryKey!));
+    final item = $_typedResult.readTableOrNull(_subcategoryKeyTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
@@ -2187,6 +3172,26 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
             $$CategoriesTableFilterComposer(
               $db: $db,
               $table: $db.categories,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$SubcategoriesTableFilterComposer get subcategoryKey {
+    final $$SubcategoriesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.subcategoryKey,
+        referencedTable: $db.subcategories,
+        getReferencedColumn: (t) => t.key,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SubcategoriesTableFilterComposer(
+              $db: $db,
+              $table: $db.subcategories,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -2249,6 +3254,26 @@ class $$ItemsTableOrderingComposer
             ));
     return composer;
   }
+
+  $$SubcategoriesTableOrderingComposer get subcategoryKey {
+    final $$SubcategoriesTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.subcategoryKey,
+        referencedTable: $db.subcategories,
+        getReferencedColumn: (t) => t.key,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SubcategoriesTableOrderingComposer(
+              $db: $db,
+              $table: $db.subcategories,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$ItemsTableAnnotationComposer
@@ -2303,6 +3328,26 @@ class $$ItemsTableAnnotationComposer
             ));
     return composer;
   }
+
+  $$SubcategoriesTableAnnotationComposer get subcategoryKey {
+    final $$SubcategoriesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.subcategoryKey,
+        referencedTable: $db.subcategories,
+        getReferencedColumn: (t) => t.key,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SubcategoriesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.subcategories,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$ItemsTableTableManager extends RootTableManager<
@@ -2316,7 +3361,7 @@ class $$ItemsTableTableManager extends RootTableManager<
     $$ItemsTableUpdateCompanionBuilder,
     (Item, $$ItemsTableReferences),
     Item,
-    PrefetchHooks Function({bool categoryKey})> {
+    PrefetchHooks Function({bool categoryKey, bool subcategoryKey})> {
   $$ItemsTableTableManager(_$AppDatabase db, $ItemsTable table)
       : super(TableManagerState(
           db: db,
@@ -2332,6 +3377,7 @@ class $$ItemsTableTableManager extends RootTableManager<
             Value<String> nameAr = const Value.absent(),
             Value<String> nameEn = const Value.absent(),
             Value<String> categoryKey = const Value.absent(),
+            Value<String?> subcategoryKey = const Value.absent(),
             Value<int?> defaultAmountPiastres = const Value.absent(),
             Value<String?> barcode = const Value.absent(),
             Value<int> useCount = const Value.absent(),
@@ -2344,6 +3390,7 @@ class $$ItemsTableTableManager extends RootTableManager<
             nameAr: nameAr,
             nameEn: nameEn,
             categoryKey: categoryKey,
+            subcategoryKey: subcategoryKey,
             defaultAmountPiastres: defaultAmountPiastres,
             barcode: barcode,
             useCount: useCount,
@@ -2356,6 +3403,7 @@ class $$ItemsTableTableManager extends RootTableManager<
             required String nameAr,
             required String nameEn,
             required String categoryKey,
+            Value<String?> subcategoryKey = const Value.absent(),
             Value<int?> defaultAmountPiastres = const Value.absent(),
             Value<String?> barcode = const Value.absent(),
             Value<int> useCount = const Value.absent(),
@@ -2368,6 +3416,7 @@ class $$ItemsTableTableManager extends RootTableManager<
             nameAr: nameAr,
             nameEn: nameEn,
             categoryKey: categoryKey,
+            subcategoryKey: subcategoryKey,
             defaultAmountPiastres: defaultAmountPiastres,
             barcode: barcode,
             useCount: useCount,
@@ -2379,7 +3428,8 @@ class $$ItemsTableTableManager extends RootTableManager<
               .map((e) =>
                   (e.readTable(table), $$ItemsTableReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({categoryKey = false}) {
+          prefetchHooksCallback: (
+              {categoryKey = false, subcategoryKey = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -2406,6 +3456,16 @@ class $$ItemsTableTableManager extends RootTableManager<
                         $$ItemsTableReferences._categoryKeyTable(db).key,
                   ) as T;
                 }
+                if (subcategoryKey) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.subcategoryKey,
+                    referencedTable:
+                        $$ItemsTableReferences._subcategoryKeyTable(db),
+                    referencedColumn:
+                        $$ItemsTableReferences._subcategoryKeyTable(db).key,
+                  ) as T;
+                }
 
                 return state;
               },
@@ -2428,12 +3488,13 @@ typedef $$ItemsTableProcessedTableManager = ProcessedTableManager<
     $$ItemsTableUpdateCompanionBuilder,
     (Item, $$ItemsTableReferences),
     Item,
-    PrefetchHooks Function({bool categoryKey})>;
+    PrefetchHooks Function({bool categoryKey, bool subcategoryKey})>;
 typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
   required String id,
   required String date,
   required int amountPiastres,
   required String categoryKey,
+  Value<String?> subcategoryKey,
   Value<String?> itemId,
   Value<String> description,
   Value<String> paymentMethod,
@@ -2450,6 +3511,7 @@ typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
   Value<String> date,
   Value<int> amountPiastres,
   Value<String> categoryKey,
+  Value<String?> subcategoryKey,
   Value<String?> itemId,
   Value<String> description,
   Value<String> paymentMethod,
@@ -2474,6 +3536,20 @@ final class $$EntriesTableReferences
     final manager = $$CategoriesTableTableManager($_db, $_db.categories)
         .filter((f) => f.key($_item.categoryKey));
     final item = $_typedResult.readTableOrNull(_categoryKeyTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $SubcategoriesTable _subcategoryKeyTable(_$AppDatabase db) =>
+      db.subcategories.createAlias($_aliasNameGenerator(
+          db.entries.subcategoryKey, db.subcategories.key));
+
+  $$SubcategoriesTableProcessedTableManager? get subcategoryKey {
+    if ($_item.subcategoryKey == null) return null;
+    final manager = $$SubcategoriesTableTableManager($_db, $_db.subcategories)
+        .filter((f) => f.key($_item.subcategoryKey!));
+    final item = $_typedResult.readTableOrNull(_subcategoryKeyTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
@@ -2538,6 +3614,26 @@ class $$EntriesTableFilterComposer
             $$CategoriesTableFilterComposer(
               $db: $db,
               $table: $db.categories,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$SubcategoriesTableFilterComposer get subcategoryKey {
+    final $$SubcategoriesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.subcategoryKey,
+        referencedTable: $db.subcategories,
+        getReferencedColumn: (t) => t.key,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SubcategoriesTableFilterComposer(
+              $db: $db,
+              $table: $db.subcategories,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -2613,6 +3709,26 @@ class $$EntriesTableOrderingComposer
             ));
     return composer;
   }
+
+  $$SubcategoriesTableOrderingComposer get subcategoryKey {
+    final $$SubcategoriesTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.subcategoryKey,
+        referencedTable: $db.subcategories,
+        getReferencedColumn: (t) => t.key,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SubcategoriesTableOrderingComposer(
+              $db: $db,
+              $table: $db.subcategories,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$EntriesTableAnnotationComposer
@@ -2679,6 +3795,26 @@ class $$EntriesTableAnnotationComposer
             ));
     return composer;
   }
+
+  $$SubcategoriesTableAnnotationComposer get subcategoryKey {
+    final $$SubcategoriesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.subcategoryKey,
+        referencedTable: $db.subcategories,
+        getReferencedColumn: (t) => t.key,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SubcategoriesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.subcategories,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$EntriesTableTableManager extends RootTableManager<
@@ -2692,7 +3828,7 @@ class $$EntriesTableTableManager extends RootTableManager<
     $$EntriesTableUpdateCompanionBuilder,
     (Entry, $$EntriesTableReferences),
     Entry,
-    PrefetchHooks Function({bool categoryKey})> {
+    PrefetchHooks Function({bool categoryKey, bool subcategoryKey})> {
   $$EntriesTableTableManager(_$AppDatabase db, $EntriesTable table)
       : super(TableManagerState(
           db: db,
@@ -2708,6 +3844,7 @@ class $$EntriesTableTableManager extends RootTableManager<
             Value<String> date = const Value.absent(),
             Value<int> amountPiastres = const Value.absent(),
             Value<String> categoryKey = const Value.absent(),
+            Value<String?> subcategoryKey = const Value.absent(),
             Value<String?> itemId = const Value.absent(),
             Value<String> description = const Value.absent(),
             Value<String> paymentMethod = const Value.absent(),
@@ -2724,6 +3861,7 @@ class $$EntriesTableTableManager extends RootTableManager<
             date: date,
             amountPiastres: amountPiastres,
             categoryKey: categoryKey,
+            subcategoryKey: subcategoryKey,
             itemId: itemId,
             description: description,
             paymentMethod: paymentMethod,
@@ -2740,6 +3878,7 @@ class $$EntriesTableTableManager extends RootTableManager<
             required String date,
             required int amountPiastres,
             required String categoryKey,
+            Value<String?> subcategoryKey = const Value.absent(),
             Value<String?> itemId = const Value.absent(),
             Value<String> description = const Value.absent(),
             Value<String> paymentMethod = const Value.absent(),
@@ -2756,6 +3895,7 @@ class $$EntriesTableTableManager extends RootTableManager<
             date: date,
             amountPiastres: amountPiastres,
             categoryKey: categoryKey,
+            subcategoryKey: subcategoryKey,
             itemId: itemId,
             description: description,
             paymentMethod: paymentMethod,
@@ -2771,7 +3911,8 @@ class $$EntriesTableTableManager extends RootTableManager<
               .map((e) =>
                   (e.readTable(table), $$EntriesTableReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({categoryKey = false}) {
+          prefetchHooksCallback: (
+              {categoryKey = false, subcategoryKey = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -2798,6 +3939,16 @@ class $$EntriesTableTableManager extends RootTableManager<
                         $$EntriesTableReferences._categoryKeyTable(db).key,
                   ) as T;
                 }
+                if (subcategoryKey) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.subcategoryKey,
+                    referencedTable:
+                        $$EntriesTableReferences._subcategoryKeyTable(db),
+                    referencedColumn:
+                        $$EntriesTableReferences._subcategoryKeyTable(db).key,
+                  ) as T;
+                }
 
                 return state;
               },
@@ -2820,7 +3971,7 @@ typedef $$EntriesTableProcessedTableManager = ProcessedTableManager<
     $$EntriesTableUpdateCompanionBuilder,
     (Entry, $$EntriesTableReferences),
     Entry,
-    PrefetchHooks Function({bool categoryKey})>;
+    PrefetchHooks Function({bool categoryKey, bool subcategoryKey})>;
 typedef $$SalaryPeriodsTableCreateCompanionBuilder = SalaryPeriodsCompanion
     Function({
   required String id,
@@ -3004,6 +4155,8 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$CategoriesTableTableManager get categories =>
       $$CategoriesTableTableManager(_db, _db.categories);
+  $$SubcategoriesTableTableManager get subcategories =>
+      $$SubcategoriesTableTableManager(_db, _db.subcategories);
   $$ItemsTableTableManager get items =>
       $$ItemsTableTableManager(_db, _db.items);
   $$EntriesTableTableManager get entries =>
