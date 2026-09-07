@@ -244,17 +244,84 @@ void main() {
       expect(await (repository.categories()).then((c) => c.length), 11);
     });
 
-    testWidgets('archiving a category removes it from the list',
-        (tester) async {
+    testWidgets(
+        'archiving a category with children asks for confirmation with the '
+        'real subcategory/item counts, and confirming removes it from the '
+        'list', (tester) async {
       final repository = FixtureSpendingRepository();
       await pumpSettings(tester, repository);
 
       await tester.tap(find.byKey(const Key('archive-category-Drinks')));
       await tester.pumpAndSettle();
 
-      expect(find.text('مشروبات'), findsNothing);
+      // Drinks has 5 subcategories (Soda, Water, Milk, Juice, HotDrinks)
+      // and 2 items (شويبس, عصير) in the fixture catalogue.
+      final confirmMessage = tester
+          .widget<Text>(find.byKey(const Key('archive-confirm-message')))
+          .data!;
+      expect(confirmMessage, contains('5 فئة فرعية'));
+      expect(confirmMessage, contains('2 منتج'));
+
+      await tester.tap(find.byKey(const Key('archive-confirm-confirm')));
+      await tester.pumpAndSettle();
+
+      // Gone from the active list...
+      expect(find.byKey(const ValueKey('settings-category-Drinks')),
+          findsNothing);
       expect((await repository.categories()).map((c) => c.key),
           isNot(contains('Drinks')));
+      // ...but not deleted: it now shows up in the archived section.
+      expect(find.byKey(const Key('settings-archived-category-Drinks')),
+          findsOneWidget);
+    });
+
+    testWidgets(
+        'cancelling the archive confirmation leaves the category untouched',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('archive-category-Drinks')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('archive-confirm-cancel')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('settings-category-Drinks')),
+          matching: find.text('مشروبات'),
+        ),
+        findsOneWidget,
+      );
+      expect((await repository.categories()).map((c) => c.key),
+          contains('Drinks'));
+    });
+
+    testWidgets(
+        'an archived category appears in the archived section, and '
+        'unarchiving it restores it plus its subcategories and items',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      await repository.archiveCategory('Drinks');
+      await pumpSettings(tester, repository);
+
+      expect(find.byKey(const Key('settings-archived-category-Drinks')),
+          findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('unarchive-category-Drinks')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('settings-category-Drinks')),
+          matching: find.text('مشروبات'),
+        ),
+        findsOneWidget,
+      );
+      expect((await repository.categories()).map((c) => c.key),
+          contains('Drinks'));
+      expect(await repository.subcategories('Drinks'), isNotEmpty);
+      expect((await repository.allItems()).map((i) => i.id), contains('i1'));
     });
   });
 
@@ -346,7 +413,9 @@ void main() {
           contains('مياه غازية'));
     });
 
-    testWidgets('archiving a subcategory removes it from the nested list',
+    testWidgets(
+        'archiving a subcategory with items asks for confirmation with the '
+        'real item count, and confirming removes it from the nested list',
         (tester) async {
       final repository = FixtureSpendingRepository();
       await pumpSettings(tester, repository);
@@ -357,9 +426,61 @@ void main() {
       await tester.tap(find.byKey(const Key('archive-subcategory-Soda')));
       await tester.pumpAndSettle();
 
-      expect(find.text('صودا'), findsNothing);
+      // Soda has exactly one item (شويبس) in the fixture catalogue.
+      final confirmMessage = tester
+          .widget<Text>(find.byKey(const Key('archive-confirm-message')))
+          .data!;
+      expect(confirmMessage, contains('1 منتج'));
+
+      await tester.tap(find.byKey(const Key('archive-confirm-confirm')));
+      await tester.pumpAndSettle();
+
+      // Gone from the active nested list under Drinks...
+      expect(find.byKey(const Key('settings-subcategory-Soda')), findsNothing);
       expect((await repository.subcategories('Drinks')).map((s) => s.key),
           isNot(contains('Soda')));
+      // ...but not deleted: it now shows up in the archived section.
+      expect(find.byKey(const Key('settings-archived-subcategory-Soda')),
+          findsOneWidget);
+    });
+
+    testWidgets(
+        'archiving a subcategory with no items needs no confirmation',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('expand-category-Drinks')));
+      await tester.pumpAndSettle();
+
+      // HotDrinks has no items in the fixture catalogue.
+      await tester.tap(find.byKey(const Key('archive-subcategory-HotDrinks')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('archive-confirm-message')), findsNothing);
+      expect(find.byKey(const Key('settings-subcategory-HotDrinks')),
+          findsNothing);
+      expect((await repository.subcategories('Drinks')).map((s) => s.key),
+          isNot(contains('HotDrinks')));
+    });
+
+    testWidgets(
+        'an archived subcategory appears in the archived section, and '
+        'unarchiving it restores its items but not its parent category',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      await repository.archiveCategory('Drinks');
+      await pumpSettings(tester, repository);
+
+      expect(find.byKey(const Key('settings-archived-subcategory-Soda')),
+          findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('unarchive-subcategory-Soda')));
+      await tester.pumpAndSettle();
+
+      expect((await repository.allItems()).map((i) => i.id), contains('i1'));
+      expect((await repository.categories()).map((c) => c.key),
+          isNot(contains('Drinks')));
     });
   });
 

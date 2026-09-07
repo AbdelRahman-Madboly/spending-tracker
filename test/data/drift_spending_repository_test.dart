@@ -786,4 +786,100 @@ void main() {
       expect(await repo.archivedItems(), isEmpty);
     });
   });
+
+  group('unarchive category and subcategory', () {
+    test(
+        'unarchiveCategory restores the category, its subcategories and '
+        'its items', () async {
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'food-item',
+            nameAr: 'فول',
+            nameEn: 'foul',
+            categoryKey: 'Food',
+          ));
+      await repo.archiveCategory('Food');
+
+      expect((await repo.categories()).map((c) => c.key),
+          isNot(contains('Food')));
+      expect(await repo.archivedCategories(),
+          contains(predicate<CategoryView>((c) => c.key == 'Food')));
+
+      await repo.unarchiveCategory('Food');
+
+      expect(
+          (await repo.categories()).map((c) => c.key), contains('Food'));
+      expect(await repo.subcategories('Food'), isNotEmpty);
+      expect((await repo.allItems()).map((i) => i.id),
+          contains('food-item'));
+      expect(await repo.archivedCategories(), isEmpty);
+    });
+
+    test(
+        'unarchiveSubcategory restores its items but never its parent '
+        'category', () async {
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'haircut-item',
+            nameAr: 'حلاقة',
+            nameEn: 'haircut',
+            categoryKey: 'Personal Care',
+            subcategoryKey: const Value('Haircut'),
+          ));
+      await repo.archiveCategory('Personal Care');
+
+      expect((await repo.categories()).map((c) => c.key),
+          isNot(contains('Personal Care')));
+
+      await repo.unarchiveSubcategory('Haircut');
+
+      // The item is back...
+      expect((await repo.allItems()).map((i) => i.id),
+          contains('haircut-item'));
+      // ...but the parent category is still archived: unarchiving a
+      // subcategory must never cascade upward.
+      expect((await repo.categories()).map((c) => c.key),
+          isNot(contains('Personal Care')));
+      final haircutRow = await (db.select(db.subcategories)
+            ..where((t) => t.key.equals('Haircut')))
+          .getSingle();
+      expect(haircutRow.archived, isFalse);
+    });
+
+    test(
+        'a past entry survives an archive-then-unarchive round trip on its '
+        'category with every field intact, including its date',
+        () async {
+      await seedEntry(
+        id: 'e1',
+        amount: 4200,
+        categoryKey: 'Food',
+        date: '2026-01-15',
+      );
+      await db.update(db.entries).write(
+            const EntriesCompanion(subcategoryKey: Value('Breakfast')),
+          );
+
+      await repo.archiveCategory('Food');
+      await repo.unarchiveCategory('Food');
+
+      final entry = await (db.select(db.entries)
+            ..where((t) => t.id.equals('e1')))
+          .getSingle();
+      expect(entry.categoryKey, 'Food');
+      expect(entry.subcategoryKey, 'Breakfast');
+      expect(entry.amountPiastres, 4200);
+      expect(entry.date, '2026-01-15');
+    });
+
+    test('archivedCategories and archivedSubcategories list only archived '
+        'rows', () async {
+      expect(await repo.archivedCategories(), isEmpty);
+      expect(await repo.archivedSubcategories(), isEmpty);
+
+      await repo.archiveSubcategory('Haircut');
+
+      final archivedSubs = await repo.archivedSubcategories();
+      expect(archivedSubs.map((s) => s.key), ['Haircut']);
+      expect(await repo.archivedCategories(), isEmpty);
+    });
+  });
 }

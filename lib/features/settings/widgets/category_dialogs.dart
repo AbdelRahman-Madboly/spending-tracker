@@ -286,3 +286,46 @@ class _SubcategoryDialogState extends State<_SubcategoryDialog> {
     );
   }
 }
+
+/// Shows a confirmation dialog before archiving a category or subcategory
+/// that has children (subcategories and/or items for a category; items for
+/// a subcategory), stating in Arabic exactly what else will be hidden along
+/// with it, that nothing is deleted, and that it can be undone from the
+/// archive. Returns true if the user confirmed, false/null if they
+/// cancelled.
+///
+/// Callers should skip this dialog entirely (and archive directly) when
+/// there is nothing riding along — an item, or a category/subcategory with
+/// zero children, needs no warning.
+Future<bool?> showArchiveCascadeConfirmationDialog({
+  required BuildContext context,
+  required String labelAr,
+  required String childrenSummary,
+}) {
+  return showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: Text('أرشفة "$labelAr"؟'),
+      content: Text(
+        key: const Key('archive-confirm-message'),
+        'هيتخفي معاها $childrenSummary من كل القوائم. البيانات القديمة '
+        '(التواريخ والمبالغ) مش هتتأثر، وتقدر ترجعها في أي وقت من الأرشيف.',
+        style: AppText.body,
+      ),
+      actions: [
+        TextButton(
+          key: const Key('archive-confirm-cancel'),
+          style: TextButton.styleFrom(minimumSize: const Size(64, 48)),
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('إلغاء'),
+        ),
+        FilledButton(
+          key: const Key('archive-confirm-confirm'),
+          style: FilledButton.styleFrom(minimumSize: const Size(64, 48)),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('أرشفة'),
+        ),
+      ],
+    ),
+  );
+}

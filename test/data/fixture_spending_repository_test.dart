@@ -203,4 +203,63 @@ void main() {
     expect((await repo.archivedItems()).map((i) => i.id),
         isNot(contains('i1')));
   });
+
+  test(
+      'unarchiveCategory restores the category, its subcategories and its '
+      'items', () async {
+    await repo.archiveCategory('Drinks');
+    expect((await repo.categories()).map((c) => c.key),
+        isNot(contains('Drinks')));
+    expect(await repo.archivedCategories(),
+        contains(predicate<CategoryView>((c) => c.key == 'Drinks')));
+
+    await repo.unarchiveCategory('Drinks');
+
+    expect((await repo.categories()).map((c) => c.key), contains('Drinks'));
+    expect(await repo.subcategories('Drinks'), isNotEmpty);
+    expect((await repo.allItems()).map((i) => i.id), contains('i1'));
+    expect(await repo.archivedCategories(), isEmpty);
+  });
+
+  test(
+      'unarchiveSubcategory restores its items but never its parent '
+      'category', () async {
+    await repo.archiveCategory('Drinks');
+    expect((await repo.categories()).map((c) => c.key),
+        isNot(contains('Drinks')));
+
+    await repo.unarchiveSubcategory('Soda');
+
+    expect((await repo.allItems()).map((i) => i.id), contains('i1'));
+    expect((await repo.categories()).map((c) => c.key),
+        isNot(contains('Drinks')));
+  });
+
+  test(
+      'a past entry survives an archive-then-unarchive round trip on its '
+      'category with every field intact, including its date', () async {
+    final before =
+        (await repo.watchEntriesForDay(DateTime(2026, 9, 6)).first).single;
+
+    await repo.archiveCategory('Food');
+    await repo.unarchiveCategory('Food');
+
+    final after =
+        (await repo.watchEntriesForDay(DateTime(2026, 9, 6)).first).single;
+    expect(after.categoryKey, before.categoryKey);
+    expect(after.amountPiastres, before.amountPiastres);
+    expect(after.date, before.date);
+  });
+
+  test('archivedCategories and archivedSubcategories list only archived '
+      'rows', () async {
+    expect(await repo.archivedCategories(), isEmpty);
+    expect(await repo.archivedSubcategories(), isEmpty);
+
+    await repo.archiveSubcategory('Soda');
+
+    final archivedSubs = await repo.archivedSubcategories();
+    expect(archivedSubs.map((s) => s.key), contains('Soda'));
+    expect(await repo.archivedCategories(), isEmpty);
+  });
 }

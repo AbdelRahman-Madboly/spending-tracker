@@ -42,6 +42,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, List<SubcategoryView>> _subcategoriesByCategory = const {};
   List<QuickPickItem> _items = const [];
   List<QuickPickItem> _archivedItems = const [];
+  List<CategoryView> _archivedCategories = const [];
+  List<SubcategoryView> _archivedSubcategories = const [];
   final Set<String> _expandedCategories = {};
   bool _showArchivedItems = false;
   bool _loaded = false;
@@ -67,6 +69,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final categories = await widget.repository.categories();
     final items = await widget.repository.allItems();
     final archivedItems = await widget.repository.archivedItems();
+    final archivedCategories = await widget.repository.archivedCategories();
+    final archivedSubcategories =
+        await widget.repository.archivedSubcategories();
     final subcategoriesByCategory = <String, List<SubcategoryView>>{};
     for (final category in categories) {
       subcategoriesByCategory[category.key] =
@@ -79,6 +84,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _subcategoriesByCategory = subcategoriesByCategory;
       _items = items;
       _archivedItems = archivedItems;
+      _archivedCategories = archivedCategories;
+      _archivedSubcategories = archivedSubcategories;
       _loaded = true;
     });
   }
@@ -170,8 +177,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _load();
   }
 
-  Future<void> _archiveCategory(String key) async {
-    await widget.repository.archiveCategory(key);
+  Future<void> _archiveCategory(CategoryView category) async {
+    final subCount = _subcategoriesByCategory[category.key]?.length ?? 0;
+    final itemCount =
+        _items.where((i) => i.categoryKey == category.key).length;
+    if (subCount > 0 || itemCount > 0) {
+      final confirmed = await showArchiveCascadeConfirmationDialog(
+        context: context,
+        labelAr: category.labelAr,
+        childrenSummary: '$subCount فئة فرعية و $itemCount منتج',
+      );
+      if (confirmed != true) return;
+    }
+    await widget.repository.archiveCategory(category.key);
+    await _load();
+  }
+
+  Future<void> _unarchiveCategory(String key) async {
+    await widget.repository.unarchiveCategory(key);
     await _load();
   }
 
@@ -209,8 +232,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _load();
   }
 
-  Future<void> _archiveSubcategory(String key) async {
-    await widget.repository.archiveSubcategory(key);
+  Future<void> _archiveSubcategory(SubcategoryView subcategory) async {
+    final itemCount =
+        _items.where((i) => i.subcategoryKey == subcategory.key).length;
+    if (itemCount > 0) {
+      final confirmed = await showArchiveCascadeConfirmationDialog(
+        context: context,
+        labelAr: subcategory.labelAr,
+        childrenSummary: '$itemCount منتج',
+      );
+      if (confirmed != true) return;
+    }
+    await widget.repository.archiveSubcategory(subcategory.key);
+    await _load();
+  }
+
+  Future<void> _unarchiveSubcategory(String key) async {
+    await widget.repository.unarchiveSubcategory(key);
     await _load();
   }
 
@@ -291,7 +329,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           key: ValueKey('archive-category-${category.key}'),
                           icon: const Icon(Icons.archive_outlined),
                           tooltip: 'أرشفة',
-                          onPressed: () => _archiveCategory(category.key),
+                          onPressed: () => _archiveCategory(category),
                         ),
                         IconButton(
                           key: ValueKey('expand-category-${category.key}'),
@@ -329,7 +367,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 icon: const Icon(Icons.archive_outlined),
                                 tooltip: 'أرشفة',
                                 onPressed: () =>
-                                    _archiveSubcategory(subcategory.key),
+                                    _archiveSubcategory(subcategory),
                               ),
                             ),
                           Align(
@@ -452,6 +490,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onPressed: () => _unarchiveItem(item.id),
                       ),
                     ),
+                const Divider(height: AppSpacing.lg),
+                const _SectionHeader('الأقسام والفئات الفرعية المؤرشفة'),
+                if (_archivedCategories.isEmpty &&
+                    _archivedSubcategories.isEmpty)
+                  const Padding(
+                    padding: EdgeInsetsDirectional.only(bottom: AppSpacing.sm),
+                    child: Text(
+                      'لا يوجد أقسام أو فئات فرعية مؤرشفة.',
+                      style: AppText.caption,
+                    ),
+                  ),
+                for (final category in _archivedCategories)
+                  ListTile(
+                    key: ValueKey('settings-archived-category-${category.key}'),
+                    leading: Icon(iconForName(category.iconName),
+                        color: AppColors.textSecondary),
+                    title: Text(category.labelAr, style: AppText.body),
+                    trailing: IconButton(
+                      key: ValueKey('unarchive-category-${category.key}'),
+                      icon: const Icon(Icons.unarchive_outlined),
+                      tooltip: 'استعادة',
+                      onPressed: () => _unarchiveCategory(category.key),
+                    ),
+                  ),
+                for (final subcategory in _archivedSubcategories)
+                  ListTile(
+                    key: ValueKey(
+                        'settings-archived-subcategory-${subcategory.key}'),
+                    leading: Icon(iconForName(subcategory.iconName),
+                        color: AppColors.textSecondary),
+                    title: Text(subcategory.labelAr, style: AppText.body),
+                    subtitle: Text(
+                      [..._categories, ..._archivedCategories]
+                          .firstWhere(
+                            (c) => c.key == subcategory.categoryKey,
+                            orElse: () => CategoryView(
+                                key: subcategory.categoryKey,
+                                labelAr: subcategory.categoryKey,
+                                iconName: ''),
+                          )
+                          .labelAr,
+                      style: AppText.caption,
+                    ),
+                    trailing: IconButton(
+                      key: ValueKey(
+                          'unarchive-subcategory-${subcategory.key}'),
+                      icon: const Icon(Icons.unarchive_outlined),
+                      tooltip: 'استعادة',
+                      onPressed: () => _unarchiveSubcategory(subcategory.key),
+                    ),
+                  ),
                 const Divider(height: AppSpacing.lg),
                 const _SectionHeader('عن التطبيق'),
                 const ListTile(

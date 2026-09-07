@@ -149,4 +149,33 @@ abstract class SpendingRepository {
   /// archived-items view — the only place a soft-deleted item is ever
   /// listed again, so it can be brought back with [unarchiveItem].
   Future<List<QuickPickItem>> archivedItems();
+
+  /// Restores a previously archived category: it reappears in [categories]
+  /// and every picker. Mirrors [archiveCategory]'s cascade in reverse — it
+  /// also restores every subcategory and item that lives under it, so a
+  /// category that was hidden along with its whole subtree comes back
+  /// whole rather than leaving its children stranded in the archive. Past
+  /// `entries` rows are never touched (there is nothing on them to
+  /// restore: they were never archived in the first place).
+  Future<void> unarchiveCategory(String key);
+
+  /// Restores a previously archived subcategory: it reappears in
+  /// [subcategories] and every picker, and cascades to restore every item
+  /// filed under it — mirroring [archiveSubcategory] in reverse. Does
+  /// **not** unarchive the subcategory's own category: if the category
+  /// itself is still archived, the subcategory simply isn't reachable
+  /// through [subcategories] until the category is unarchived too, the
+  /// same way a freshly-created subcategory under an archived category
+  /// would behave. Past `entries` rows are never touched.
+  Future<void> unarchiveSubcategory(String key);
+
+  /// Every archived category, for the settings screen's archived view —
+  /// the only place an archived category is ever listed again, so it can
+  /// be brought back with [unarchiveCategory].
+  Future<List<CategoryView>> archivedCategories();
+
+  /// Every archived subcategory (across all categories), for the settings
+  /// screen's archived view, so it can be brought back with
+  /// [unarchiveSubcategory].
+  Future<List<SubcategoryView>> archivedSubcategories();
 }

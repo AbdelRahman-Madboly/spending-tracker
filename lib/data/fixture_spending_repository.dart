@@ -468,6 +468,43 @@ class FixtureSpendingRepository implements SpendingRepository {
       _items.where((i) => _archivedItemIds.contains(i.id)).toList();
 
   @override
+  Future<void> unarchiveCategory(String key) async {
+    _archivedCategoryKeys.remove(key);
+    // Mirror archiveCategory's cascade in reverse: bring back every
+    // subcategory and item that lives under this category.
+    for (final sub in _subcategories.where((s) => s.categoryKey == key)) {
+      _archivedSubcategoryKeys.remove(sub.key);
+    }
+    for (final item in _items.where((i) => i.categoryKey == key)) {
+      _archivedItemIds.remove(item.id);
+    }
+    _controller.add(null);
+  }
+
+  @override
+  Future<void> unarchiveSubcategory(String key) async {
+    _archivedSubcategoryKeys.remove(key);
+    for (final item in _items.where((i) => i.subcategoryKey == key)) {
+      _archivedItemIds.remove(item.id);
+    }
+    // Deliberately does NOT touch the subcategory's own category: this
+    // must never cascade upward and resurrect a category the user
+    // archived on purpose.
+    _controller.add(null);
+  }
+
+  @override
+  Future<List<CategoryView>> archivedCategories() async => _categories
+      .where((c) => _archivedCategoryKeys.contains(c.key))
+      .toList();
+
+  @override
+  Future<List<SubcategoryView>> archivedSubcategories() async =>
+      _subcategories
+          .where((s) => _archivedSubcategoryKeys.contains(s.key))
+          .toList();
+
+  @override
   Future<List<QuickPickItem>> itemsInCategory(
           String categoryKey, int limit) async =>
       _items

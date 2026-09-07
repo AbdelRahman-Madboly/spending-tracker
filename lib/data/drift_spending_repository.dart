@@ -557,4 +557,68 @@ class DriftSpendingRepository implements SpendingRepository {
             ))
         .toList();
   }
+
+  @override
+  Future<void> unarchiveCategory(String key) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.categories)..where((t) => t.key.equals(key)))
+          .write(const CategoriesCompanion(archived: Value(false)));
+      // Mirror archiveCategory's cascade in reverse: bring back every
+      // subcategory and item that lives under this category, so a
+      // category that was hidden along with its whole subtree comes back
+      // whole. `entries` has no `archived` column and was never touched by
+      // the archive in the first place, so there is nothing to restore on
+      // it here.
+      await (_db.update(_db.subcategories)
+            ..where((t) => t.categoryKey.equals(key)))
+          .write(const SubcategoriesCompanion(archived: Value(false)));
+      await (_db.update(_db.items)..where((t) => t.categoryKey.equals(key)))
+          .write(const ItemsCompanion(archived: Value(false)));
+    });
+  }
+
+  @override
+  Future<void> unarchiveSubcategory(String key) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.subcategories)..where((t) => t.key.equals(key)))
+          .write(const SubcategoriesCompanion(archived: Value(false)));
+      await (_db.update(_db.items)
+            ..where((t) => t.subcategoryKey.equals(key)))
+          .write(const ItemsCompanion(archived: Value(false)));
+      // Deliberately does NOT touch the subcategory's own category row:
+      // unarchiving a subcategory must never cascade upward and resurrect
+      // a category the user archived on purpose.
+    });
+  }
+
+  @override
+  Future<List<CategoryView>> archivedCategories() async {
+    final rows = await (_db.select(_db.categories)
+          ..where((t) => t.archived.equals(true))
+          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+        .get();
+    return rows
+        .map((c) => CategoryView(
+              key: c.key,
+              labelAr: c.labelAr,
+              iconName: c.iconName,
+            ))
+        .toList();
+  }
+
+  @override
+  Future<List<SubcategoryView>> archivedSubcategories() async {
+    final rows = await (_db.select(_db.subcategories)
+          ..where((t) => t.archived.equals(true))
+          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+        .get();
+    return rows
+        .map((s) => SubcategoryView(
+              key: s.key,
+              categoryKey: s.categoryKey,
+              labelAr: s.labelAr,
+              iconName: s.iconName,
+            ))
+        .toList();
+  }
 }
