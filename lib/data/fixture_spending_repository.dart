@@ -199,4 +199,36 @@ class FixtureSpendingRepository implements SpendingRepository {
     }
     return map;
   }
+
+  @override
+  Future<int> spentInMonth(int year, int month) async {
+    return _entries
+        .where((e) => e.date.year == year && e.date.month == month)
+        .fold<int>(0, (sum, e) => sum + e.amountPiastres);
+  }
+
+  @override
+  Future<List<({String yearMonth, int totalPiastres})>> monthlyTotals(
+      int lastNMonths) async {
+    // Fixture "today" is fixed at 2026-09-06, matching every other
+    // hardcoded date in this class, so widget tests stay deterministic
+    // regardless of the real wall-clock date.
+    const currentYear = 2026;
+    const currentMonth = 9;
+
+    final totals = <({String yearMonth, int totalPiastres})>[];
+    for (var i = lastNMonths - 1; i >= 0; i--) {
+      var year = currentYear;
+      var month = currentMonth - i;
+      while (month <= 0) {
+        month += 12;
+        year -= 1;
+      }
+      final total = await spentInMonth(year, month);
+      final yearMonth =
+          '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
+      totals.add((yearMonth: yearMonth, totalPiastres: total));
+    }
+    return totals;
+  }
 }

@@ -254,4 +254,34 @@ class DriftSpendingRepository implements SpendingRepository {
     }
     return map;
   }
+
+  @override
+  Future<int> spentInMonth(int year, int month) async {
+    final prefix = '${year.toString().padLeft(4, '0')}-'
+        '${month.toString().padLeft(2, '0')}';
+    final rows = await (_db.select(_db.entries)
+          ..where((t) => t.date.like('$prefix-%') & t.deletedAt.isNull()))
+        .get();
+    return rows.fold<int>(0, (sum, e) => sum + e.amountPiastres);
+  }
+
+  @override
+  Future<List<({String yearMonth, int totalPiastres})>> monthlyTotals(
+      int lastNMonths) async {
+    final now = DateTime.now();
+    final totals = <({String yearMonth, int totalPiastres})>[];
+    for (var i = lastNMonths - 1; i >= 0; i--) {
+      var year = now.year;
+      var month = now.month - i;
+      while (month <= 0) {
+        month += 12;
+        year -= 1;
+      }
+      final total = await spentInMonth(year, month);
+      final yearMonth = '${year.toString().padLeft(4, '0')}-'
+          '${month.toString().padLeft(2, '0')}';
+      totals.add((yearMonth: yearMonth, totalPiastres: total));
+    }
+    return totals;
+  }
 }

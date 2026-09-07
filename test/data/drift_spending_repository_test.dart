@@ -232,6 +232,73 @@ void main() {
     );
   });
 
+  test(
+      'spentInMonth sums only entries within that calendar month, excluding '
+      'other months and soft-deleted entries', () async {
+    await seedEntry(id: 'e1', amount: 3500, date: '2026-07-15');
+    await seedEntry(id: 'e2', amount: 1000, date: '2026-07-31');
+    await seedEntry(id: 'e3', amount: 5000, date: '2026-08-01');
+    await seedEntry(
+      id: 'e4',
+      amount: 9999,
+      date: '2026-07-20',
+      deletedAt: DateTime.now(),
+    );
+
+    expect(await repo.spentInMonth(2026, 7), 4500);
+    expect(await repo.spentInMonth(2026, 8), 5000);
+  });
+
+  test('spentInMonth returns zero for a month with no entries', () async {
+    expect(await repo.spentInMonth(2020, 1), 0);
+  });
+
+  test(
+      'monthlyTotals is oldest-first, ends at the current month, and '
+      'zero-fills months with no spending', () async {
+    final now = DateTime.now();
+    final currentYearMonth = '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}';
+    await seedEntry(id: 'e1', amount: 1000, date: _today());
+
+    final totals = await repo.monthlyTotals(3);
+
+    expect(totals.length, 3);
+    expect(totals.last.yearMonth, currentYearMonth);
+    expect(totals.last.totalPiastres, 1000);
+    expect(totals.first.totalPiastres, 0);
+  });
+
+  test('monthlyTotals excludes soft-deleted entries', () async {
+    await seedEntry(
+      id: 'e1',
+      amount: 1000,
+      date: _today(),
+      deletedAt: DateTime.now(),
+    );
+
+    final totals = await repo.monthlyTotals(1);
+
+    expect(totals.single.totalPiastres, 0);
+  });
+
+  test(
+      'monthlyTotals produces chronologically consecutive YYYY-MM keys '
+      'across a year boundary', () async {
+    final totals = await repo.monthlyTotals(14);
+
+    expect(totals.length, 14);
+    DateTime? previous;
+    for (final t in totals) {
+      final parts = t.yearMonth.split('-');
+      final current = DateTime(int.parse(parts[0]), int.parse(parts[1]));
+      if (previous != null) {
+        expect(current, DateTime(previous.year, previous.month + 1));
+      }
+      previous = current;
+    }
+  });
+
   test('soft-deleted entries are excluded from every total', () async {
     await seedSalary();
     await seedEntry(id: 'e1', amount: 3500, categoryKey: 'Food');

@@ -39,6 +39,23 @@ void main() {
     expect(items.first.nameAr, isNotEmpty);
   });
 
+  test('spentInMonth totals the fixture entries, all dated in September 2026',
+      () async {
+    expect(await repo.spentInMonth(2026, 9), 8500);
+    expect(await repo.spentInMonth(2026, 8), 0);
+  });
+
+  test('monthlyTotals is oldest-first, ends at the fixture\'s "today" month, '
+      'and zero-fills months with no data', () async {
+    final totals = await repo.monthlyTotals(3);
+    expect(totals.length, 3);
+    expect(totals.map((t) => t.yearMonth).toList(),
+        ['2026-07', '2026-08', '2026-09']);
+    expect(totals.last.totalPiastres, 8500);
+    expect(totals[0].totalPiastres, 0);
+    expect(totals[1].totalPiastres, 0);
+  });
+
   test('saving an entry adds it to today', () async {
     final before =
         (await repo.watchEntriesForDay(DateTime(2026, 9, 6)).first).length;
