@@ -48,6 +48,21 @@ class EntryView extends Equatable {
       [id, displayName, amountPiastres, categoryKey, date];
 }
 
+class CategoryView extends Equatable {
+  final String key;
+  final String labelAr;
+  final String iconName;
+
+  const CategoryView({
+    required this.key,
+    required this.labelAr,
+    required this.iconName,
+  });
+
+  @override
+  List<Object?> get props => [key, labelAr, iconName];
+}
+
 class QuickPickItem extends Equatable {
   final String id;
   final String nameAr;

@@ -22,4 +22,27 @@ void main() {
   test('currency suffix is appended on request', () {
     expect(formatPiastres(4000, withCurrency: true), '40 ج.م');
   });
+
+  test('parsePiastres reads whole pounds', () {
+    expect(parsePiastres('15'), 1500);
+    expect(parsePiastres('0'), 0);
+  });
+
+  test('parsePiastres reads one or two decimal digits', () {
+    expect(parsePiastres('15.5'), 1550);
+    expect(parsePiastres('15.05'), 1505);
+    expect(parsePiastres('15.50'), 1550);
+  });
+
+  test('parsePiastres accepts Arabic-Indic digits', () {
+    expect(parsePiastres('١٥.٥'), 1550);
+  });
+
+  test('parsePiastres rejects invalid or negative input', () {
+    expect(parsePiastres(''), isNull);
+    expect(parsePiastres('abc'), isNull);
+    expect(parsePiastres('-5'), isNull);
+    expect(parsePiastres('1.2.3'), isNull);
+    expect(parsePiastres('1.234'), isNull);
+  });
 }

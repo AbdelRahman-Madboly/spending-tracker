@@ -18,3 +18,45 @@ String formatPiastres(int piastres, {bool withCurrency = false}) {
   final signed = negative ? '-$body' : body;
   return withCurrency ? '$signed ج.م' : signed;
 }
+
+/// Parses a user-typed amount (Arabic-Indic or Latin digits, optional one
+/// or two decimal places) into integer piastres. Returns null when the
+/// input isn't a valid non-negative amount.
+///
+/// Parses digit-by-digit rather than through `double.parse` — money here is
+/// integer piastres, and going through a float would risk exactly the
+/// rounding drift that representation is meant to avoid.
+int? parsePiastres(String input) {
+  final normalized = _toLatinDigits(input.trim());
+  if (normalized.isEmpty) return null;
+
+  final parts = normalized.split('.');
+  if (parts.length > 2) return null;
+
+  final pounds = int.tryParse(parts[0]);
+  if (pounds == null || pounds < 0) return null;
+
+  var fraction = 0;
+  if (parts.length == 2) {
+    var fractionDigits = parts[1];
+    if (fractionDigits.isEmpty || fractionDigits.length > 2) return null;
+    if (fractionDigits.length == 1) fractionDigits = '${fractionDigits}0';
+    final parsedFraction = int.tryParse(fractionDigits);
+    if (parsedFraction == null) return null;
+    fraction = parsedFraction;
+  }
+
+  return pounds * 100 + fraction;
+}
+
+const _arabicIndicDigits = '٠١٢٣٤٥٦٧٨٩';
+
+String _toLatinDigits(String input) {
+  final buffer = StringBuffer();
+  for (final rune in input.runes) {
+    final char = String.fromCharCode(rune);
+    final arabicIndex = _arabicIndicDigits.indexOf(char);
+    buffer.write(arabicIndex == -1 ? char : arabicIndex.toString());
+  }
+  return buffer.toString();
+}

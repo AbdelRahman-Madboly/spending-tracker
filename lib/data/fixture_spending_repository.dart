@@ -3,6 +3,25 @@ import 'dart:async';
 import '../domain/models.dart';
 import '../domain/spending_repository.dart';
 
+/// Mirrors the ten categories seeded into the real database
+/// (see `lib/data/db/database.dart`) so widget tests exercise the same
+/// category set the app ships with.
+const _categories = [
+  CategoryView(key: 'Drinks', labelAr: 'مشروبات', iconName: 'local_drink'),
+  CategoryView(key: 'Snacks', labelAr: 'سناكس', iconName: 'cookie'),
+  CategoryView(key: 'Food', labelAr: 'أكل', iconName: 'restaurant'),
+  CategoryView(
+      key: 'Transport', labelAr: 'مواصلات', iconName: 'directions_bus'),
+  CategoryView(key: 'Bills', labelAr: 'فواتير', iconName: 'receipt_long'),
+  CategoryView(
+      key: 'Personal Care', labelAr: 'عناية شخصية', iconName: 'content_cut'),
+  CategoryView(key: 'Shopping', labelAr: 'تسوق', iconName: 'shopping_bag'),
+  CategoryView(
+      key: 'Family/Social', labelAr: 'عائلة وزيارات', iconName: 'groups'),
+  CategoryView(key: 'Gifts', labelAr: 'هدايا', iconName: 'card_giftcard'),
+  CategoryView(key: 'Loans', labelAr: 'سلف', iconName: 'handshake'),
+];
+
 class FixtureSpendingRepository implements SpendingRepository {
   static const _salary = 900000;
   static const _today = 6;
@@ -12,26 +31,89 @@ class FixtureSpendingRepository implements SpendingRepository {
       id: '1',
       displayName: 'لبن',
       amountPiastres: 3500,
-      categoryKey: 'Food/Social',
-      categoryLabelAr: 'أكل وخروج',
+      categoryKey: 'Food',
+      categoryLabelAr: 'أكل',
       date: DateTime(2026, 9, 6),
     ),
     EntryView(
       id: '2',
       displayName: 'إندومي',
       amountPiastres: 1000,
-      categoryKey: 'Food/Social',
-      categoryLabelAr: 'أكل وخروج',
+      categoryKey: 'Food',
+      categoryLabelAr: 'أكل',
       date: DateTime(2026, 9, 5),
     ),
     EntryView(
       id: '3',
       displayName: 'شويبس',
       amountPiastres: 4000,
-      categoryKey: 'Food/Social',
-      categoryLabelAr: 'أكل وخروج',
+      categoryKey: 'Drinks',
+      categoryLabelAr: 'مشروبات',
       date: DateTime(2026, 9, 5),
     ),
+  ];
+
+  final _items = <QuickPickItem>[
+    const QuickPickItem(
+        id: 'i1',
+        nameAr: 'شويبس',
+        categoryKey: 'Drinks',
+        defaultAmountPiastres: 4000),
+    const QuickPickItem(
+        id: 'i2',
+        nameAr: 'إندومي',
+        categoryKey: 'Food',
+        defaultAmountPiastres: 1000),
+    const QuickPickItem(
+        id: 'i3',
+        nameAr: 'لبن',
+        categoryKey: 'Food',
+        defaultAmountPiastres: 3500),
+    const QuickPickItem(
+        id: 'i4',
+        nameAr: 'تاكسي',
+        categoryKey: 'Transport',
+        defaultAmountPiastres: 3500),
+    const QuickPickItem(
+        id: 'i5',
+        nameAr: 'مخبز',
+        categoryKey: 'Food',
+        defaultAmountPiastres: 2500),
+    const QuickPickItem(
+        id: 'i6',
+        nameAr: 'شيبسي',
+        categoryKey: 'Snacks',
+        defaultAmountPiastres: 1000),
+    const QuickPickItem(
+        id: 'i7',
+        nameAr: 'فطار',
+        categoryKey: 'Food',
+        defaultAmountPiastres: 1500),
+    const QuickPickItem(
+        id: 'i8',
+        nameAr: 'مواصلات',
+        categoryKey: 'Transport',
+        defaultAmountPiastres: 700),
+    const QuickPickItem(
+        id: 'i9',
+        nameAr: 'عصير',
+        categoryKey: 'Drinks',
+        defaultAmountPiastres: 2000),
+    const QuickPickItem(
+        id: 'i10',
+        nameAr: 'حلاقة',
+        categoryKey: 'Personal Care',
+        defaultAmountPiastres: 10000),
+    const QuickPickItem(
+        id: 'i11',
+        nameAr: 'شحن رصيد',
+        categoryKey: 'Bills',
+        defaultAmountPiastres: 10000),
+    const QuickPickItem(
+        id: 'i12',
+        nameAr: 'شوكولاتة',
+        categoryKey: 'Snacks',
+        defaultAmountPiastres: 500),
   ];
 
   final _controller = StreamController<void>.broadcast();
@@ -63,77 +145,47 @@ class FixtureSpendingRepository implements SpendingRepository {
   }
 
   @override
-  Future<List<QuickPickItem>> topItems(int limit) async => const [
-        QuickPickItem(
-            id: 'i1',
-            nameAr: 'شويبس',
-            categoryKey: 'Food/Social',
-            defaultAmountPiastres: 4000),
-        QuickPickItem(
-            id: 'i2',
-            nameAr: 'إندومي',
-            categoryKey: 'Food/Social',
-            defaultAmountPiastres: 1000),
-        QuickPickItem(
-            id: 'i3',
-            nameAr: 'لبن',
-            categoryKey: 'Food/Social',
-            defaultAmountPiastres: 3500),
-        QuickPickItem(
-            id: 'i4',
-            nameAr: 'تاكسي',
-            categoryKey: 'Transport',
-            defaultAmountPiastres: 3500),
-        QuickPickItem(
-            id: 'i5',
-            nameAr: 'مخبز',
-            categoryKey: 'Food/Social',
-            defaultAmountPiastres: 2500),
-        QuickPickItem(
-            id: 'i6',
-            nameAr: 'شيبسي',
-            categoryKey: 'Food/Social',
-            defaultAmountPiastres: 1000),
-        QuickPickItem(
-            id: 'i7',
-            nameAr: 'فطار',
-            categoryKey: 'Food/Social',
-            defaultAmountPiastres: 1500),
-        QuickPickItem(
-            id: 'i8',
-            nameAr: 'مواصلات',
-            categoryKey: 'Transport',
-            defaultAmountPiastres: 700),
-        QuickPickItem(
-            id: 'i9',
-            nameAr: 'عصير',
-            categoryKey: 'Food/Social',
-            defaultAmountPiastres: 2000),
-        QuickPickItem(
-            id: 'i10',
-            nameAr: 'حلاقة',
-            categoryKey: 'Personal Care',
-            defaultAmountPiastres: 10000),
-        QuickPickItem(
-            id: 'i11',
-            nameAr: 'شحن رصيد',
-            categoryKey: 'Bills',
-            defaultAmountPiastres: 10000),
-        QuickPickItem(
-            id: 'i12',
-            nameAr: 'شوكولاتة',
-            categoryKey: 'Food/Social',
-            defaultAmountPiastres: 500),
-      ].take(limit).toList();
+  Future<List<QuickPickItem>> topItems(int limit) async =>
+      _items.take(limit).toList();
+
+  @override
+  Future<List<CategoryView>> categories() async => _categories;
+
+  @override
+  Future<List<QuickPickItem>> itemsInCategory(
+          String categoryKey, int limit) async =>
+      _items.where((i) => i.categoryKey == categoryKey).take(limit).toList();
+
+  @override
+  Future<QuickPickItem> createItem({
+    required String nameAr,
+    required String categoryKey,
+    int? defaultAmountPiastres,
+    String? barcode,
+  }) async {
+    final item = QuickPickItem(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      nameAr: nameAr,
+      categoryKey: categoryKey,
+      defaultAmountPiastres: defaultAmountPiastres,
+    );
+    _items.insert(0, item);
+    return item;
+  }
 
   @override
   Future<void> saveEntry(DraftEntry draft) async {
+    final categoryKey = draft.categoryKey ?? 'Food';
+    final categoryLabelAr = _categories
+        .firstWhere((c) => c.key == categoryKey,
+            orElse: () => _categories.first)
+        .labelAr;
     _entries.add(EntryView(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       displayName: draft.description ?? '',
       amountPiastres: draft.amountPiastres ?? 0,
-      categoryKey: draft.categoryKey ?? 'Food/Social',
-      categoryLabelAr: 'أكل وخروج',
+      categoryKey: categoryKey,
+      categoryLabelAr: categoryLabelAr,
       date: DateTime(2026, 9, _today),
     ));
     _controller.add(null);

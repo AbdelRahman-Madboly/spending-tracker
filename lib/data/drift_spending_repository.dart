@@ -115,6 +115,23 @@ class DriftSpendingRepository implements SpendingRepository {
   Future<List<QuickPickItem>> topItems(int limit) async {
     final rows =
         await (_db.select(_db.items)..where((t) => t.archived.equals(false))).get();
+    return _topScored(rows, limit);
+  }
+
+  @override
+  Future<List<QuickPickItem>> itemsInCategory(
+      String categoryKey, int limit) async {
+    final rows = await (_db.select(_db.items)
+          ..where((t) =>
+              t.archived.equals(false) & t.categoryKey.equals(categoryKey)))
+        .get();
+    return _topScored(rows, limit);
+  }
+
+  /// Same recency-weighted ranking [topItems] uses, shared by
+  /// [itemsInCategory] so "most used" means the same thing everywhere in
+  /// the sheet.
+  List<QuickPickItem> _topScored(List<Item> rows, int limit) {
     final now = DateTime.now();
 
     double score(Item item) {
@@ -135,6 +152,47 @@ class DriftSpendingRepository implements SpendingRepository {
               defaultAmountPiastres: i.defaultAmountPiastres,
             ))
         .toList();
+  }
+
+  @override
+  Future<List<CategoryView>> categories() async {
+    final rows = await (_db.select(_db.categories)
+          ..where((t) => t.archived.equals(false))
+          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+        .get();
+    return rows
+        .map((c) => CategoryView(
+              key: c.key,
+              labelAr: c.labelAr,
+              iconName: c.iconName,
+            ))
+        .toList();
+  }
+
+  @override
+  Future<QuickPickItem> createItem({
+    required String nameAr,
+    required String categoryKey,
+    int? defaultAmountPiastres,
+    String? barcode,
+  }) async {
+    final id = DateTime.now().microsecondsSinceEpoch.toString();
+    await _db.into(_db.items).insert(ItemsCompanion.insert(
+          id: id,
+          nameAr: nameAr,
+          // The user only supplies an Arabic name; there is no separate
+          // English one to capture, so mirror it to satisfy the column.
+          nameEn: nameAr,
+          categoryKey: categoryKey,
+          defaultAmountPiastres: Value(defaultAmountPiastres),
+          barcode: Value(barcode),
+        ));
+    return QuickPickItem(
+      id: id,
+      nameAr: nameAr,
+      categoryKey: categoryKey,
+      defaultAmountPiastres: defaultAmountPiastres,
+    );
   }
 
   @override

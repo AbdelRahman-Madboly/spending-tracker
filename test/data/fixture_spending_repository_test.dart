@@ -45,7 +45,7 @@ void main() {
     await repo.saveEntry(const DraftEntry(
       amountPiastres: 3500,
       description: 'لبن',
-      categoryKey: 'Food/Social',
+      categoryKey: 'Food',
       paymentMethod: 'Cash',
       source: EntrySource.quickPick,
     ));

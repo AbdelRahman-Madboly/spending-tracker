@@ -167,6 +167,71 @@ void main() {
     expect(byCategory['Transport'], 1000);
   });
 
+  test('categories returns all ten seeded categories in sort order',
+      () async {
+    final cats = await repo.categories();
+    expect(cats.length, 10);
+    expect(cats.first.key, 'Drinks');
+    expect(cats.map((c) => c.key), contains('Family/Social'));
+    expect(
+      cats.firstWhere((c) => c.key == 'Family/Social').labelAr,
+      'عائلة وزيارات',
+    );
+  });
+
+  test('itemsInCategory only returns items from that category, scored',
+      () async {
+    final now = DateTime.now();
+    await db.into(db.items).insert(ItemsCompanion.insert(
+          id: 'drink-1',
+          nameAr: 'مياه',
+          nameEn: 'water',
+          categoryKey: 'Drinks',
+          useCount: const Value(10),
+          lastUsedAt: Value(now),
+        ));
+    await db.into(db.items).insert(ItemsCompanion.insert(
+          id: 'food-1',
+          nameAr: 'فول',
+          nameEn: 'foul',
+          categoryKey: 'Food',
+          useCount: const Value(10),
+          lastUsedAt: Value(now),
+        ));
+
+    final drinks = await repo.itemsInCategory('Drinks', 12);
+    expect(drinks.map((i) => i.id), ['drink-1']);
+    expect(drinks.every((i) => i.categoryKey == 'Drinks'), isTrue);
+  });
+
+  test('createItem inserts a new item and returns it as a QuickPickItem',
+      () async {
+    final created = await repo.createItem(
+      nameAr: 'شاي',
+      categoryKey: 'Drinks',
+      defaultAmountPiastres: 1500,
+    );
+
+    expect(created.nameAr, 'شاي');
+    expect(created.categoryKey, 'Drinks');
+    expect(created.defaultAmountPiastres, 1500);
+
+    final fromDb =
+        await (db.select(db.items)..where((t) => t.id.equals(created.id)))
+            .getSingleOrNull();
+    expect(fromDb != null, isTrue);
+    expect(fromDb!.nameAr, 'شاي');
+  });
+
+  test('enabling foreign keys rejects an entry with an unknown category',
+      () async {
+    await seedSalary();
+    expect(
+      () => seedEntry(id: 'bad', amount: 100, categoryKey: 'NotACategory'),
+      throwsA(anything),
+    );
+  });
+
   test('soft-deleted entries are excluded from every total', () async {
     await seedSalary();
     await seedEntry(id: 'e1', amount: 3500, categoryKey: 'Food');

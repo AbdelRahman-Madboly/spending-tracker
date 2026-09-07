@@ -13,7 +13,9 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Food/Social'), findsOneWidget);
-    expect(find.text('85'), findsOneWidget);
+    expect(find.text('Food'), findsOneWidget);
+    expect(find.text('45'), findsOneWidget);
+    expect(find.text('Drinks'), findsOneWidget);
+    expect(find.text('40'), findsOneWidget);
   });
 }

@@ -28,6 +28,13 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
           await _seedCategories(this);
         },
+        // SQLite ignores foreign key constraints unless this pragma is set
+        // on every connection — drift's `.references()` is otherwise only a
+        // compile-time hint, so an invalid categoryKey would be silently
+        // accepted. Runs on every open, not just onCreate.
+        beforeOpen: (details) async {
+          await customStatement('PRAGMA foreign_keys = ON');
+        },
       );
 
   /// Loads the real historical spending data (assets/seed/seed.json) and
