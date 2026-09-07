@@ -15,6 +15,10 @@ void main() {
     expect(theme.colorScheme.onSurface, AppColors.textPrimary);
     expect(theme.colorScheme.error, AppColors.negative);
     expect(theme.scaffoldBackgroundColor, AppColors.background);
+    // SegmentedButton's selected segment uses secondaryContainer; leaving it
+    // at the Material 3 default rendered teal against an indigo app.
+    expect(theme.colorScheme.secondaryContainer, AppColors.accent);
+    expect(theme.colorScheme.onSecondaryContainer, Colors.white);
   });
 
   testWidgets('app renders right-to-left in Arabic', (tester) async {

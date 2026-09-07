@@ -26,6 +26,11 @@ ThemeData buildAppTheme() {
     onSurface: AppColors.textPrimary,
     error: AppColors.negative,
     onError: Colors.white,
+    // SegmentedButton paints its selected segment with secondaryContainer.
+    // Left at the Material 3 default it renders teal, which reads as a
+    // different app from the indigo primary used everywhere else.
+    secondaryContainer: AppColors.accent,
+    onSecondaryContainer: Colors.white,
   );
   return ThemeData(
     colorScheme: colorScheme,
