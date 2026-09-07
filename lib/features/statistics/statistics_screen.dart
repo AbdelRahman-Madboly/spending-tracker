@@ -6,6 +6,7 @@ import '../../core/money.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../add/widgets/category_strip.dart';
+import 'category_palette.dart';
 
 typedef _CategoryBreakdown = ({
   Map<String, int> byCategory,
@@ -16,23 +17,6 @@ class StatisticsScreen extends StatelessWidget {
   final SpendingRepository repository;
 
   const StatisticsScreen({super.key, required this.repository});
-
-  /// A fixed, distinguishable colour per pie slice / legend row. Kept
-  /// independent of category identity (there are ten categories but no
-  /// per-category colour in the design tokens) so the same category always
-  /// gets the same colour within one render, cycling only past ten.
-  static const _sliceColors = [
-    AppColors.accent,
-    AppColors.positive,
-    AppColors.negative,
-    Color(0xFFE8A33D),
-    Color(0xFF8E5FD9),
-    Color(0xFF2FA9B0),
-    Color(0xFFD46FA6),
-    Color(0xFF6B8E23),
-    Color(0xFFB0523B),
-    Color(0xFF4C6B9A),
-  ];
 
   Future<_CategoryBreakdown> _load() async {
     final byCategory = await repository.spendByCategoryForPeriod();
@@ -72,10 +56,10 @@ class StatisticsScreen extends StatelessWidget {
                         sectionsSpace: 2,
                         centerSpaceRadius: 36,
                         sections: [
-                          for (var i = 0; i < rows.length; i++)
+                          for (final row in rows)
                             PieChartSectionData(
-                              value: rows[i].value.toDouble(),
-                              color: _sliceColors[i % _sliceColors.length],
+                              value: row.value.toDouble(),
+                              color: colorForCategory(row.key),
                               title: '',
                               radius: 48,
                             ),
@@ -84,23 +68,23 @@ class StatisticsScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-              for (var i = 0; i < rows.length; i++)
+              for (final row in rows)
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor:
-                        _sliceColors[i % _sliceColors.length]
-                            .withOpacity(0.15),
+                    backgroundColor: colorForCategory(row.key).withOpacity(
+                      0.15,
+                    ),
                     child: Icon(
-                      iconForName(labelsByKey[rows[i].key]?.iconName ?? ''),
-                      color: _sliceColors[i % _sliceColors.length],
+                      iconForName(labelsByKey[row.key]?.iconName ?? ''),
+                      color: colorForCategory(row.key),
                     ),
                   ),
                   title: Text(
-                    labelsByKey[rows[i].key]?.labelAr ?? rows[i].key,
+                    labelsByKey[row.key]?.labelAr ?? row.key,
                     style: AppText.body,
                   ),
                   trailing:
-                      Text(formatPiastres(rows[i].value), style: AppText.body),
+                      Text(formatPiastres(row.value), style: AppText.body),
                 ),
             ],
           );
