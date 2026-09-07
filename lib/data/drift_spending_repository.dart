@@ -286,6 +286,54 @@ class DriftSpendingRepository implements SpendingRepository {
   }
 
   @override
+  Future<List<({String label, int totalPiastres})>> dailyTotals(
+      int lastNDays) async {
+    final anchor = _todayAnchor();
+    final totals = <({String label, int totalPiastres})>[];
+    for (var i = lastNDays - 1; i >= 0; i--) {
+      final day = anchor.subtract(Duration(days: i));
+      final total = await _spentInRange(day, day);
+      totals.add((label: day.day.toString(), totalPiastres: total));
+    }
+    return totals;
+  }
+
+  @override
+  Future<List<({String label, int totalPiastres})>> weeklyTotals(
+      int lastNWeeks) async {
+    final anchor = _todayAnchor();
+    final totals = <({String label, int totalPiastres})>[];
+    for (var i = lastNWeeks - 1; i >= 0; i--) {
+      final weekEnd = anchor.subtract(Duration(days: i * 7));
+      final weekStart = weekEnd.subtract(const Duration(days: 6));
+      final total = await _spentInRange(weekStart, weekEnd);
+      totals.add((label: weekStart.day.toString(), totalPiastres: total));
+    }
+    return totals;
+  }
+
+  DateTime _todayAnchor() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  /// Sum of non-soft-deleted entries with a date between [start] and [end]
+  /// inclusive. Dates are compared as `YYYY-MM-DD` strings, which sort
+  /// lexicographically in calendar order — including across month and year
+  /// boundaries — so this needs no special-casing for either.
+  Future<int> _spentInRange(DateTime start, DateTime end) async {
+    final startStr = _formatDate(start);
+    final endStr = _formatDate(end);
+    final rows = await (_db.select(_db.entries)
+          ..where((t) =>
+              t.date.isBiggerOrEqualValue(startStr) &
+              t.date.isSmallerOrEqualValue(endStr) &
+              t.deletedAt.isNull()))
+        .get();
+    return rows.fold<int>(0, (sum, e) => sum + e.amountPiastres);
+  }
+
+  @override
   Future<void> updateSalary(int amountPiastres) async {
     final id = DateTime.now().microsecondsSinceEpoch.toString();
     await _db.into(_db.salaryPeriods).insert(SalaryPeriodsCompanion.insert(
@@ -314,5 +362,21 @@ class DriftSpendingRepository implements SpendingRepository {
   Future<void> archiveItem(String itemId) async {
     await (_db.update(_db.items)..where((t) => t.id.equals(itemId)))
         .write(const ItemsCompanion(archived: Value(true)));
+  }
+
+  @override
+  Future<void> updateItem({
+    required String itemId,
+    required String nameAr,
+    required String categoryKey,
+    int? defaultAmountPiastres,
+  }) async {
+    await (_db.update(_db.items)..where((t) => t.id.equals(itemId))).write(
+      ItemsCompanion(
+        nameAr: Value(nameAr),
+        categoryKey: Value(categoryKey),
+        defaultAmountPiastres: Value(defaultAmountPiastres),
+      ),
+    );
   }
 }

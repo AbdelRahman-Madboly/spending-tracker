@@ -5,6 +5,7 @@ import '../../core/money.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../add/widgets/category_strip.dart' show iconForName;
+import '../add/widgets/new_item_dialog.dart' show showEditItemDialog;
 
 /// App name shown in the "about" block and used as the Android launcher
 /// label — kept as one constant so the two never drift apart.
@@ -78,6 +79,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _load();
   }
 
+  Future<void> _editItem(QuickPickItem item) async {
+    final result = await showEditItemDialog(
+      context: context,
+      categories: _categories,
+      item: item,
+    );
+    if (result == null) return;
+    await widget.repository.updateItem(
+      itemId: item.id,
+      nameAr: result.nameAr,
+      categoryKey: result.categoryKey,
+      defaultAmountPiastres: result.amountPiastres,
+    );
+    await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -137,6 +154,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 for (final item in _items)
                   ListTile(
                     key: ValueKey('settings-item-${item.id}'),
+                    onTap: () => _editItem(item),
                     title: Text(item.nameAr, style: AppText.body),
                     subtitle: Text(
                       _categories

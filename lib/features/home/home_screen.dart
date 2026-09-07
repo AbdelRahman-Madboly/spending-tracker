@@ -5,11 +5,24 @@ import '../../core/money.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../add/add_sheet.dart';
+import '../add/widgets/category_strip.dart' show iconForName;
 import '../settings/settings_screen.dart';
 import '../statistics/statistics_screen.dart';
 import 'widgets/month_comparison_card.dart';
-import 'widgets/monthly_bar_chart.dart';
 import 'widgets/period_summary_card.dart';
+import 'widgets/range_chart_section.dart';
+
+typedef _CategoryBreakdown = ({
+  Map<String, int> byCategory,
+  List<CategoryView> categories,
+});
+
+Future<_CategoryBreakdown> _loadCategoryBreakdown(
+    SpendingRepository repository) async {
+  final byCategory = await repository.spendByCategoryForPeriod();
+  final categories = await repository.categories();
+  return (byCategory: byCategory, categories: categories);
+}
 
 class HomeScreen extends StatelessWidget {
   final SpendingRepository repository;
@@ -85,7 +98,8 @@ class HomeScreen extends StatelessWidget {
                         onTap: openStatistics,
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      MonthlyBarChart(months: months, onTap: openStatistics),
+                      RangeChartSection(
+                          repository: repository, onTap: openStatistics),
                     ],
                   );
                 },
@@ -98,30 +112,44 @@ class HomeScreen extends StatelessWidget {
                 alignment: AlignmentDirectional.centerStart,
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  child: Text('النهاردة', style: AppText.title),
+                  child: Text('الأقسام', style: AppText.title),
                 ),
               ),
             ),
-            StreamBuilder<List<EntryView>>(
-              stream: repository.watchEntriesForDay(DateTime(2026, 9, 6)),
-              builder: (context, snapshot) {
-                final entries = snapshot.data ?? const <EntryView>[];
-                return SliverPadding(
-                  padding: const EdgeInsets.only(bottom: 88),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, i) => ListTile(
-                        title: Text(entries[i].displayName,
-                            style: AppText.body),
-                        trailing: Text(
-                            formatPiastres(entries[i].amountPiastres),
-                            style: AppText.body),
-                      ),
-                      childCount: entries.length,
+            SliverToBoxAdapter(
+              child: FutureBuilder<_CategoryBreakdown>(
+                future: _loadCategoryBreakdown(repository),
+                builder: (context, snapshot) {
+                  final data = snapshot.data;
+                  if (data == null) return const SizedBox.shrink();
+                  final labelsByKey = {
+                    for (final c in data.categories) c.key: c,
+                  };
+                  final rows = data.byCategory.entries.toList()
+                    ..sort((a, b) => b.value.compareTo(a.value));
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 88),
+                    child: Column(
+                      children: [
+                        for (final row in rows)
+                          ListTile(
+                            leading: Icon(
+                              iconForName(
+                                  labelsByKey[row.key]?.iconName ?? ''),
+                              color: AppColors.accent,
+                            ),
+                            title: Text(
+                              labelsByKey[row.key]?.labelAr ?? row.key,
+                              style: AppText.body,
+                            ),
+                            trailing: Text(formatPiastres(row.value),
+                                style: AppText.body),
+                          ),
+                      ],
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -138,8 +166,11 @@ class HomeScreen extends StatelessWidget {
             },
           ),
         ),
-        backgroundColor: AppColors.accent,
-        foregroundColor: Colors.white,
+        // No explicit backgroundColor/foregroundColor here: the app theme's
+        // ColorScheme (see buildAppTheme in app.dart) leaves
+        // primaryContainer/onPrimaryContainer unset, so Flutter's default
+        // FAB style falls back to colorScheme.primary/onPrimary — which are
+        // AppColors.accent/white, the exact values this used to hard-code.
         icon: const Icon(Icons.add),
         label: const Text('إضافة'),
       ),

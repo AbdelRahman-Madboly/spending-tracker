@@ -35,15 +35,45 @@ Future<NewItemDraft?> showNewItemDialog({
   );
 }
 
+/// Shows the same dialog pre-filled with [item]'s current name, category
+/// and default price, for editing an existing catalogue entry. Returns the
+/// edited draft, or null if the user cancelled — the caller is responsible
+/// for turning that into an `updateItem` repository call; this dialog never
+/// touches the repository itself.
+Future<NewItemDraft?> showEditItemDialog({
+  required BuildContext context,
+  required List<CategoryView> categories,
+  required QuickPickItem item,
+}) {
+  return showDialog<NewItemDraft>(
+    context: context,
+    builder: (_) => NewItemDialog(
+      categories: categories,
+      initialCategoryKey: item.categoryKey,
+      initialNameAr: item.nameAr,
+      initialAmountPiastres: item.defaultAmountPiastres,
+    ),
+  );
+}
+
 class NewItemDialog extends StatefulWidget {
   final List<CategoryView> categories;
   final String initialCategoryKey;
+
+  /// When non-null (via [showEditItemDialog]), the dialog opens pre-filled
+  /// for editing an existing item rather than a blank "new item" form.
+  final String? initialNameAr;
+  final int? initialAmountPiastres;
 
   const NewItemDialog({
     super.key,
     required this.categories,
     required this.initialCategoryKey,
+    this.initialNameAr,
+    this.initialAmountPiastres,
   });
+
+  bool get isEditing => initialNameAr != null;
 
   @override
   State<NewItemDialog> createState() => _NewItemDialogState();
@@ -58,6 +88,12 @@ class _NewItemDialogState extends State<NewItemDialog> {
   void initState() {
     super.initState();
     _categoryKey = widget.initialCategoryKey;
+    final initialNameAr = widget.initialNameAr;
+    if (initialNameAr != null) _nameController.text = initialNameAr;
+    final initialAmountPiastres = widget.initialAmountPiastres;
+    if (initialAmountPiastres != null) {
+      _amountController.text = formatPiastres(initialAmountPiastres);
+    }
   }
 
   @override
@@ -85,7 +121,7 @@ class _NewItemDialogState extends State<NewItemDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('عنصر جديد'),
+      title: Text(widget.isEditing ? 'تعديل العنصر' : 'عنصر جديد'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,

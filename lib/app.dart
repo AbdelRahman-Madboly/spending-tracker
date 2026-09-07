@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'core/design/tokens.dart';
 import 'data/db/database.dart';
 import 'data/drift_spending_repository.dart';
 import 'features/home/home_screen.dart';
@@ -10,9 +11,33 @@ import 'features/home/home_screen.dart';
 /// `OutlinedButton` or `TextButton` added anywhere in the app clears the
 /// floor automatically, rather than relying on each call site to remember a
 /// `style:` override.
+///
+/// The [ColorScheme] is built explicitly from [AppColors] rather than left
+/// at Material 3's stock purple defaults — without this, buttons and
+/// AppBars render with Flutter's default seed colour instead of the app's
+/// own palette, regardless of what individual widgets pass as their own
+/// `color:`/`backgroundColor:`.
 ThemeData buildAppTheme() {
   const minimumTapTarget = Size(64, 48);
+  const colorScheme = ColorScheme.light(
+    primary: AppColors.accent,
+    onPrimary: Colors.white,
+    surface: AppColors.surface,
+    onSurface: AppColors.textPrimary,
+    error: AppColors.negative,
+    onError: Colors.white,
+  );
   return ThemeData(
+    colorScheme: colorScheme,
+    scaffoldBackgroundColor: AppColors.background,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.background,
+      // Without this, Material 3 tints the AppBar with a translucent wash
+      // of the colour scheme's primary whenever content scrolls under it —
+      // the "M3 surface tint" this fix removes.
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+    ),
     fontFamily: 'IBMPlexSansArabic',
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(minimumSize: minimumTapTarget),

@@ -26,6 +26,22 @@ abstract class SpendingRepository {
   Future<List<({String yearMonth, int totalPiastres})>> monthlyTotals(
       int lastNMonths);
 
+  /// Totals for the last [lastNDays] calendar days, oldest first, ending
+  /// today. Excludes soft-deleted entries. Days with no spending are
+  /// included with a zero total rather than omitted, so a gap in a chart
+  /// never gets mistaken for missing data. `label` is the day-of-month
+  /// number as a Latin-digit string.
+  Future<List<({String label, int totalPiastres})>> dailyTotals(
+      int lastNDays);
+
+  /// Totals for the last [lastNWeeks] non-overlapping 7-day windows, oldest
+  /// first, ending with the 7-day window that includes today. Excludes
+  /// soft-deleted entries. Weeks with no spending are included with a zero
+  /// total rather than omitted. `label` is the week's start date's
+  /// day-of-month number as a Latin-digit string.
+  Future<List<({String label, int totalPiastres})>> weeklyTotals(
+      int lastNWeeks);
+
   /// Records a raise or correction as a NEW `salary_periods` row dated
   /// today, rather than mutating an existing one — salary history is real
   /// data and must never be rewritten.
@@ -40,4 +56,15 @@ abstract class SpendingRepository {
   /// grid and from [allItems], but existing entries that reference it are
   /// left untouched.
   Future<void> archiveItem(String itemId);
+
+  /// Updates an item's own catalogue row — its Arabic name, category and
+  /// default price. Never touches any past entry: entries store their own
+  /// snapshot amount and category at save time, independent of the item's
+  /// current values.
+  Future<void> updateItem({
+    required String itemId,
+    required String nameAr,
+    required String categoryKey,
+    int? defaultAmountPiastres,
+  });
 }

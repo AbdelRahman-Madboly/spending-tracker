@@ -151,6 +151,24 @@ class FixtureSpendingRepository implements SpendingRepository {
   }
 
   @override
+  Future<void> updateItem({
+    required String itemId,
+    required String nameAr,
+    required String categoryKey,
+    int? defaultAmountPiastres,
+  }) async {
+    final index = _items.indexWhere((i) => i.id == itemId);
+    if (index == -1) return;
+    _items[index] = QuickPickItem(
+      id: itemId,
+      nameAr: nameAr,
+      categoryKey: categoryKey,
+      defaultAmountPiastres: defaultAmountPiastres,
+    );
+    _controller.add(null);
+  }
+
+  @override
   Stream<List<EntryView>> watchEntriesForDay(DateTime day) async* {
     List<EntryView> forDay() => _entries
         .where((e) =>
@@ -231,6 +249,43 @@ class FixtureSpendingRepository implements SpendingRepository {
         .where((e) => e.date.year == year && e.date.month == month)
         .fold<int>(0, (sum, e) => sum + e.amountPiastres);
   }
+
+  /// The fixture's frozen "today" — 2026-09-06, matching every other
+  /// hardcoded date in this class — with the time component stripped, so
+  /// day/week arithmetic below stays deterministic across test runs
+  /// regardless of the real wall-clock date.
+  DateTime get _todayAnchor => DateTime(2026, 9, _today);
+
+  @override
+  Future<List<({String label, int totalPiastres})>> dailyTotals(
+      int lastNDays) async {
+    final anchor = _todayAnchor;
+    final totals = <({String label, int totalPiastres})>[];
+    for (var i = lastNDays - 1; i >= 0; i--) {
+      final day = anchor.subtract(Duration(days: i));
+      final total = _spentInRange(day, day);
+      totals.add((label: day.day.toString(), totalPiastres: total));
+    }
+    return totals;
+  }
+
+  @override
+  Future<List<({String label, int totalPiastres})>> weeklyTotals(
+      int lastNWeeks) async {
+    final anchor = _todayAnchor;
+    final totals = <({String label, int totalPiastres})>[];
+    for (var i = lastNWeeks - 1; i >= 0; i--) {
+      final weekEnd = anchor.subtract(Duration(days: i * 7));
+      final weekStart = weekEnd.subtract(const Duration(days: 6));
+      final total = _spentInRange(weekStart, weekEnd);
+      totals.add((label: weekStart.day.toString(), totalPiastres: total));
+    }
+    return totals;
+  }
+
+  int _spentInRange(DateTime start, DateTime end) => _entries
+      .where((e) => !e.date.isBefore(start) && !e.date.isAfter(end))
+      .fold<int>(0, (sum, e) => sum + e.amountPiastres);
 
   @override
   Future<List<({String yearMonth, int totalPiastres})>> monthlyTotals(

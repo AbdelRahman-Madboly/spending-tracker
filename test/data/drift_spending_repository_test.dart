@@ -14,6 +14,10 @@ String _today() {
       '${now.day.toString().padLeft(2, '0')}';
 }
 
+String _fmt(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
+    '${d.month.toString().padLeft(2, '0')}-'
+    '${d.day.toString().padLeft(2, '0')}';
+
 void main() {
   late AppDatabase db;
   late DriftSpendingRepository repo;
@@ -383,5 +387,103 @@ void main() {
     final dayEntries = await repo.watchEntriesForDay(DateTime.now()).first;
     expect(dayEntries.length, 1);
     expect(dayEntries.first.id, 'e1');
+  });
+
+  test(
+      'updateItem changes the catalogue row but never a past entry\'s own '
+      'stored amount or category', () async {
+    await db.into(db.items).insert(ItemsCompanion.insert(
+          id: 'item-x',
+          nameAr: 'قديم',
+          nameEn: 'old',
+          categoryKey: 'Food',
+          defaultAmountPiastres: const Value(1000),
+        ));
+    await db.into(db.entries).insert(EntriesCompanion.insert(
+          id: 'entry-x',
+          date: _today(),
+          amountPiastres: 1000,
+          categoryKey: 'Food',
+          itemId: const Value('item-x'),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ));
+
+    await repo.updateItem(
+      itemId: 'item-x',
+      nameAr: 'جديد',
+      categoryKey: 'Drinks',
+      defaultAmountPiastres: 5000,
+    );
+
+    final item = await (db.select(db.items)
+          ..where((t) => t.id.equals('item-x')))
+        .getSingle();
+    expect(item.nameAr, 'جديد');
+    expect(item.categoryKey, 'Drinks');
+    expect(item.defaultAmountPiastres, 5000);
+
+    final entry = await (db.select(db.entries)
+          ..where((t) => t.id.equals('entry-x')))
+        .getSingle();
+    expect(entry.categoryKey, 'Food');
+    expect(entry.amountPiastres, 1000);
+  });
+
+  test(
+      'dailyTotals is oldest-first, ends today, zero-fills empty days and '
+      'excludes soft-deleted entries', () async {
+    await seedEntry(id: 'e1', amount: 1500, date: _today());
+    await seedEntry(
+      id: 'e2',
+      amount: 9999,
+      date: _today(),
+      deletedAt: DateTime.now(),
+    );
+
+    final totals = await repo.dailyTotals(7);
+
+    expect(totals.length, 7);
+    expect(totals.last.totalPiastres, 1500);
+    expect(totals.first.totalPiastres, 0);
+  });
+
+  test('dailyTotals returns all zero totals when there is no spending',
+      () async {
+    final totals = await repo.dailyTotals(3);
+    expect(totals.length, 3);
+    expect(totals.every((t) => t.totalPiastres == 0), isTrue);
+  });
+
+  test(
+      'weeklyTotals is oldest-first, ends with the week containing today, '
+      'and zero-fills weeks with no spending', () async {
+    await seedEntry(id: 'e1', amount: 2000, date: _today());
+
+    final totals = await repo.weeklyTotals(6);
+
+    expect(totals.length, 6);
+    expect(totals.last.totalPiastres, 2000);
+    expect(totals.first.totalPiastres, 0);
+  });
+
+  test(
+      'weeklyTotals correctly buckets entries either side of a calendar '
+      'month boundary without losing or double-counting either one',
+      () async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final firstOfMonth = DateTime(today.year, today.month, 1);
+    final lastOfPrevMonth = firstOfMonth.subtract(const Duration(days: 1));
+
+    await seedEntry(id: 'e1', amount: 1000, date: _fmt(lastOfPrevMonth));
+    await seedEntry(id: 'e2', amount: 2000, date: _fmt(firstOfMonth));
+
+    final totals = await repo.weeklyTotals(8);
+    final sum = totals.fold<int>(0, (s, t) => s + t.totalPiastres);
+
+    expect(sum, 3000,
+        reason: 'both entries must be counted exactly once across weeks, '
+            'regardless of the month boundary between their dates');
   });
 }

@@ -85,4 +85,60 @@ void main() {
 
     expect(await resultBox[0]!, isNull);
   });
+
+  testWidgets(
+      'showEditItemDialog pre-fills the existing item\'s name, category and '
+      'price, and saving returns the edited values', (tester) async {
+    const item = QuickPickItem(
+      id: 'i1',
+      nameAr: 'شويبس',
+      categoryKey: 'Drinks',
+      defaultAmountPiastres: 4000,
+    );
+    Future<NewItemDraft?>? result;
+    await tester.pumpWidget(MaterialApp(
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () {
+                result = showEditItemDialog(
+                  context: context,
+                  categories: _categories,
+                  item: item,
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    // Pre-filled with the item's current values, not blank fields. A
+    // TextField's entered value isn't a `Text` widget, so this reads the
+    // controller through the field itself rather than via `find.text`.
+    final nameField =
+        tester.widget<TextField>(find.byKey(const Key('new-item-name')));
+    final amountField =
+        tester.widget<TextField>(find.byKey(const Key('new-item-amount')));
+    expect(nameField.controller!.text, 'شويبس');
+    expect(amountField.controller!.text, '40');
+    expect(find.text('تعديل العنصر'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('new-item-name')), 'شويبس جديد');
+    await tester.enterText(find.byKey(const Key('new-item-amount')), '45');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('new-item-save')));
+    await tester.pumpAndSettle();
+
+    final captured = await result!;
+    expect(captured, isNotNull);
+    expect(captured!.nameAr, 'شويبس جديد');
+    expect(captured.categoryKey, 'Drinks');
+    expect(captured.amountPiastres, 4500);
+  });
 }

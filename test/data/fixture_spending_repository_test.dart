@@ -70,4 +70,52 @@ void main() {
         (await repo.watchEntriesForDay(DateTime(2026, 9, 6)).first).length;
     expect(after, before + 1);
   });
+
+  test(
+      'dailyTotals is oldest-first, ends at the fixture\'s "today" '
+      '(2026-09-06), and zero-fills days with no spending', () async {
+    final totals = await repo.dailyTotals(7);
+
+    expect(totals.length, 7);
+    expect(totals.map((t) => t.label).toList(),
+        ['31', '1', '2', '3', '4', '5', '6']);
+    // 2026-09-05: إندومي 1000 + شويبس 4000 = 5000.
+    expect(totals[5].totalPiastres, 5000);
+    // 2026-09-06: لبن 3500.
+    expect(totals[6].totalPiastres, 3500);
+    expect(totals.take(5).every((t) => t.totalPiastres == 0), isTrue);
+  });
+
+  test(
+      'weeklyTotals is oldest-first and its last bucket spans the '
+      'July/August-to-September boundary, picking up all of the fixture\'s '
+      'spending while every earlier week zero-fills', () async {
+    final totals = await repo.weeklyTotals(6);
+
+    expect(totals.length, 6);
+    expect(
+      totals.map((t) => t.label).toList(),
+      ['27', '3', '10', '17', '24', '31'],
+    );
+    // Last bucket (2026-08-31..2026-09-06) crosses the August/September
+    // boundary and contains all three fixture entries.
+    expect(totals.last.totalPiastres, 8500);
+    expect(totals.take(5).every((t) => t.totalPiastres == 0), isTrue);
+  });
+
+  test('updateItem changes an item\'s name, category and price in place',
+      () async {
+    await repo.updateItem(
+      itemId: 'i1',
+      nameAr: 'شويبس مانجا',
+      categoryKey: 'Snacks',
+      defaultAmountPiastres: 4500,
+    );
+
+    final items = await repo.allItems();
+    final updated = items.firstWhere((i) => i.id == 'i1');
+    expect(updated.nameAr, 'شويبس مانجا');
+    expect(updated.categoryKey, 'Snacks');
+    expect(updated.defaultAmountPiastres, 4500);
+  });
 }

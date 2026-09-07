@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/app.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/features/settings/settings_screen.dart';
 
@@ -14,7 +15,12 @@ void main() {
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
 
+    // Pumped under the real app theme (as add_sheet_test.dart already
+    // does) rather than a bare MaterialApp — otherwise the 48dp tap-target
+    // assertion below passes under Flutter's stock M3 theme rather than
+    // what actually ships.
     await tester.pumpWidget(MaterialApp(
+      theme: buildAppTheme(),
       home: Directionality(
         textDirection: TextDirection.rtl,
         child: SettingsScreen(repository: repository),
@@ -88,6 +94,42 @@ void main() {
     // it.
     final topItems = await repository.topItems(20);
     expect(topItems.map((i) => i.id), isNot(contains('i1')));
+  });
+
+  testWidgets(
+      'tapping an item opens an edit dialog pre-filled with its current '
+      'values, and saving updates its name, category and price in the list',
+      (tester) async {
+    final repository = FixtureSpendingRepository();
+    await pumpSettings(tester, repository);
+
+    await tester.tap(find.text('شويبس'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('تعديل العنصر'), findsOneWidget);
+    // A TextField's entered value isn't a `Text` widget, so the pre-fill is
+    // checked through the field's controller rather than `find.text`.
+    final nameField =
+        tester.widget<TextField>(find.byKey(const Key('new-item-name')));
+    final amountField =
+        tester.widget<TextField>(find.byKey(const Key('new-item-amount')));
+    expect(nameField.controller!.text, 'شويبس');
+    expect(amountField.controller!.text, '40');
+
+    await tester.enterText(
+        find.byKey(const Key('new-item-name')), 'شويبس مانجا');
+    await tester.enterText(find.byKey(const Key('new-item-amount')), '45');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('new-item-save')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('شويبس مانجا'), findsOneWidget);
+    expect(find.text('شويبس'), findsNothing);
+
+    final updated =
+        (await repository.allItems()).firstWhere((i) => i.id == 'i1');
+    expect(updated.categoryKey, 'Drinks');
+    expect(updated.defaultAmountPiastres, 4500);
   });
 
   testWidgets('shows the app name and version in the about section',

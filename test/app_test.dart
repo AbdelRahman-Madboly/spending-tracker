@@ -1,8 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/app.dart';
+import 'package:spending_tracker/core/design/tokens.dart';
 
 void main() {
+  test(
+      'buildAppTheme wires AppColors into the colour scheme so Material 3 '
+      'defaults never leak through', () {
+    final theme = buildAppTheme();
+
+    expect(theme.colorScheme.primary, AppColors.accent);
+    expect(theme.colorScheme.onPrimary, Colors.white);
+    expect(theme.colorScheme.surface, AppColors.surface);
+    expect(theme.colorScheme.onSurface, AppColors.textPrimary);
+    expect(theme.colorScheme.error, AppColors.negative);
+    expect(theme.scaffoldBackgroundColor, AppColors.background);
+  });
+
   testWidgets('app renders right-to-left in Arabic', (tester) async {
     await tester.pumpWidget(const SpendingApp());
     await tester.pumpAndSettle();
