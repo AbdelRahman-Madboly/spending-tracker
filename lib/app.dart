@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -42,12 +40,12 @@ class _SpendingAppState extends State<SpendingApp> {
   @override
   void initState() {
     super.initState();
+    // Real-data seeding happens inside AppDatabase's own onCreate (see
+    // lib/data/db/database.dart) — before this constructor returns, drift
+    // has already guaranteed no query run against _database can observe
+    // an unseeded database, so there is nothing to await here.
     _database = AppDatabase();
     _repository = DriftSpendingRepository(_database);
-    // Fire-and-forget: loads the real historical spending data on first
-    // run only (see AppDatabase.seedRealDataIfNeeded). The repository's
-    // streams pick up the inserted rows as soon as it completes.
-    unawaited(_database.seedRealDataIfNeeded());
   }
 
   @override

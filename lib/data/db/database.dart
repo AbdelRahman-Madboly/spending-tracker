@@ -17,16 +17,46 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   /// Used by tests to run entirely in memory, with no filesystem access.
-  AppDatabase.forTesting(super.executor);
+  ///
+  /// By default this does NOT seed the real historical data — existing
+  /// tests build their own synthetic rows and assert exact counts against
+  /// them, so mixing in 87 real entries would break those counts. Pass
+  /// [seedJsonLoader] to opt a specific test into exercising the real
+  /// on-open seeding path (see [migration]'s `onCreate`) with an in-memory
+  /// JSON string, without needing `rootBundle` or Flutter's service
+  /// bindings — a plain `test()` suite (as opposed to `testWidgets()`)
+  /// doesn't have those.
+  AppDatabase.forTesting(super.executor, {this.seedJsonLoader});
+
+  /// Loads assets/seed/seed.json. Set at construction: [AppDatabase()]
+  /// (the real app) always seeds from the bundled asset; [forTesting]
+  /// defaults to `null`, meaning "don't seed real data at all".
+  Future<String> Function()? seedJsonLoader = _defaultSeedLoader;
+
+  static Future<String> _defaultSeedLoader() =>
+      rootBundle.loadString('assets/seed/seed.json');
 
   @override
   int get schemaVersion => 1;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        // Seeding the real historical data here — as part of onCreate,
+        // rather than as a separate fire-and-forget call after the
+        // database is constructed — is what guarantees no query (a
+        // one-shot `.get()`/`Future`, or a `.watch()` stream's very first
+        // emission) can ever observe an empty, freshly-created database:
+        // drift only allows a query to run once the executor has finished
+        // opening, which includes running this whole callback to
+        // completion. There is no ordering window left for a screen to
+        // read a zero salary before the seed has landed.
         onCreate: (m) async {
           await m.createAll();
           await _seedCategories(this);
+          final loadSeedJson = seedJsonLoader;
+          if (loadSeedJson != null) {
+            await seedFromJsonString(await loadSeedJson());
+          }
         },
         // SQLite ignores foreign key constraints unless this pragma is set
         // on every connection — drift's `.references()` is otherwise only a
@@ -37,19 +67,8 @@ class AppDatabase extends _$AppDatabase {
         },
       );
 
-  /// Loads the real historical spending data (assets/seed/seed.json) and
-  /// seeds it, but only the first time — safe to call every app start.
-  /// The ten categories are already in place by the time this can matter
-  /// (seeded in [onCreate]); this only ever adds items, entries and salary
-  /// periods, and only when the entries table is still empty.
-  Future<void> seedRealDataIfNeeded() async {
-    final jsonString = await rootBundle.loadString('assets/seed/seed.json');
-    await seedFromJsonString(jsonString);
-  }
-
-  /// The pure, asset-free half of [seedRealDataIfNeeded] — takes the seed
-  /// JSON as a string so it can be exercised directly in tests without a
-  /// Flutter asset bundle. Idempotent: a no-op whenever `entries` already
+  /// Inserts the parsed seed JSON's items, entries and salary periods, but
+  /// only the first time — idempotent, a no-op whenever `entries` already
   /// has rows, so calling this more than once never duplicates data.
   Future<void> seedFromJsonString(String jsonString) async {
     final alreadySeeded =
