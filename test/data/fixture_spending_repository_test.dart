@@ -118,4 +118,89 @@ void main() {
     expect(updated.categoryKey, 'Snacks');
     expect(updated.defaultAmountPiastres, 4500);
   });
+
+  test('createCategory adds a new category to categories()', () async {
+    final created = await repo.createCategory(
+      key: 'Custom1',
+      labelAr: 'مخصص',
+      iconName: 'pets',
+    );
+    expect(created.key, 'Custom1');
+    final all = await repo.categories();
+    expect(all.map((c) => c.key), contains('Custom1'));
+  });
+
+  test('updateCategory renames a category without changing its key',
+      () async {
+    await repo.updateCategory(
+        key: 'Food', labelAr: 'أكل وشرب', iconName: 'lunch_dining');
+    final food = (await repo.categories()).firstWhere((c) => c.key == 'Food');
+    expect(food.labelAr, 'أكل وشرب');
+    expect(food.iconName, 'lunch_dining');
+  });
+
+  test(
+      'archiving a category cascades to its subcategories and items, '
+      'without touching past entries', () async {
+    final before =
+        (await repo.watchEntriesForDay(DateTime(2026, 9, 6)).first).length;
+
+    await repo.archiveCategory('Drinks');
+
+    expect((await repo.categories()).map((c) => c.key),
+        isNot(contains('Drinks')));
+    expect(await repo.subcategories('Drinks'), isEmpty);
+    expect((await repo.allItems()).map((i) => i.categoryKey),
+        isNot(contains('Drinks')));
+
+    final after =
+        (await repo.watchEntriesForDay(DateTime(2026, 9, 6)).first).length;
+    expect(after, before);
+  });
+
+  test('createSubcategory adds a new subcategory under a category',
+      () async {
+    final created = await repo.createSubcategory(
+      key: 'PhoneAccessories',
+      categoryKey: 'Shopping',
+      labelAr: 'إكسسوارات موبايل',
+      iconName: 'devices',
+    );
+    expect(created.categoryKey, 'Shopping');
+    final subs = await repo.subcategories('Shopping');
+    expect(subs.map((s) => s.key), contains('PhoneAccessories'));
+  });
+
+  test('updateSubcategory can move a subcategory to a new category',
+      () async {
+    await repo.updateSubcategory(
+      key: 'Haircut',
+      categoryKey: 'Shopping',
+      labelAr: 'حلاقة',
+      iconName: 'content_cut',
+    );
+
+    expect((await repo.subcategories('Personal Care')).map((s) => s.key),
+        isNot(contains('Haircut')));
+    expect((await repo.subcategories('Shopping')).map((s) => s.key),
+        contains('Haircut'));
+  });
+
+  test('archiveSubcategory cascades to items filed under it', () async {
+    await repo.archiveSubcategory('Soda');
+    expect((await repo.subcategories('Drinks')).map((s) => s.key),
+        isNot(contains('Soda')));
+    expect((await repo.allItems()).map((i) => i.id), isNot(contains('i1')));
+  });
+
+  test('archivedItems lists archived items, and unarchiveItem restores one',
+      () async {
+    await repo.archiveItem('i1');
+    expect((await repo.archivedItems()).map((i) => i.id), contains('i1'));
+
+    await repo.unarchiveItem('i1');
+    expect((await repo.allItems()).map((i) => i.id), contains('i1'));
+    expect((await repo.archivedItems()).map((i) => i.id),
+        isNot(contains('i1')));
+  });
 }

@@ -153,5 +153,265 @@ void main() {
     final archiveHeight =
         tester.getSize(find.byKey(const Key('archive-item-i1'))).height;
     expect(archiveHeight, greaterThanOrEqualTo(48));
+
+    final addCategorySize =
+        tester.getSize(find.byKey(const Key('add-category')));
+    expect(addCategorySize.height, greaterThanOrEqualTo(48));
+    expect(addCategorySize.width, greaterThanOrEqualTo(48));
+
+    final expandSize =
+        tester.getSize(find.byKey(const Key('expand-category-Drinks')));
+    expect(expandSize.height, greaterThanOrEqualTo(48));
+    expect(expandSize.width, greaterThanOrEqualTo(48));
+
+    final addItemSize = tester.getSize(find.byKey(const Key('add-item')));
+    expect(addItemSize.height, greaterThanOrEqualTo(48));
+    expect(addItemSize.width, greaterThanOrEqualTo(48));
+  });
+
+  group('category management', () {
+    testWidgets(
+        'tapping a category opens an edit dialog pre-filled with its label, '
+        'and saving renames it without changing its key', (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('settings-category-Drinks')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('category-dialog-name')), findsOneWidget);
+      final nameField = tester
+          .widget<TextField>(find.byKey(const Key('category-dialog-name')));
+      expect(nameField.controller!.text, 'مشروبات');
+
+      await tester.enterText(
+          find.byKey(const Key('category-dialog-name')), 'مشروبات وعصائر');
+      await tester.tap(find.byKey(const Key('category-dialog-save')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('settings-category-Drinks')),
+          matching: find.text('مشروبات وعصائر'),
+        ),
+        findsOneWidget,
+      );
+      final renamed = (await repository.categories())
+          .firstWhere((c) => c.key == 'Drinks');
+      expect(renamed.labelAr, 'مشروبات وعصائر');
+    });
+
+    testWidgets(
+        'the icon picker lets you change a category\'s icon, and saving '
+        'persists the new icon', (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('settings-category-Drinks')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('category-dialog-icon-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('icon-option-pets')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('icon-option-pets')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('category-dialog-save')));
+      await tester.pumpAndSettle();
+
+      final updated = (await repository.categories())
+          .firstWhere((c) => c.key == 'Drinks');
+      expect(updated.iconName, 'pets');
+    });
+
+    testWidgets(
+        'the add-category button creates a new category shown in the list',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('add-category')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const Key('category-dialog-name')), 'رياضة');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('category-dialog-save')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('رياضة'), findsOneWidget);
+      expect(await (repository.categories()).then((c) => c.length), 11);
+    });
+
+    testWidgets('archiving a category removes it from the list',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('archive-category-Drinks')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('مشروبات'), findsNothing);
+      expect((await repository.categories()).map((c) => c.key),
+          isNot(contains('Drinks')));
+    });
+  });
+
+  group('subcategory management', () {
+    testWidgets(
+        'expanding a category shows its subcategories nested underneath',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      expect(find.text('صودا'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('expand-category-Drinks')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('صودا'), findsOneWidget);
+      expect(find.text('مياه'), findsOneWidget);
+    });
+
+    testWidgets(
+        'tapping a subcategory opens an edit dialog, and saving renames it '
+        'without changing its key', (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('expand-category-Drinks')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('صودا'));
+      await tester.pumpAndSettle();
+
+      expect(
+          find.byKey(const Key('subcategory-dialog-name')), findsOneWidget);
+      await tester.enterText(
+          find.byKey(const Key('subcategory-dialog-name')), 'مشروبات غازية');
+      await tester.tap(find.byKey(const Key('subcategory-dialog-save')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('مشروبات غازية'), findsOneWidget);
+      final renamed = (await repository.subcategories('Drinks'))
+          .firstWhere((s) => s.key == 'Soda');
+      expect(renamed.labelAr, 'مشروبات غازية');
+    });
+
+    testWidgets(
+        'moving a subcategory to another category via the edit dialog '
+        'relocates it there', (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('expand-category-Drinks')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('صودا'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('subcategory-dialog-category')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('سناكس').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('subcategory-dialog-save')));
+      await tester.pumpAndSettle();
+
+      final moved = (await repository.subcategories('Snacks'))
+          .map((s) => s.key);
+      expect(moved, contains('Soda'));
+      final stillUnderDrinks = (await repository.subcategories('Drinks'))
+          .map((s) => s.key);
+      expect(stillUnderDrinks, isNot(contains('Soda')));
+    });
+
+    testWidgets('the add-subcategory button adds a new subcategory nested '
+        'under its category', (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('expand-category-Drinks')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('add-subcategory-Drinks')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const Key('subcategory-dialog-name')), 'مياه غازية');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('subcategory-dialog-save')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('مياه غازية'), findsOneWidget);
+      expect((await repository.subcategories('Drinks')).map((s) => s.labelAr),
+          contains('مياه غازية'));
+    });
+
+    testWidgets('archiving a subcategory removes it from the nested list',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('expand-category-Drinks')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('archive-subcategory-Soda')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('صودا'), findsNothing);
+      expect((await repository.subcategories('Drinks')).map((s) => s.key),
+          isNot(contains('Soda')));
+    });
+  });
+
+  group('item management', () {
+    testWidgets('the add-item button creates a new item shown in the list',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('add-item')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const Key('new-item-name')), 'سجائر');
+      await tester.enterText(
+          find.byKey(const Key('new-item-amount')), '80');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('new-item-save')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('سجائر'), findsOneWidget);
+      final items = await repository.allItems();
+      expect(items.map((i) => i.nameAr), contains('سجائر'));
+    });
+
+    testWidgets(
+        'archiving an item and switching to the archived view shows it '
+        'there with an unarchive control that restores it', (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('archive-item-i1')));
+      await tester.pumpAndSettle();
+      expect(find.text('شويبس'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('items-view-archived')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('شويبس'), findsOneWidget);
+      expect(find.byKey(const Key('unarchive-item-i1')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('unarchive-item-i1')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('شويبس'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('items-view-active')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('شويبس'), findsOneWidget);
+      final items = await repository.allItems();
+      expect(items.map((i) => i.id), contains('i1'));
+    });
   });
 }

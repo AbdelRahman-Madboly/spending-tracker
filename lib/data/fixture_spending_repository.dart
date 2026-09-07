@@ -6,154 +6,158 @@ import '../domain/spending_repository.dart';
 /// Mirrors the ten categories seeded into the real database
 /// (see `lib/data/db/database.dart`) so widget tests exercise the same
 /// category set the app ships with.
-const _categories = [
-  CategoryView(key: 'Drinks', labelAr: 'مشروبات', iconName: 'local_drink'),
-  CategoryView(key: 'Snacks', labelAr: 'سناكس', iconName: 'cookie'),
-  CategoryView(key: 'Food', labelAr: 'أكل', iconName: 'restaurant'),
-  CategoryView(
+final _seedCategories = [
+  const CategoryView(
+      key: 'Drinks', labelAr: 'مشروبات', iconName: 'local_drink'),
+  const CategoryView(key: 'Snacks', labelAr: 'سناكس', iconName: 'cookie'),
+  const CategoryView(key: 'Food', labelAr: 'أكل', iconName: 'restaurant'),
+  const CategoryView(
       key: 'Transport', labelAr: 'مواصلات', iconName: 'directions_bus'),
-  CategoryView(key: 'Bills', labelAr: 'فواتير', iconName: 'receipt_long'),
-  CategoryView(
+  const CategoryView(
+      key: 'Bills', labelAr: 'فواتير', iconName: 'receipt_long'),
+  const CategoryView(
       key: 'Personal Care', labelAr: 'عناية شخصية', iconName: 'content_cut'),
-  CategoryView(key: 'Shopping', labelAr: 'تسوق', iconName: 'shopping_bag'),
-  CategoryView(
+  const CategoryView(
+      key: 'Shopping', labelAr: 'تسوق', iconName: 'shopping_bag'),
+  const CategoryView(
       key: 'Family/Social', labelAr: 'عائلة وزيارات', iconName: 'groups'),
-  CategoryView(key: 'Gifts', labelAr: 'هدايا', iconName: 'card_giftcard'),
-  CategoryView(key: 'Loans', labelAr: 'سلف', iconName: 'handshake'),
+  const CategoryView(
+      key: 'Gifts', labelAr: 'هدايا', iconName: 'card_giftcard'),
+  const CategoryView(key: 'Loans', labelAr: 'سلف', iconName: 'handshake'),
 ];
 
 /// Mirrors the subcategory catalogue seeded into the real database (see
 /// `lib/data/db/database.dart`'s `_seedSubcategoryRows`), so widget tests
 /// exercise the same Category -> Subcategory structure the app ships with.
-const _subcategories = [
-  SubcategoryView(
+final _seedSubcategories = [
+  const SubcategoryView(
       key: 'Soda',
       categoryKey: 'Drinks',
       labelAr: 'صودا',
       iconName: 'local_bar'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Water',
       categoryKey: 'Drinks',
       labelAr: 'مياه',
       iconName: 'water_drop'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Milk',
       categoryKey: 'Drinks',
       labelAr: 'لبن',
       iconName: 'local_drink'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Juice',
       categoryKey: 'Drinks',
       labelAr: 'عصير',
       iconName: 'emoji_food_beverage'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'HotDrinks',
       categoryKey: 'Drinks',
       labelAr: 'مشروبات ساخنة',
       iconName: 'local_cafe'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Chips', categoryKey: 'Snacks', labelAr: 'شيبسي', iconName: 'tapas'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Chocolate',
       categoryKey: 'Snacks',
       labelAr: 'شوكولاتة',
       iconName: 'cake'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Biscuits',
       categoryKey: 'Snacks',
       labelAr: 'بسكوت',
       iconName: 'cookie'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Sweets',
       categoryKey: 'Snacks',
       labelAr: 'حلويات',
       iconName: 'icecream'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'FastFood',
       categoryKey: 'Snacks',
       labelAr: 'وجبات سريعة',
       iconName: 'fastfood'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Breakfast',
       categoryKey: 'Food',
       labelAr: 'فطار',
       iconName: 'free_breakfast'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Lunch',
       categoryKey: 'Food',
       labelAr: 'غدا',
       iconName: 'lunch_dining'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Dinner',
       categoryKey: 'Food',
       labelAr: 'عشا',
       iconName: 'dinner_dining'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Groceries',
       categoryKey: 'Food',
       labelAr: 'بقالة',
       iconName: 'local_grocery_store'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'PublicTransport',
       categoryKey: 'Transport',
       labelAr: 'مواصلات عامة',
       iconName: 'directions_bus'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Taxi',
       categoryKey: 'Transport',
       labelAr: 'تاكسي',
       iconName: 'local_taxi'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'PhoneBill',
       categoryKey: 'Bills',
       labelAr: 'فاتورة موبايل',
       iconName: 'smartphone'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'HomeInternet',
       categoryKey: 'Bills',
       labelAr: 'إنترنت المنزل',
       iconName: 'wifi'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Haircut',
       categoryKey: 'Personal Care',
       labelAr: 'حلاقة',
       iconName: 'content_cut'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Cosmetics',
       categoryKey: 'Personal Care',
       labelAr: 'مستحضرات',
       iconName: 'spa'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Clothes',
       categoryKey: 'Shopping',
       labelAr: 'ملابس',
       iconName: 'checkroom'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Electronics',
       categoryKey: 'Shopping',
       labelAr: 'إلكترونيات',
       iconName: 'devices'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'OnlineShopping',
       categoryKey: 'Shopping',
       labelAr: 'تسوق أونلاين',
       iconName: 'shopping_cart'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Trips',
       categoryKey: 'Family/Social',
       labelAr: 'رحلات',
       iconName: 'flight'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Visits',
       categoryKey: 'Family/Social',
       labelAr: 'زيارات',
       iconName: 'people'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Gifts',
       categoryKey: 'Gifts',
       labelAr: 'هدايا',
       iconName: 'card_giftcard'),
-  SubcategoryView(
+  const SubcategoryView(
       key: 'Loans',
       categoryKey: 'Loans',
       labelAr: 'سلف',
@@ -256,8 +260,20 @@ class FixtureSpendingRepository implements SpendingRepository {
         defaultAmountPiastres: 500),
   ];
 
+  // Instance copies of the module-level seed lists: every
+  // `FixtureSpendingRepository()` must start from a clean, independent
+  // catalogue. Reading/writing the module-level lists directly would leak
+  // mutations (a rename, an added category, ...) from one instance into
+  // every other instance created afterwards in the same isolate — most
+  // visibly across widget tests, each of which constructs its own fixture
+  // expecting a pristine catalogue.
+  final _categories = List<CategoryView>.of(_seedCategories);
+  final _subcategories = List<SubcategoryView>.of(_seedSubcategories);
+
   final _controller = StreamController<void>.broadcast();
   final _archivedItemIds = <String>{};
+  final _archivedCategoryKeys = <String>{};
+  final _archivedSubcategoryKeys = <String>{};
   int _salary = _defaultSalary;
 
   int get _spent => _entries.fold(0, (sum, e) => sum + e.amountPiastres);
@@ -327,11 +343,129 @@ class FixtureSpendingRepository implements SpendingRepository {
       .toList();
 
   @override
-  Future<List<CategoryView>> categories() async => _categories;
+  Future<List<CategoryView>> categories() async => _categories
+      .where((c) => !_archivedCategoryKeys.contains(c.key))
+      .toList();
 
   @override
   Future<List<SubcategoryView>> subcategories(String categoryKey) async =>
-      _subcategories.where((s) => s.categoryKey == categoryKey).toList();
+      _subcategories
+          .where((s) =>
+              s.categoryKey == categoryKey &&
+              !_archivedSubcategoryKeys.contains(s.key))
+          .toList();
+
+  @override
+  Future<CategoryView> createCategory({
+    required String key,
+    required String labelAr,
+    required String iconName,
+  }) async {
+    final category =
+        CategoryView(key: key, labelAr: labelAr, iconName: iconName);
+    _categories.add(category);
+    _controller.add(null);
+    return category;
+  }
+
+  @override
+  Future<void> updateCategory({
+    required String key,
+    required String labelAr,
+    required String iconName,
+  }) async {
+    final index = _categories.indexWhere((c) => c.key == key);
+    if (index == -1) return;
+    _categories[index] =
+        CategoryView(key: key, labelAr: labelAr, iconName: iconName);
+    _controller.add(null);
+  }
+
+  @override
+  Future<void> archiveCategory(String key) async {
+    _archivedCategoryKeys.add(key);
+    // Cascade: hide every subcategory and item that lives under this
+    // category too, so nothing stays visible under a category the user can
+    // no longer see or pick. Past entries are untouched — they aren't
+    // stored in these catalogue lists at all.
+    for (final sub in _subcategories.where((s) => s.categoryKey == key)) {
+      _archivedSubcategoryKeys.add(sub.key);
+    }
+    for (final item in _items.where((i) => i.categoryKey == key)) {
+      _archivedItemIds.add(item.id);
+    }
+    _controller.add(null);
+  }
+
+  @override
+  Future<SubcategoryView> createSubcategory({
+    required String key,
+    required String categoryKey,
+    required String labelAr,
+    required String iconName,
+  }) async {
+    final subcategory = SubcategoryView(
+      key: key,
+      categoryKey: categoryKey,
+      labelAr: labelAr,
+      iconName: iconName,
+    );
+    _subcategories.add(subcategory);
+    _controller.add(null);
+    return subcategory;
+  }
+
+  @override
+  Future<void> updateSubcategory({
+    required String key,
+    required String categoryKey,
+    required String labelAr,
+    required String iconName,
+  }) async {
+    final index = _subcategories.indexWhere((s) => s.key == key);
+    if (index == -1) return;
+    _subcategories[index] = SubcategoryView(
+      key: key,
+      categoryKey: categoryKey,
+      labelAr: labelAr,
+      iconName: iconName,
+    );
+    // Moving to a new category keeps the catalogue internally consistent:
+    // any catalogue item filed under this subcategory follows it to the
+    // new category. Past entries are never touched — they aren't stored in
+    // these catalogue lists at all.
+    for (var i = 0; i < _items.length; i++) {
+      if (_items[i].subcategoryKey == key) {
+        _items[i] = QuickPickItem(
+          id: _items[i].id,
+          nameAr: _items[i].nameAr,
+          categoryKey: categoryKey,
+          subcategoryKey: _items[i].subcategoryKey,
+          defaultAmountPiastres: _items[i].defaultAmountPiastres,
+        );
+      }
+    }
+    _controller.add(null);
+  }
+
+  @override
+  Future<void> archiveSubcategory(String key) async {
+    _archivedSubcategoryKeys.add(key);
+    for (final item in _items.where((i) => i.subcategoryKey == key)) {
+      _archivedItemIds.add(item.id);
+    }
+    _controller.add(null);
+  }
+
+  @override
+  Future<void> unarchiveItem(String itemId) async {
+    _archivedItemIds.remove(itemId);
+    _controller.add(null);
+  }
+
+  @override
+  Future<List<QuickPickItem>> archivedItems() async =>
+      _items.where((i) => _archivedItemIds.contains(i.id)).toList();
 
   @override
   Future<List<QuickPickItem>> itemsInCategory(

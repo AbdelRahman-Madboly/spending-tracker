@@ -544,4 +544,219 @@ void main() {
         reason: 'both entries must be counted exactly once across weeks, '
             'regardless of the month boundary between their dates');
   });
+
+  group('category CRUD', () {
+    test('createCategory inserts a new category', () async {
+      final created = await repo.createCategory(
+        key: 'Custom1',
+        labelAr: 'مخصص',
+        iconName: 'pets',
+      );
+
+      expect(created.key, 'Custom1');
+      expect(created.labelAr, 'مخصص');
+      final all = await repo.categories();
+      expect(all.map((c) => c.key), contains('Custom1'));
+    });
+
+    test('updateCategory changes the label and icon but never the key',
+        () async {
+      await repo.updateCategory(
+        key: 'Food',
+        labelAr: 'أكل وشرب',
+        iconName: 'lunch_dining',
+      );
+
+      final all = await repo.categories();
+      final food = all.firstWhere((c) => c.key == 'Food');
+      expect(food.labelAr, 'أكل وشرب');
+      expect(food.iconName, 'lunch_dining');
+    });
+
+    test(
+        'renaming a category never touches a past entry filed under it',
+        () async {
+      await seedEntry(id: 'e1', amount: 3500, categoryKey: 'Food');
+
+      await repo.updateCategory(
+        key: 'Food',
+        labelAr: 'أكل وشرب',
+        iconName: 'lunch_dining',
+      );
+
+      final entry = await (db.select(db.entries)
+            ..where((t) => t.id.equals('e1')))
+          .getSingle();
+      expect(entry.categoryKey, 'Food');
+      expect(entry.amountPiastres, 3500);
+    });
+
+    test(
+        'archiving a category cascades to its subcategories and items, but '
+        'never touches a past entry filed under it', () async {
+      await seedEntry(id: 'e1', amount: 3500, categoryKey: 'Food');
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'food-item',
+            nameAr: 'فول',
+            nameEn: 'foul',
+            categoryKey: 'Food',
+          ));
+
+      await repo.archiveCategory('Food');
+
+      final categories = await repo.categories();
+      expect(categories.map((c) => c.key), isNot(contains('Food')));
+
+      final subcategoriesUnderFood = await (db.select(db.subcategories)
+            ..where((t) => t.categoryKey.equals('Food')))
+          .get();
+      expect(subcategoriesUnderFood.every((s) => s.archived), isTrue);
+      expect(await repo.subcategories('Food'), isEmpty);
+
+      final items = await repo.allItems();
+      expect(items.map((i) => i.id), isNot(contains('food-item')));
+
+      final entry = await (db.select(db.entries)
+            ..where((t) => t.id.equals('e1')))
+          .getSingle();
+      expect(entry.categoryKey, 'Food');
+      expect(entry.amountPiastres, 3500);
+    });
+  });
+
+  group('subcategory CRUD', () {
+    test('createSubcategory inserts a new subcategory under a category',
+        () async {
+      final created = await repo.createSubcategory(
+        key: 'PhoneAccessories',
+        categoryKey: 'Shopping',
+        labelAr: 'إكسسوارات موبايل',
+        iconName: 'devices',
+      );
+
+      expect(created.categoryKey, 'Shopping');
+      final subs = await repo.subcategories('Shopping');
+      expect(subs.map((s) => s.key), contains('PhoneAccessories'));
+    });
+
+    test('updateSubcategory renames the label without changing the key',
+        () async {
+      await repo.updateSubcategory(
+        key: 'Haircut',
+        categoryKey: 'Personal Care',
+        labelAr: 'حلاقة وتقصيص',
+        iconName: 'content_cut',
+      );
+
+      final subs = await repo.subcategories('Personal Care');
+      final haircut = subs.firstWhere((s) => s.key == 'Haircut');
+      expect(haircut.labelAr, 'حلاقة وتقصيص');
+    });
+
+    test(
+        'moving a subcategory to a new category updates the catalogue but '
+        'never re-categorises a past entry filed under it', () async {
+      await seedEntry(
+        id: 'e1',
+        amount: 1500,
+        categoryKey: 'Personal Care',
+      );
+      await db.update(db.entries).write(
+            const EntriesCompanion(subcategoryKey: Value('Haircut')),
+          );
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'haircut-item',
+            nameAr: 'حلاقة',
+            nameEn: 'haircut',
+            categoryKey: 'Personal Care',
+            subcategoryKey: const Value('Haircut'),
+          ));
+
+      await repo.updateSubcategory(
+        key: 'Haircut',
+        categoryKey: 'Shopping',
+        labelAr: 'حلاقة',
+        iconName: 'content_cut',
+      );
+
+      // Catalogue moved: Haircut now lives under Shopping, and its
+      // catalogue item followed it there.
+      expect(await repo.subcategories('Personal Care'),
+          isNot(contains(predicate<SubcategoryView>((s) => s.key == 'Haircut'))));
+      final movedSubs = await repo.subcategories('Shopping');
+      expect(movedSubs.map((s) => s.key), contains('Haircut'));
+      final item = await (db.select(db.items)
+            ..where((t) => t.id.equals('haircut-item')))
+          .getSingle();
+      expect(item.categoryKey, 'Shopping');
+
+      // History untouched: the past entry keeps exactly what it was saved
+      // with.
+      final entry = await (db.select(db.entries)
+            ..where((t) => t.id.equals('e1')))
+          .getSingle();
+      expect(entry.categoryKey, 'Personal Care');
+      expect(entry.subcategoryKey, 'Haircut');
+      expect(entry.amountPiastres, 1500);
+    });
+
+    test(
+        'archiving a subcategory cascades to its items but never touches a '
+        'past entry filed under it', () async {
+      await seedEntry(id: 'e1', amount: 1500, categoryKey: 'Personal Care');
+      await db.update(db.entries).write(
+            const EntriesCompanion(subcategoryKey: Value('Haircut')),
+          );
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'haircut-item',
+            nameAr: 'حلاقة',
+            nameEn: 'haircut',
+            categoryKey: 'Personal Care',
+            subcategoryKey: const Value('Haircut'),
+          ));
+
+      await repo.archiveSubcategory('Haircut');
+
+      final subs = await repo.subcategories('Personal Care');
+      expect(subs.map((s) => s.key), isNot(contains('Haircut')));
+
+      final items = await repo.allItems();
+      expect(items.map((i) => i.id), isNot(contains('haircut-item')));
+
+      final entry = await (db.select(db.entries)
+            ..where((t) => t.id.equals('e1')))
+          .getSingle();
+      expect(entry.categoryKey, 'Personal Care');
+      expect(entry.subcategoryKey, 'Haircut');
+      expect(entry.amountPiastres, 1500);
+    });
+  });
+
+  group('archived items', () {
+    test('archivedItems lists only archived items, and unarchiveItem '
+        'restores one to allItems', () async {
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'gone',
+            nameAr: 'مؤرشف',
+            nameEn: 'archived',
+            categoryKey: 'Food',
+            archived: const Value(true),
+          ));
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'active',
+            nameAr: 'نشط',
+            nameEn: 'active',
+            categoryKey: 'Food',
+          ));
+
+      final archived = await repo.archivedItems();
+      expect(archived.map((i) => i.id), ['gone']);
+
+      await repo.unarchiveItem('gone');
+
+      final all = await repo.allItems();
+      expect(all.map((i) => i.id), contains('gone'));
+      expect(await repo.archivedItems(), isEmpty);
+    });
+  });
 }

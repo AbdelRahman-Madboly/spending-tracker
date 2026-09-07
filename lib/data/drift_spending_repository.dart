@@ -419,4 +419,142 @@ class DriftSpendingRepository implements SpendingRepository {
       ),
     );
   }
+
+  @override
+  Future<CategoryView> createCategory({
+    required String key,
+    required String labelAr,
+    required String iconName,
+  }) async {
+    final rows = await (_db.select(_db.categories)
+          ..orderBy([(t) => OrderingTerm.desc(t.sortOrder)])
+          ..limit(1))
+        .get();
+    final nextSortOrder = rows.isEmpty ? 0 : rows.first.sortOrder + 1;
+    await _db.into(_db.categories).insert(CategoriesCompanion.insert(
+          key: key,
+          labelAr: labelAr,
+          iconName: iconName,
+          sortOrder: Value(nextSortOrder),
+        ));
+    return CategoryView(key: key, labelAr: labelAr, iconName: iconName);
+  }
+
+  @override
+  Future<void> updateCategory({
+    required String key,
+    required String labelAr,
+    required String iconName,
+  }) async {
+    await (_db.update(_db.categories)..where((t) => t.key.equals(key))).write(
+      CategoriesCompanion(
+        labelAr: Value(labelAr),
+        iconName: Value(iconName),
+      ),
+    );
+  }
+
+  @override
+  Future<void> archiveCategory(String key) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.categories)..where((t) => t.key.equals(key)))
+          .write(const CategoriesCompanion(archived: Value(true)));
+      // Cascade: a subcategory or item left visible under an archived
+      // category would be unreachable through any picker (the category
+      // itself no longer appears), so hide them too. `entries` is never
+      // touched here — it has no `archived` column and keeps whatever
+      // category/subcategory it was saved with forever.
+      await (_db.update(_db.subcategories)
+            ..where((t) => t.categoryKey.equals(key)))
+          .write(const SubcategoriesCompanion(archived: Value(true)));
+      await (_db.update(_db.items)..where((t) => t.categoryKey.equals(key)))
+          .write(const ItemsCompanion(archived: Value(true)));
+    });
+  }
+
+  @override
+  Future<SubcategoryView> createSubcategory({
+    required String key,
+    required String categoryKey,
+    required String labelAr,
+    required String iconName,
+  }) async {
+    final rows = await (_db.select(_db.subcategories)
+          ..where((t) => t.categoryKey.equals(categoryKey))
+          ..orderBy([(t) => OrderingTerm.desc(t.sortOrder)])
+          ..limit(1))
+        .get();
+    final nextSortOrder = rows.isEmpty ? 0 : rows.first.sortOrder + 1;
+    await _db.into(_db.subcategories).insert(SubcategoriesCompanion.insert(
+          key: key,
+          categoryKey: categoryKey,
+          labelAr: labelAr,
+          iconName: iconName,
+          sortOrder: Value(nextSortOrder),
+        ));
+    return SubcategoryView(
+      key: key,
+      categoryKey: categoryKey,
+      labelAr: labelAr,
+      iconName: iconName,
+    );
+  }
+
+  @override
+  Future<void> updateSubcategory({
+    required String key,
+    required String categoryKey,
+    required String labelAr,
+    required String iconName,
+  }) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.subcategories)..where((t) => t.key.equals(key)))
+          .write(SubcategoriesCompanion(
+        categoryKey: Value(categoryKey),
+        labelAr: Value(labelAr),
+        iconName: Value(iconName),
+      ));
+      // Keep the catalogue internally consistent: any catalogue item filed
+      // under this subcategory follows it to the new category. `entries`
+      // (past spending history) is never touched — a saved entry keeps the
+      // exact categoryKey/subcategoryKey pair it was recorded with,
+      // regardless of any later catalogue reorganisation.
+      await (_db.update(_db.items)
+            ..where((t) => t.subcategoryKey.equals(key)))
+          .write(ItemsCompanion(categoryKey: Value(categoryKey)));
+    });
+  }
+
+  @override
+  Future<void> archiveSubcategory(String key) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.subcategories)..where((t) => t.key.equals(key)))
+          .write(const SubcategoriesCompanion(archived: Value(true)));
+      await (_db.update(_db.items)
+            ..where((t) => t.subcategoryKey.equals(key)))
+          .write(const ItemsCompanion(archived: Value(true)));
+    });
+  }
+
+  @override
+  Future<void> unarchiveItem(String itemId) async {
+    await (_db.update(_db.items)..where((t) => t.id.equals(itemId)))
+        .write(const ItemsCompanion(archived: Value(false)));
+  }
+
+  @override
+  Future<List<QuickPickItem>> archivedItems() async {
+    final rows = await (_db.select(_db.items)
+          ..where((t) => t.archived.equals(true)))
+        .get();
+    return rows
+        .map((i) => QuickPickItem(
+              id: i.id,
+              nameAr: i.nameAr,
+              categoryKey: i.categoryKey,
+              subcategoryKey: i.subcategoryKey,
+              defaultAmountPiastres: i.defaultAmountPiastres,
+            ))
+        .toList();
+  }
 }

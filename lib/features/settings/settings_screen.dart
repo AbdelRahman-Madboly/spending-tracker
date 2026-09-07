@@ -5,7 +5,9 @@ import '../../core/money.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../add/widgets/category_strip.dart' show iconForName;
-import '../add/widgets/new_item_dialog.dart' show showEditItemDialog;
+import '../add/widgets/new_item_dialog.dart'
+    show showEditItemDialog, showNewItemDialog;
+import 'widgets/category_dialogs.dart';
 
 /// App name shown in the "about" block and used as the Android launcher
 /// label — kept as one constant so the two never drift apart.
@@ -16,6 +18,14 @@ const appName = 'مصاريفي';
 /// to read it at runtime (only one new dependency is permitted for this
 /// task, spent on `flutter_launcher_icons`), so it is kept in sync by hand.
 const appVersion = '1.0.0';
+
+/// Generates a fresh, permanent English key for a new category or
+/// subcategory. Keys are the storage/export identity and are never shown to
+/// the user, so there is no reason to make them type one — a timestamp is
+/// unique enough for a single-user local catalogue that only ever grows a
+/// few rows at a time.
+String _generateKey(String prefix) =>
+    '${prefix}_${DateTime.now().microsecondsSinceEpoch}';
 
 class SettingsScreen extends StatefulWidget {
   final SpendingRepository repository;
@@ -29,7 +39,11 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _salaryController = TextEditingController();
   List<CategoryView> _categories = const [];
+  Map<String, List<SubcategoryView>> _subcategoriesByCategory = const {};
   List<QuickPickItem> _items = const [];
+  List<QuickPickItem> _archivedItems = const [];
+  final Set<String> _expandedCategories = {};
+  bool _showArchivedItems = false;
   bool _loaded = false;
   String? _salaryError;
 
@@ -45,15 +59,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
+  List<SubcategoryView> get _allSubcategories =>
+      _subcategoriesByCategory.values.expand((s) => s).toList();
+
   Future<void> _load() async {
     final summary = await widget.repository.watchCurrentPeriod().first;
     final categories = await widget.repository.categories();
     final items = await widget.repository.allItems();
+    final archivedItems = await widget.repository.archivedItems();
+    final subcategoriesByCategory = <String, List<SubcategoryView>>{};
+    for (final category in categories) {
+      subcategoriesByCategory[category.key] =
+          await widget.repository.subcategories(category.key);
+    }
     if (!mounted) return;
     setState(() {
       _salaryController.text = formatPiastres(summary.salaryPiastres);
       _categories = categories;
+      _subcategoriesByCategory = subcategoriesByCategory;
       _items = items;
+      _archivedItems = archivedItems;
       _loaded = true;
     });
   }
@@ -79,11 +104,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _load();
   }
 
+  Future<void> _unarchiveItem(String itemId) async {
+    await widget.repository.unarchiveItem(itemId);
+    await _load();
+  }
+
   Future<void> _editItem(QuickPickItem item) async {
     final result = await showEditItemDialog(
       context: context,
       categories: _categories,
       item: item,
+      subcategories: _allSubcategories,
     );
     if (result == null) return;
     await widget.repository.updateItem(
@@ -93,6 +124,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
       defaultAmountPiastres: result.amountPiastres,
     );
     await _load();
+  }
+
+  Future<void> _addItem() async {
+    if (_categories.isEmpty) return;
+    final result = await showNewItemDialog(
+      context: context,
+      categories: _categories,
+      initialCategoryKey: _categories.first.key,
+      subcategories: _allSubcategories,
+    );
+    if (result == null) return;
+    await widget.repository.createItem(
+      nameAr: result.nameAr,
+      categoryKey: result.categoryKey,
+      subcategoryKey: result.subcategoryKey,
+      defaultAmountPiastres: result.amountPiastres,
+    );
+    await _load();
+  }
+
+  Future<void> _addCategory() async {
+    final result = await showCategoryDialog(context: context);
+    if (result == null) return;
+    await widget.repository.createCategory(
+      key: _generateKey('cat'),
+      labelAr: result.labelAr,
+      iconName: result.iconName,
+    );
+    await _load();
+  }
+
+  Future<void> _editCategory(CategoryView category) async {
+    final result = await showCategoryDialog(
+      context: context,
+      initialLabelAr: category.labelAr,
+      initialIconName: category.iconName,
+    );
+    if (result == null) return;
+    await widget.repository.updateCategory(
+      key: category.key,
+      labelAr: result.labelAr,
+      iconName: result.iconName,
+    );
+    await _load();
+  }
+
+  Future<void> _archiveCategory(String key) async {
+    await widget.repository.archiveCategory(key);
+    await _load();
+  }
+
+  Future<void> _addSubcategory(String categoryKey) async {
+    final result = await showSubcategoryDialog(
+      context: context,
+      categories: _categories,
+      initialCategoryKey: categoryKey,
+    );
+    if (result == null) return;
+    await widget.repository.createSubcategory(
+      key: _generateKey('sub'),
+      categoryKey: result.categoryKey,
+      labelAr: result.labelAr,
+      iconName: result.iconName,
+    );
+    await _load();
+  }
+
+  Future<void> _editSubcategory(SubcategoryView subcategory) async {
+    final result = await showSubcategoryDialog(
+      context: context,
+      categories: _categories,
+      initialCategoryKey: subcategory.categoryKey,
+      initialLabelAr: subcategory.labelAr,
+      initialIconName: subcategory.iconName,
+    );
+    if (result == null) return;
+    await widget.repository.updateSubcategory(
+      key: subcategory.key,
+      categoryKey: result.categoryKey,
+      labelAr: result.labelAr,
+      iconName: result.iconName,
+    );
+    await _load();
+  }
+
+  Future<void> _archiveSubcategory(String key) async {
+    await widget.repository.archiveSubcategory(key);
+    await _load();
+  }
+
+  void _toggleExpanded(String categoryKey) {
+    setState(() {
+      if (!_expandedCategories.remove(categoryKey)) {
+        _expandedCategories.add(categoryKey);
+      }
+    });
   }
 
   @override
@@ -141,53 +268,190 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const Divider(height: AppSpacing.lg),
-                const _SectionHeader('الأقسام'),
-                for (final category in _categories)
+                _SectionHeader(
+                  'الأقسام',
+                  trailing: IconButton(
+                    key: const Key('add-category'),
+                    icon: const Icon(Icons.add_circle_outline),
+                    tooltip: 'إضافة قسم',
+                    onPressed: _addCategory,
+                  ),
+                ),
+                for (final category in _categories) ...[
                   ListTile(
                     key: ValueKey('settings-category-${category.key}'),
                     leading: Icon(iconForName(category.iconName),
                         color: AppColors.accent),
                     title: Text(category.labelAr, style: AppText.body),
-                  ),
-                const Divider(height: AppSpacing.lg),
-                const _SectionHeader('المنتجات'),
-                for (final item in _items)
-                  ListTile(
-                    key: ValueKey('settings-item-${item.id}'),
-                    onTap: () => _editItem(item),
-                    title: Text(item.nameAr, style: AppText.body),
-                    subtitle: Text(
-                      _categories
-                          .firstWhere(
-                            (c) => c.key == item.categoryKey,
-                            orElse: () => CategoryView(
-                                key: item.categoryKey,
-                                labelAr: item.categoryKey,
-                                iconName: ''),
-                          )
-                          .labelAr,
-                      style: AppText.caption,
-                    ),
+                    onTap: () => _editCategory(category),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (item.defaultAmountPiastres != null)
-                          Padding(
-                            padding: const EdgeInsetsDirectional.only(
-                                end: AppSpacing.sm),
-                            child: Text(
-                                formatPiastres(item.defaultAmountPiastres!),
-                                style: AppText.body),
-                          ),
                         IconButton(
-                          key: ValueKey('archive-item-${item.id}'),
+                          key: ValueKey('archive-category-${category.key}'),
                           icon: const Icon(Icons.archive_outlined),
                           tooltip: 'أرشفة',
-                          onPressed: () => _archiveItem(item.id),
+                          onPressed: () => _archiveCategory(category.key),
+                        ),
+                        IconButton(
+                          key: ValueKey('expand-category-${category.key}'),
+                          icon: Icon(
+                            _expandedCategories.contains(category.key)
+                                ? Icons.expand_less
+                                : Icons.expand_more,
+                          ),
+                          tooltip: 'عرض الفئات الفرعية',
+                          onPressed: () => _toggleExpanded(category.key),
                         ),
                       ],
                     ),
                   ),
+                  if (_expandedCategories.contains(category.key))
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(start: 32),
+                      child: Column(
+                        children: [
+                          for (final subcategory
+                              in _subcategoriesByCategory[category.key] ??
+                                  const <SubcategoryView>[])
+                            ListTile(
+                              key: ValueKey(
+                                  'settings-subcategory-${subcategory.key}'),
+                              leading: Icon(
+                                  iconForName(subcategory.iconName),
+                                  color: AppColors.textSecondary),
+                              title: Text(subcategory.labelAr,
+                                  style: AppText.body),
+                              onTap: () => _editSubcategory(subcategory),
+                              trailing: IconButton(
+                                key: ValueKey(
+                                    'archive-subcategory-${subcategory.key}'),
+                                icon: const Icon(Icons.archive_outlined),
+                                tooltip: 'أرشفة',
+                                onPressed: () =>
+                                    _archiveSubcategory(subcategory.key),
+                              ),
+                            ),
+                          Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: TextButton.icon(
+                              key: ValueKey('add-subcategory-${category.key}'),
+                              onPressed: () => _addSubcategory(category.key),
+                              icon: const Icon(Icons.add),
+                              label: const Text('إضافة فئة فرعية'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+                const Divider(height: AppSpacing.lg),
+                _SectionHeader(
+                  'المنتجات',
+                  trailing: IconButton(
+                    key: const Key('add-item'),
+                    icon: const Icon(Icons.add_circle_outline),
+                    tooltip: 'إضافة منتج',
+                    onPressed: _addItem,
+                  ),
+                ),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          key: const Key('items-view-active'),
+                          onPressed: () =>
+                              setState(() => _showArchivedItems = false),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: _showArchivedItems
+                                ? null
+                                : AppColors.accent.withOpacity(0.1),
+                          ),
+                          child: const Text('النشطة'),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: OutlinedButton(
+                          key: const Key('items-view-archived'),
+                          onPressed: () =>
+                              setState(() => _showArchivedItems = true),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: _showArchivedItems
+                                ? AppColors.accent.withOpacity(0.1)
+                                : null,
+                          ),
+                          child: const Text('المؤرشفة'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!_showArchivedItems)
+                  for (final item in _items)
+                    ListTile(
+                      key: ValueKey('settings-item-${item.id}'),
+                      onTap: () => _editItem(item),
+                      title: Text(item.nameAr, style: AppText.body),
+                      subtitle: Text(
+                        _categories
+                            .firstWhere(
+                              (c) => c.key == item.categoryKey,
+                              orElse: () => CategoryView(
+                                  key: item.categoryKey,
+                                  labelAr: item.categoryKey,
+                                  iconName: ''),
+                            )
+                            .labelAr,
+                        style: AppText.caption,
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (item.defaultAmountPiastres != null)
+                            Padding(
+                              padding: const EdgeInsetsDirectional.only(
+                                  end: AppSpacing.sm),
+                              child: Text(
+                                  formatPiastres(item.defaultAmountPiastres!),
+                                  style: AppText.body),
+                            ),
+                          IconButton(
+                            key: ValueKey('archive-item-${item.id}'),
+                            icon: const Icon(Icons.archive_outlined),
+                            tooltip: 'أرشفة',
+                            onPressed: () => _archiveItem(item.id),
+                          ),
+                        ],
+                      ),
+                    )
+                else
+                  for (final item in _archivedItems)
+                    ListTile(
+                      key: ValueKey('settings-archived-item-${item.id}'),
+                      title: Text(item.nameAr, style: AppText.body),
+                      subtitle: Text(
+                        _categories
+                            .firstWhere(
+                              (c) => c.key == item.categoryKey,
+                              orElse: () => CategoryView(
+                                  key: item.categoryKey,
+                                  labelAr: item.categoryKey,
+                                  iconName: ''),
+                            )
+                            .labelAr,
+                        style: AppText.caption,
+                      ),
+                      trailing: IconButton(
+                        key: ValueKey('unarchive-item-${item.id}'),
+                        icon: const Icon(Icons.unarchive_outlined),
+                        tooltip: 'استعادة',
+                        onPressed: () => _unarchiveItem(item.id),
+                      ),
+                    ),
                 const Divider(height: AppSpacing.lg),
                 const _SectionHeader('عن التطبيق'),
                 const ListTile(
@@ -203,16 +467,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
+  final Widget? trailing;
 
-  const _SectionHeader(this.title);
+  const _SectionHeader(this.title, {this.trailing});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.xs),
-      child: Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: Text(title, style: AppText.title),
+      child: Row(
+        children: [
+          Expanded(
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(title, style: AppText.title),
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
       ),
     );
   }

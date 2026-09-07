@@ -3,81 +3,82 @@ import 'package:flutter/material.dart';
 import '../../../core/design/tokens.dart';
 import '../../../domain/models.dart';
 
+/// Single source of truth mapping an English icon name (as stored in
+/// `Categories.iconName`/`Subcategories.iconName`) to the Material icon it
+/// renders as. Every category and subcategory seeded into the app, plus a
+/// further set of general-purpose icons for categories/subcategories the
+/// user adds themselves, lives here — the icon picker dialog offers exactly
+/// [curatedIconNames], so [iconForName] is always able to resolve whatever
+/// it hands back.
+const Map<String, IconData> _iconsByName = {
+  'local_drink': Icons.local_drink,
+  'cookie': Icons.cookie,
+  'restaurant': Icons.restaurant,
+  'directions_bus': Icons.directions_bus,
+  'receipt_long': Icons.receipt_long,
+  'content_cut': Icons.content_cut,
+  'shopping_bag': Icons.shopping_bag,
+  'groups': Icons.groups,
+  'card_giftcard': Icons.card_giftcard,
+  'handshake': Icons.handshake,
+  // Subcategory icon names (see `_seedSubcategoryRows` in
+  // `lib/data/db/database.dart`) — mapped here too since the subcategory
+  // chip row and the settings screen reuse this same lookup.
+  'local_bar': Icons.local_bar,
+  'water_drop': Icons.water_drop,
+  'emoji_food_beverage': Icons.emoji_food_beverage,
+  'local_cafe': Icons.local_cafe,
+  'tapas': Icons.tapas,
+  'cake': Icons.cake,
+  'icecream': Icons.icecream,
+  'fastfood': Icons.fastfood,
+  'free_breakfast': Icons.free_breakfast,
+  'lunch_dining': Icons.lunch_dining,
+  'dinner_dining': Icons.dinner_dining,
+  'local_grocery_store': Icons.local_grocery_store,
+  'local_taxi': Icons.local_taxi,
+  'smartphone': Icons.smartphone,
+  'wifi': Icons.wifi,
+  'spa': Icons.spa,
+  'checkroom': Icons.checkroom,
+  'devices': Icons.devices,
+  'shopping_cart': Icons.shopping_cart,
+  'flight': Icons.flight,
+  'people': Icons.people,
+  // General-purpose icons offered in the icon picker for categories and
+  // subcategories the user creates themselves — not part of any seeded
+  // row, but common enough to cover most of what a new category or
+  // subcategory would need (e.g. "بيت", "رياضة", "صحة").
+  'category_outlined': Icons.category_outlined,
+  'home': Icons.home,
+  'directions_car': Icons.directions_car,
+  'pets': Icons.pets,
+  'sports_soccer': Icons.sports_soccer,
+  'fitness_center': Icons.fitness_center,
+  'medical_services': Icons.medical_services,
+  'school': Icons.school,
+  'work': Icons.work,
+  'savings': Icons.savings,
+  'attach_money': Icons.attach_money,
+  'celebration': Icons.celebration,
+  'child_care': Icons.child_care,
+  'movie': Icons.movie,
+  'sports_esports': Icons.sports_esports,
+  'book': Icons.book,
+  'phone_android': Icons.phone_android,
+  'local_hospital': Icons.local_hospital,
+  'star': Icons.star,
+};
+
+/// Every icon name the icon picker dialog offers, in display order.
+final List<String> curatedIconNames = _iconsByName.keys.toList();
+
 /// Maps a category's stored `iconName` (an English string, e.g.
 /// `local_drink`) to the Material icon shown for it. Falls back to a
 /// generic icon for anything unrecognised, so a category never renders
 /// with no icon at all.
-IconData iconForName(String name) {
-  switch (name) {
-    case 'local_drink':
-      return Icons.local_drink;
-    case 'cookie':
-      return Icons.cookie;
-    case 'restaurant':
-      return Icons.restaurant;
-    case 'directions_bus':
-      return Icons.directions_bus;
-    case 'receipt_long':
-      return Icons.receipt_long;
-    case 'content_cut':
-      return Icons.content_cut;
-    case 'shopping_bag':
-      return Icons.shopping_bag;
-    case 'groups':
-      return Icons.groups;
-    case 'card_giftcard':
-      return Icons.card_giftcard;
-    case 'handshake':
-      return Icons.handshake;
-    // Subcategory icon names (see `_seedSubcategoryRows` in
-    // `lib/data/db/database.dart`) — mapped here too since the subcategory
-    // chip row reuses this same lookup.
-    case 'local_bar':
-      return Icons.local_bar;
-    case 'water_drop':
-      return Icons.water_drop;
-    case 'emoji_food_beverage':
-      return Icons.emoji_food_beverage;
-    case 'local_cafe':
-      return Icons.local_cafe;
-    case 'tapas':
-      return Icons.tapas;
-    case 'cake':
-      return Icons.cake;
-    case 'icecream':
-      return Icons.icecream;
-    case 'fastfood':
-      return Icons.fastfood;
-    case 'free_breakfast':
-      return Icons.free_breakfast;
-    case 'lunch_dining':
-      return Icons.lunch_dining;
-    case 'dinner_dining':
-      return Icons.dinner_dining;
-    case 'local_grocery_store':
-      return Icons.local_grocery_store;
-    case 'local_taxi':
-      return Icons.local_taxi;
-    case 'smartphone':
-      return Icons.smartphone;
-    case 'wifi':
-      return Icons.wifi;
-    case 'spa':
-      return Icons.spa;
-    case 'checkroom':
-      return Icons.checkroom;
-    case 'devices':
-      return Icons.devices;
-    case 'shopping_cart':
-      return Icons.shopping_cart;
-    case 'flight':
-      return Icons.flight;
-    case 'people':
-      return Icons.people;
-    default:
-      return Icons.category_outlined;
-  }
-}
+IconData iconForName(String name) =>
+    _iconsByName[name] ?? Icons.category_outlined;
 
 /// A horizontally scrolling strip of category chips, with a leading "الكل"
 /// (all) chip. `selectedKey == null` means "الكل" is selected — the strip
