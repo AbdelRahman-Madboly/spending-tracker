@@ -1,10 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/app.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';
 
 void main() {
+  testWidgets(
+      'save button clears the 48dp minimum tap target under the real app theme',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      theme: buildAppTheme(),
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          body: AddSheet(
+            repository: FixtureSpendingRepository(),
+            onSubmit: (_) {},
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final height = tester.getSize(find.byKey(const Key('save-button'))).height;
+    expect(height, greaterThanOrEqualTo(48));
+  });
+
   testWidgets('shows twelve quick pick items and five capture icons',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);

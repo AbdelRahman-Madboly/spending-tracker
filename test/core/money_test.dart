@@ -45,4 +45,14 @@ void main() {
     expect(parsePiastres('1.2.3'), isNull);
     expect(parsePiastres('1.234'), isNull);
   });
+
+  test('parsePiastres rejects amounts above the 1,000,000 EGP ceiling', () {
+    expect(parsePiastres('1000000.01'), isNull);
+    expect(parsePiastres('999999999999'), isNull);
+  });
+
+  test('parsePiastres accepts amounts at or just under the ceiling', () {
+    expect(parsePiastres('1000000'), 100000000);
+    expect(parsePiastres('999999.99'), 99999999);
+  });
 }

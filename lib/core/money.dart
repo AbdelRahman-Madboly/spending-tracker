@@ -19,9 +19,14 @@ String formatPiastres(int piastres, {bool withCurrency = false}) {
   return withCurrency ? '$signed ج.م' : signed;
 }
 
+/// Upper bound for a parsed amount, in piastres (1,000,000 EGP). Far above
+/// any real purchase this app would ever log — rejecting anything past it
+/// catches typos (an extra digit or two) rather than genuine spending.
+const maxParsablePiastres = 100000000;
+
 /// Parses a user-typed amount (Arabic-Indic or Latin digits, optional one
 /// or two decimal places) into integer piastres. Returns null when the
-/// input isn't a valid non-negative amount.
+/// input isn't a valid non-negative amount, or exceeds [maxParsablePiastres].
 ///
 /// Parses digit-by-digit rather than through `double.parse` — money here is
 /// integer piastres, and going through a float would risk exactly the
@@ -46,7 +51,9 @@ int? parsePiastres(String input) {
     fraction = parsedFraction;
   }
 
-  return pounds * 100 + fraction;
+  final result = pounds * 100 + fraction;
+  if (result > maxParsablePiastres) return null;
+  return result;
 }
 
 const _arabicIndicDigits = '٠١٢٣٤٥٦٧٨٩';

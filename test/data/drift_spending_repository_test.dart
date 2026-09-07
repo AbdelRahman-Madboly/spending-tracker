@@ -228,7 +228,11 @@ void main() {
     await seedSalary();
     expect(
       () => seedEntry(id: 'bad', amount: 100, categoryKey: 'NotACategory'),
-      throwsA(anything),
+      throwsA(isA<SqliteException>().having(
+        (e) => e.message,
+        'message',
+        contains('FOREIGN KEY constraint failed'),
+      )),
     );
   });
 
@@ -297,6 +301,67 @@ void main() {
       }
       previous = current;
     }
+  });
+
+  test(
+      'updateSalary inserts a new salary_periods row dated today, keeping '
+      'earlier rows intact', () async {
+    await seedSalary(id: 'sp0', amount: 650000, datePaid: '2026-08-01');
+
+    await repo.updateSalary(900000);
+
+    final rows = await db.select(db.salaryPeriods).get();
+    expect(rows.length, 2);
+    expect(rows.any((r) => r.id == 'sp0' && r.amountPiastres == 650000), isTrue);
+    final added = rows.firstWhere((r) => r.id != 'sp0');
+    expect(added.amountPiastres, 900000);
+    expect(added.datePaid, _today());
+  });
+
+  test('allItems returns every non-archived item in the catalogue', () async {
+    await db.into(db.items).insert(ItemsCompanion.insert(
+          id: 'active',
+          nameAr: 'نشط',
+          nameEn: 'active',
+          categoryKey: 'Food',
+        ));
+    await db.into(db.items).insert(ItemsCompanion.insert(
+          id: 'gone',
+          nameAr: 'مؤرشف',
+          nameEn: 'archived',
+          categoryKey: 'Food',
+          archived: const Value(true),
+        ));
+
+    final items = await repo.allItems();
+    expect(items.map((i) => i.id), contains('active'));
+    expect(items.map((i) => i.id), isNot(contains('gone')));
+  });
+
+  test(
+      'archiveItem removes an item from allItems and from the quick-pick '
+      'grid without deleting it', () async {
+    await db.into(db.items).insert(ItemsCompanion.insert(
+          id: 'to-archive',
+          nameAr: 'هيتشال',
+          nameEn: 'to archive',
+          categoryKey: 'Food',
+          useCount: const Value(5),
+        ));
+
+    await repo.archiveItem('to-archive');
+
+    final items = await repo.allItems();
+    expect(items.map((i) => i.id), isNot(contains('to-archive')));
+
+    final topItems = await repo.topItems(12);
+    expect(topItems.map((i) => i.id), isNot(contains('to-archive')));
+
+    final stillInDb =
+        await (db.select(db.items)..where((t) => t.id.equals('to-archive')))
+            .getSingleOrNull();
+    expect(stillInDb != null, isTrue);
+    expect(stillInDb!.archived, isTrue);
   });
 
   test('soft-deleted entries are excluded from every total', () async {

@@ -23,7 +23,7 @@ const _categories = [
 ];
 
 class FixtureSpendingRepository implements SpendingRepository {
-  static const _salary = 900000;
+  static const _defaultSalary = 900000;
   static const _today = 6;
 
   final _entries = <EntryView>[
@@ -117,6 +117,8 @@ class FixtureSpendingRepository implements SpendingRepository {
   ];
 
   final _controller = StreamController<void>.broadcast();
+  final _archivedItemIds = <String>{};
+  int _salary = _defaultSalary;
 
   int get _spent => _entries.fold(0, (sum, e) => sum + e.amountPiastres);
 
@@ -133,6 +135,22 @@ class FixtureSpendingRepository implements SpendingRepository {
       );
 
   @override
+  Future<void> updateSalary(int amountPiastres) async {
+    _salary = amountPiastres;
+    _controller.add(null);
+  }
+
+  @override
+  Future<List<QuickPickItem>> allItems() async =>
+      _items.where((i) => !_archivedItemIds.contains(i.id)).toList();
+
+  @override
+  Future<void> archiveItem(String itemId) async {
+    _archivedItemIds.add(itemId);
+    _controller.add(null);
+  }
+
+  @override
   Stream<List<EntryView>> watchEntriesForDay(DateTime day) async* {
     List<EntryView> forDay() => _entries
         .where((e) =>
@@ -145,8 +163,10 @@ class FixtureSpendingRepository implements SpendingRepository {
   }
 
   @override
-  Future<List<QuickPickItem>> topItems(int limit) async =>
-      _items.take(limit).toList();
+  Future<List<QuickPickItem>> topItems(int limit) async => _items
+      .where((i) => !_archivedItemIds.contains(i.id))
+      .take(limit)
+      .toList();
 
   @override
   Future<List<CategoryView>> categories() async => _categories;
@@ -154,7 +174,12 @@ class FixtureSpendingRepository implements SpendingRepository {
   @override
   Future<List<QuickPickItem>> itemsInCategory(
           String categoryKey, int limit) async =>
-      _items.where((i) => i.categoryKey == categoryKey).take(limit).toList();
+      _items
+          .where((i) =>
+              i.categoryKey == categoryKey &&
+              !_archivedItemIds.contains(i.id))
+          .take(limit)
+          .toList();
 
   @override
   Future<QuickPickItem> createItem({

@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- This application performs no network I/O. Do not add INTERNET permission. -->
     <application
-        android:label="spending_tracker"
+        android:label="مصاريفي"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

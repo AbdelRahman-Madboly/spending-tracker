@@ -284,4 +284,35 @@ class DriftSpendingRepository implements SpendingRepository {
     }
     return totals;
   }
+
+  @override
+  Future<void> updateSalary(int amountPiastres) async {
+    final id = DateTime.now().microsecondsSinceEpoch.toString();
+    await _db.into(_db.salaryPeriods).insert(SalaryPeriodsCompanion.insert(
+          id: id,
+          datePaid: _formatDate(DateTime.now()),
+          amountPiastres: amountPiastres,
+        ));
+  }
+
+  @override
+  Future<List<QuickPickItem>> allItems() async {
+    final rows =
+        await (_db.select(_db.items)..where((t) => t.archived.equals(false)))
+            .get();
+    return rows
+        .map((i) => QuickPickItem(
+              id: i.id,
+              nameAr: i.nameAr,
+              categoryKey: i.categoryKey,
+              defaultAmountPiastres: i.defaultAmountPiastres,
+            ))
+        .toList();
+  }
+
+  @override
+  Future<void> archiveItem(String itemId) async {
+    await (_db.update(_db.items)..where((t) => t.id.equals(itemId)))
+        .write(const ItemsCompanion(archived: Value(true)));
+  }
 }

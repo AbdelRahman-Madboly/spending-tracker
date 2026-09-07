@@ -25,4 +25,19 @@ abstract class SpendingRepository {
   /// omitted, so a gap in a chart never gets mistaken for missing data.
   Future<List<({String yearMonth, int totalPiastres})>> monthlyTotals(
       int lastNMonths);
+
+  /// Records a raise or correction as a NEW `salary_periods` row dated
+  /// today, rather than mutating an existing one — salary history is real
+  /// data and must never be rewritten.
+  Future<void> updateSalary(int amountPiastres);
+
+  /// Every non-archived item in the catalogue, for the settings screen.
+  /// Unlike [topItems]/[itemsInCategory], this is neither truncated nor
+  /// reordered by usage — it lists the whole catalogue as-is.
+  Future<List<QuickPickItem>> allItems();
+
+  /// Archives an item (soft delete): it disappears from the quick-pick
+  /// grid and from [allItems], but existing entries that reference it are
+  /// left untouched.
+  Future<void> archiveItem(String itemId);
 }

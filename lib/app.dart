@@ -7,6 +7,27 @@ import 'data/db/database.dart';
 import 'data/drift_spending_repository.dart';
 import 'features/home/home_screen.dart';
 
+/// The app's [ThemeData]. Every button style sets a 48dp-tall minimum tap
+/// target at the theme level — not per-button — so any `FilledButton`,
+/// `OutlinedButton` or `TextButton` added anywhere in the app clears the
+/// floor automatically, rather than relying on each call site to remember a
+/// `style:` override.
+ThemeData buildAppTheme() {
+  const minimumTapTarget = Size(64, 48);
+  return ThemeData(
+    fontFamily: 'IBMPlexSansArabic',
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(minimumSize: minimumTapTarget),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(minimumSize: minimumTapTarget),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(minimumSize: minimumTapTarget),
+    ),
+  );
+}
+
 class SpendingApp extends StatefulWidget {
   const SpendingApp({super.key});
 
@@ -46,7 +67,7 @@ class _SpendingAppState extends State<SpendingApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: ThemeData(fontFamily: 'IBMPlexSansArabic'),
+      theme: buildAppTheme(),
       builder: (context, child) => Directionality(
         textDirection: TextDirection.rtl,
         child: child ?? const SizedBox.shrink(),

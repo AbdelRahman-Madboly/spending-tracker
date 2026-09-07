@@ -5,6 +5,7 @@ import '../../core/money.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../add/add_sheet.dart';
+import '../settings/settings_screen.dart';
 import '../statistics/statistics_screen.dart';
 import 'widgets/month_comparison_card.dart';
 import 'widgets/monthly_bar_chart.dart';
@@ -28,6 +29,15 @@ class HomeScreen extends StatelessWidget {
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => StatisticsScreen(repository: repository),
+              ),
+            ),
+          ),
+          IconButton(
+            key: const Key('settings-button'),
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => SettingsScreen(repository: repository),
               ),
             ),
           ),

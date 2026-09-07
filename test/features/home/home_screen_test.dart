@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/features/home/home_screen.dart';
 import 'package:spending_tracker/features/home/widgets/month_comparison_card.dart';
+import 'package:spending_tracker/features/settings/settings_screen.dart';
 import 'package:spending_tracker/features/statistics/statistics_screen.dart';
 
 void main() {
@@ -43,5 +44,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(StatisticsScreen), findsOneWidget);
+  });
+
+  testWidgets('tapping the gear icon beside the chart icon opens settings',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: HomeScreen(repository: FixtureSpendingRepository()),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.bar_chart), findsOneWidget);
+    expect(find.byKey(const Key('settings-button')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('settings-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SettingsScreen), findsOneWidget);
   });
 }
