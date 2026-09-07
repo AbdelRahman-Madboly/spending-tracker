@@ -1,6 +1,15 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- This application performs no network I/O. Do not add INTERNET permission. -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- The barcode scanner pulls in a Google Play Services archive whose own
+         manifest declares INTERNET and ACCESS_NETWORK_STATE. Neither is needed
+         here: the ML Kit barcode model is bundled into the APK
+         (assets/mlkit_barcode_models/*.tflite), so scanning runs entirely on
+         device. These removals keep the merged manifest free of any network
+         permission, which is the guarantee this app is built around. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove"/>
     <!-- Not required: lets the app install and run (camera button simply
          has nothing to do) on a device with no camera hardware, e.g. some
          tablets. -->

@@ -167,6 +167,7 @@ class DriftSpendingRepository implements SpendingRepository {
               categoryKey: i.categoryKey,
               subcategoryKey: i.subcategoryKey,
               defaultAmountPiastres: i.defaultAmountPiastres,
+              barcode: i.barcode,
             ))
         .toList();
   }
@@ -229,6 +230,24 @@ class DriftSpendingRepository implements SpendingRepository {
       categoryKey: categoryKey,
       subcategoryKey: subcategoryKey,
       defaultAmountPiastres: defaultAmountPiastres,
+      barcode: barcode,
+    );
+  }
+
+  @override
+  Future<QuickPickItem?> itemByBarcode(String barcode) async {
+    final row = await (_db.select(_db.items)
+          ..where((t) =>
+              t.archived.equals(false) & t.barcode.equals(barcode)))
+        .getSingleOrNull();
+    if (row == null) return null;
+    return QuickPickItem(
+      id: row.id,
+      nameAr: row.nameAr,
+      categoryKey: row.categoryKey,
+      subcategoryKey: row.subcategoryKey,
+      defaultAmountPiastres: row.defaultAmountPiastres,
+      barcode: row.barcode,
     );
   }
 
@@ -394,6 +413,7 @@ class DriftSpendingRepository implements SpendingRepository {
               categoryKey: i.categoryKey,
               subcategoryKey: i.subcategoryKey,
               defaultAmountPiastres: i.defaultAmountPiastres,
+              barcode: i.barcode,
             ))
         .toList();
   }
@@ -554,6 +574,7 @@ class DriftSpendingRepository implements SpendingRepository {
               categoryKey: i.categoryKey,
               subcategoryKey: i.subcategoryKey,
               defaultAmountPiastres: i.defaultAmountPiastres,
+              barcode: i.barcode,
             ))
         .toList();
   }

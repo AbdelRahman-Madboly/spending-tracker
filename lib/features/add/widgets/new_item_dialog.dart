@@ -13,11 +13,18 @@ class NewItemDraft {
   final String? subcategoryKey;
   final int amountPiastres;
 
+  /// The barcode/QR value this item should be learned against, if it was
+  /// opened via an unrecognised scan — carried straight through to
+  /// `createItem` so the next scan of the same code resolves instantly.
+  /// Null for every other way of opening this dialog.
+  final String? barcode;
+
   const NewItemDraft({
     required this.nameAr,
     required this.categoryKey,
     this.subcategoryKey,
     required this.amountPiastres,
+    this.barcode,
   });
 }
 
@@ -32,6 +39,7 @@ Future<NewItemDraft?> showNewItemDialog({
   required String initialCategoryKey,
   List<SubcategoryView> subcategories = const [],
   String? initialSubcategoryKey,
+  String? initialBarcode,
 }) {
   return showDialog<NewItemDraft>(
     context: context,
@@ -40,6 +48,7 @@ Future<NewItemDraft?> showNewItemDialog({
       initialCategoryKey: initialCategoryKey,
       subcategories: subcategories,
       initialSubcategoryKey: initialSubcategoryKey,
+      initialBarcode: initialBarcode,
     ),
   );
 }
@@ -86,6 +95,11 @@ class NewItemDialog extends StatefulWidget {
   final String? initialNameAr;
   final int? initialAmountPiastres;
 
+  /// Set when this dialog was opened from an unrecognised barcode/QR scan
+  /// — shown to the user as confirmation and carried through to the
+  /// returned [NewItemDraft] unchanged.
+  final String? initialBarcode;
+
   const NewItemDialog({
     super.key,
     required this.categories,
@@ -94,6 +108,7 @@ class NewItemDialog extends StatefulWidget {
     this.initialSubcategoryKey,
     this.initialNameAr,
     this.initialAmountPiastres,
+    this.initialBarcode,
   });
 
   bool get isEditing => initialNameAr != null;
@@ -145,6 +160,7 @@ class _NewItemDialogState extends State<NewItemDialog> {
       categoryKey: _categoryKey,
       subcategoryKey: _subcategoryKey,
       amountPiastres: amount,
+      barcode: widget.initialBarcode,
     ));
   }
 
@@ -222,6 +238,14 @@ class _NewItemDialogState extends State<NewItemDialog> {
                     ),
                 ],
                 onChanged: (value) => setState(() => _subcategoryKey = value),
+              ),
+            ],
+            if (widget.initialBarcode != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'باركود: ${widget.initialBarcode}',
+                key: const Key('new-item-barcode'),
+                style: AppText.caption,
               ),
             ],
           ],

@@ -90,17 +90,30 @@ class QuickPickItem extends Equatable {
   /// the genuine one-offs that were never classified past their category.
   final String? subcategoryKey;
 
+  /// The barcode/QR value this item was learned from, if any — set once,
+  /// the first time an unknown code is scanned and the user creates an
+  /// item for it. Every later scan of the same code resolves back to this
+  /// item via `SpendingRepository.itemByBarcode`.
+  final String? barcode;
+
   const QuickPickItem({
     required this.id,
     required this.nameAr,
     required this.categoryKey,
     this.defaultAmountPiastres,
     this.subcategoryKey,
+    this.barcode,
   });
 
   @override
-  List<Object?> get props =>
-      [id, nameAr, defaultAmountPiastres, categoryKey, subcategoryKey];
+  List<Object?> get props => [
+        id,
+        nameAr,
+        defaultAmountPiastres,
+        categoryKey,
+        subcategoryKey,
+        barcode,
+      ];
 }
 
 class DraftEntry extends Equatable {

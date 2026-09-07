@@ -89,4 +89,19 @@ void main() {
     expect(resolved.path, p.join(documentsDir.path, relativePath));
     expect(await resolved.exists(), isTrue);
   });
+
+  test('delete removes a previously imported photo from disk', () async {
+    final source = await writeSourceFile('picked.jpg', [1, 2, 3]);
+    final relativePath = await storage.importPhoto(source);
+    expect(await storage.resolve(relativePath).exists(), isTrue);
+
+    await storage.delete(relativePath);
+
+    expect(await storage.resolve(relativePath).exists(), isFalse);
+  });
+
+  test('delete does nothing (and does not throw) for a path that was never imported',
+      () async {
+    await storage.delete('photos/does-not-exist.jpg');
+  });
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
+import '../../data/barcode_scan_service.dart';
 import '../../data/photo_capture_service.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
@@ -21,11 +22,17 @@ class AddSheet extends StatefulWidget {
   /// `flutter test`.
   final PhotoCaptureService? photoCaptureService;
 
+  /// Defaults to the real mobile_scanner-backed implementation;
+  /// overridable so widget tests can feed a fixed barcode value without a
+  /// real camera.
+  final BarcodeScanService? barcodeScanService;
+
   const AddSheet({
     super.key,
     required this.repository,
     required this.onSubmit,
     this.photoCaptureService,
+    this.barcodeScanService,
   });
 
   @override
@@ -44,6 +51,24 @@ class _AddSheetState extends State<AddSheet> {
   PhotoCaptureService? _photoCaptureService;
   PhotoCaptureService get _photoCapture =>
       _photoCaptureService ??= widget.photoCaptureService ?? ImagePickerPhotoCaptureService();
+
+  /// Same lazy-creation reasoning as [_photoCapture]: nothing touches the
+  /// camera until the barcode button is actually tapped.
+  BarcodeScanService? _barcodeScanService;
+  BarcodeScanService get _barcodeScan =>
+      _barcodeScanService ??= widget.barcodeScanService ?? MobileScannerBarcodeScanService();
+
+  /// Every photo relative path attached at any point during this sheet's
+  /// lifetime — including one later replaced by another capture. On
+  /// dispose, anything in here that didn't end up in a saved entry gets
+  /// deleted, so dismissing the sheet (or swapping photos) never leaves an
+  /// orphaned file under documents/photos/ forever. See [_cleanupAbandonedPhotos].
+  final Set<String> _sessionPhotoPaths = {};
+
+  /// Set right before [widget.onSubmit] is called — tells
+  /// [_cleanupAbandonedPhotos] that the sheet's current [_photoPath] (if
+  /// any) was actually persisted and must be kept.
+  bool _saved = false;
 
   /// Relative path of the currently attached photo, if any — kept apart
   /// from [_draft] so a photo attached before an item is picked (_draft
@@ -68,6 +93,29 @@ class _AddSheetState extends State<AddSheet> {
       if (mounted) setState(() => _categories = cats);
     });
     _loadItems();
+  }
+
+  @override
+  void dispose() {
+    _cleanupAbandonedPhotos();
+    super.dispose();
+  }
+
+  /// Deletes every photo attached during this sheet's lifetime that did
+  /// NOT end up in a saved entry — a photo replaced by a later capture, or
+  /// (the common case) every attached photo when the sheet is dismissed
+  /// without saving at all. Never touches [_photoCapture] when nothing was
+  /// ever attached, so tests that never open the camera/gallery never pay
+  /// for constructing the real platform-channel-backed service.
+  void _cleanupAbandonedPhotos() {
+    if (_sessionPhotoPaths.isEmpty) return;
+    final keep = _saved ? _photoPath : null;
+    for (final path in _sessionPhotoPaths) {
+      if (path == keep) continue;
+      // Fire-and-forget: dispose() can't be async and nothing needs to
+      // wait for the deletion to finish.
+      _photoCapture.delete(path);
+    }
   }
 
   void _loadItems() {
@@ -105,7 +153,7 @@ class _AddSheetState extends State<AddSheet> {
     _loadItems();
   }
 
-  void _select(QuickPickItem item) {
+  void _select(QuickPickItem item, {EntrySource source = EntrySource.quickPick}) {
     setState(() {
       _draft = DraftEntry(
         amountPiastres: item.defaultAmountPiastres,
@@ -117,7 +165,7 @@ class _AddSheetState extends State<AddSheet> {
         // the right subcategory when the item's catalogue row has one.
         subcategoryKey: item.subcategoryKey,
         paymentMethod: 'Cash',
-        source: EntrySource.quickPick,
+        source: source,
         // Carries over a photo attached before an item was picked — photo
         // and item selection can happen in either order.
       ).withPhotoPath(_photoPath);
@@ -145,6 +193,7 @@ class _AddSheetState extends State<AddSheet> {
         final relativePath = result.relativePath!;
         final file = await _photoCapture.resolve(relativePath);
         if (!mounted) return;
+        _sessionPhotoPaths.add(relativePath);
         setState(() {
           _photoPath = relativePath;
           _photoFile = file;
@@ -161,7 +210,27 @@ class _AddSheetState extends State<AddSheet> {
     });
   }
 
-  Future<void> _openNewItemDialog() async {
+  /// Opens the barcode/QR scanner. A known barcode selects its item as the
+  /// draft instantly (the fast, offline-learned path); an unknown one
+  /// opens the new-item dialog with the barcode attached, so naming and
+  /// pricing it teaches the app that code for every future scan.
+  Future<void> _scanBarcode() async {
+    final barcode = await _barcodeScan.scan(context);
+    if (!mounted || barcode == null) return;
+
+    final existing = await widget.repository.itemByBarcode(barcode);
+    if (!mounted) return;
+    if (existing != null) {
+      _select(existing, source: EntrySource.barcode);
+      return;
+    }
+    await _openNewItemDialog(barcode: barcode, source: EntrySource.barcode);
+  }
+
+  Future<void> _openNewItemDialog({
+    String? barcode,
+    EntrySource source = EntrySource.quickPick,
+  }) async {
     final fallbackCategoryKey =
         _categories.isNotEmpty ? _categories.first.key : 'Food';
     final categoryKey = _selectedCategoryKey ?? fallbackCategoryKey;
@@ -179,6 +248,7 @@ class _AddSheetState extends State<AddSheet> {
       initialCategoryKey: categoryKey,
       subcategories: subcategoriesForDialog,
       initialSubcategoryKey: _selectedSubcategoryKey,
+      initialBarcode: barcode,
     );
     if (result == null || !mounted) return;
 
@@ -187,11 +257,12 @@ class _AddSheetState extends State<AddSheet> {
       categoryKey: result.categoryKey,
       subcategoryKey: result.subcategoryKey,
       defaultAmountPiastres: result.amountPiastres,
+      barcode: result.barcode,
     );
     if (!mounted) return;
 
     setState(() => _items = [created, ..._items]);
-    _select(created);
+    _select(created, source: source);
   }
 
   @override
@@ -322,10 +393,16 @@ class _AddSheetState extends State<AddSheet> {
                       icon: const Icon(Icons.photo_camera_outlined,
                           color: AppColors.textSecondary),
                     ),
-                    // Barcode, voice and manual-keyboard entry are separate
-                    // tasks — these three stay inert placeholders here.
-                    const Icon(Icons.qr_code_scanner,
-                        color: AppColors.textSecondary),
+                    IconButton(
+                      key: const Key('barcode-button'),
+                      onPressed: _scanBarcode,
+                      constraints:
+                          const BoxConstraints(minWidth: 48, minHeight: 48),
+                      icon: const Icon(Icons.qr_code_scanner,
+                          color: AppColors.textSecondary),
+                    ),
+                    // Voice and manual-keyboard entry are separate tasks —
+                    // these two stay inert placeholders here.
                     const Icon(Icons.mic_none, color: AppColors.textSecondary),
                     IconButton(
                       key: const Key('gallery-button'),
@@ -378,7 +455,10 @@ class _AddSheetState extends State<AddSheet> {
                   child: FilledButton(
                     key: const Key('save-button'),
                     onPressed: draft != null && draft.isComplete
-                        ? () => widget.onSubmit(draft)
+                        ? () {
+                            _saved = true;
+                            widget.onSubmit(draft);
+                          }
                         : null,
                     child: const Text('حفظ'),
                   ),

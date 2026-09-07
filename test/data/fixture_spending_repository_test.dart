@@ -119,6 +119,25 @@ void main() {
     expect(updated.defaultAmountPiastres, 4500);
   });
 
+  test('createItem stores the given barcode, and itemByBarcode resolves it',
+      () async {
+    final created = await repo.createItem(
+      nameAr: 'مياه',
+      categoryKey: 'Drinks',
+      defaultAmountPiastres: 1000,
+      barcode: '6224000123456',
+    );
+
+    final found = await repo.itemByBarcode('6224000123456');
+    expect(found, isNotNull);
+    expect(found!.id, created.id);
+  });
+
+  test('itemByBarcode returns null for a code that was never learned',
+      () async {
+    expect(await repo.itemByBarcode('nope'), isNull);
+  });
+
   test('createCategory adds a new category to categories()', () async {
     final created = await repo.createCategory(
       key: 'Custom1',

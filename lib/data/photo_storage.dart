@@ -37,4 +37,15 @@ class PhotoStorage {
   /// lives at right now.
   File resolve(String relativePath) =>
       File(p.join(documentsDirectory.path, relativePath));
+
+  /// Deletes a previously imported photo, if it still exists. Used to
+  /// clean up a photo that was attached during an add-sheet session but
+  /// never ended up in a saved entry — safe to call even when the file is
+  /// already gone.
+  Future<void> delete(String relativePath) async {
+    final file = resolve(relativePath);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
 }

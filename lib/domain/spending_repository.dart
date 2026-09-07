@@ -27,6 +27,12 @@ abstract class SpendingRepository {
     String? barcode,
   });
 
+  /// The non-archived item previously learned for [barcode], or null if
+  /// this code has never been scanned before. This is the whole offline
+  /// "product database": there is nothing to look a barcode up in beyond
+  /// what the user has already taught the app by creating an item for it.
+  Future<QuickPickItem?> itemByBarcode(String barcode);
+
   /// Total spent in the given calendar month (1-12), excluding soft-deleted
   /// entries.
   Future<int> spentInMonth(int year, int month);

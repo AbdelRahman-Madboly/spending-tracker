@@ -537,9 +537,20 @@ class FixtureSpendingRepository implements SpendingRepository {
       categoryKey: categoryKey,
       subcategoryKey: subcategoryKey,
       defaultAmountPiastres: defaultAmountPiastres,
+      barcode: barcode,
     );
     _items.insert(0, item);
     return item;
+  }
+
+  @override
+  Future<QuickPickItem?> itemByBarcode(String barcode) async {
+    for (final item in _items) {
+      if (item.barcode == barcode && !_archivedItemIds.contains(item.id)) {
+        return item;
+      }
+    }
+    return null;
   }
 
   @override

@@ -271,6 +271,55 @@ void main() {
     expect(fromDb.subcategoryKey, 'Soda');
   });
 
+  test('createItem persists a barcode when one is given', () async {
+    final created = await repo.createItem(
+      nameAr: 'مياه',
+      categoryKey: 'Drinks',
+      defaultAmountPiastres: 1000,
+      barcode: '6224000123456',
+    );
+
+    expect(created.barcode, '6224000123456');
+    final fromDb =
+        await (db.select(db.items)..where((t) => t.id.equals(created.id)))
+            .getSingle();
+    expect(fromDb.barcode, '6224000123456');
+  });
+
+  test('itemByBarcode resolves a previously learned item', () async {
+    final created = await repo.createItem(
+      nameAr: 'مياه',
+      categoryKey: 'Drinks',
+      defaultAmountPiastres: 1000,
+      barcode: '6224000123456',
+    );
+
+    final found = await repo.itemByBarcode('6224000123456');
+
+    expect(found != null, isTrue);
+    expect(found!.id, created.id);
+    expect(found.nameAr, 'مياه');
+  });
+
+  test('itemByBarcode returns null for a code that was never learned',
+      () async {
+    final found = await repo.itemByBarcode('0000000000000');
+    expect(found == null, isTrue);
+  });
+
+  test('itemByBarcode ignores an archived item', () async {
+    final created = await repo.createItem(
+      nameAr: 'مياه',
+      categoryKey: 'Drinks',
+      defaultAmountPiastres: 1000,
+      barcode: '6224000123456',
+    );
+    await repo.archiveItem(created.id);
+
+    final found = await repo.itemByBarcode('6224000123456');
+    expect(found == null, isTrue);
+  });
+
   test("saveEntry persists the draft's subcategoryKey", () async {
     await repo.saveEntry(const DraftEntry(
       amountPiastres: 2000,

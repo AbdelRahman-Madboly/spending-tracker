@@ -44,6 +44,13 @@ abstract class PhotoCaptureService {
   /// Resolves a relative path previously returned in a [PhotoCaptureResult]
   /// back into the absolute file it lives at right now, for display.
   Future<File> resolve(String relativePath);
+
+  /// Deletes a previously attached photo at [relativePath] — used to clean
+  /// up a photo that was attached during an add-sheet session but never
+  /// ended up in a saved entry (the sheet was dismissed, or the photo was
+  /// replaced by a later capture). Safe to call even if the file no longer
+  /// exists.
+  Future<void> delete(String relativePath);
 }
 
 class ImagePickerPhotoCaptureService implements PhotoCaptureService {
@@ -88,5 +95,11 @@ class ImagePickerPhotoCaptureService implements PhotoCaptureService {
   Future<File> resolve(String relativePath) async {
     final storage = PhotoStorage(await getApplicationDocumentsDirectory());
     return storage.resolve(relativePath);
+  }
+
+  @override
+  Future<void> delete(String relativePath) async {
+    final storage = PhotoStorage(await getApplicationDocumentsDirectory());
+    await storage.delete(relativePath);
   }
 }
