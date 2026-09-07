@@ -13,9 +13,16 @@ abstract class SpendingRepository {
   Future<List<SubcategoryView>> subcategories(String categoryKey);
 
   Future<List<QuickPickItem>> itemsInCategory(String categoryKey, int limit);
+
+  /// Items tagged with [subcategoryKey], the third level of the add
+  /// sheet's filter (الكل -> category -> subcategory -> item).
+  Future<List<QuickPickItem>> itemsInSubcategory(
+      String subcategoryKey, int limit);
+
   Future<QuickPickItem> createItem({
     required String nameAr,
     required String categoryKey,
+    String? subcategoryKey,
     int? defaultAmountPiastres,
     String? barcode,
   });

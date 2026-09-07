@@ -6,6 +6,7 @@ import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import 'widgets/category_strip.dart';
 import 'widgets/new_item_dialog.dart';
+import 'widgets/subcategory_strip.dart';
 
 class AddSheet extends StatefulWidget {
   final SpendingRepository repository;
@@ -21,11 +22,17 @@ class _AddSheetState extends State<AddSheet> {
   DraftEntry? _draft;
   List<QuickPickItem> _items = const [];
   List<CategoryView> _categories = const [];
+  List<SubcategoryView> _subcategories = const [];
 
   /// null means "الكل" (all categories) — the default, so the most-used
   /// items across every category (and the two-tap path to them) is always
   /// what the user sees first.
   String? _selectedCategoryKey;
+
+  /// null means "الكل" within the selected category — the whole category,
+  /// unfiltered by subcategory. Only meaningful once a real category is
+  /// selected; the second chip row doesn't exist otherwise.
+  String? _selectedSubcategoryKey;
 
   @override
   void initState() {
@@ -38,16 +45,36 @@ class _AddSheetState extends State<AddSheet> {
 
   void _loadItems() {
     final categoryKey = _selectedCategoryKey;
-    final future = categoryKey == null
-        ? widget.repository.topItems(12)
-        : widget.repository.itemsInCategory(categoryKey, 12);
+    final subcategoryKey = _selectedSubcategoryKey;
+    final Future<List<QuickPickItem>> future;
+    if (subcategoryKey != null) {
+      future = widget.repository.itemsInSubcategory(subcategoryKey, 12);
+    } else if (categoryKey != null) {
+      future = widget.repository.itemsInCategory(categoryKey, 12);
+    } else {
+      future = widget.repository.topItems(12);
+    }
     future.then((items) {
       if (mounted) setState(() => _items = items);
     });
   }
 
   void _selectCategory(String? categoryKey) {
-    setState(() => _selectedCategoryKey = categoryKey);
+    setState(() {
+      _selectedCategoryKey = categoryKey;
+      _selectedSubcategoryKey = null;
+      if (categoryKey == null) _subcategories = const [];
+    });
+    if (categoryKey != null) {
+      widget.repository.subcategories(categoryKey).then((subs) {
+        if (mounted) setState(() => _subcategories = subs);
+      });
+    }
+    _loadItems();
+  }
+
+  void _selectSubcategory(String? subcategoryKey) {
+    setState(() => _selectedSubcategoryKey = subcategoryKey);
     _loadItems();
   }
 
@@ -58,6 +85,10 @@ class _AddSheetState extends State<AddSheet> {
         itemId: item.id,
         description: item.nameAr,
         categoryKey: item.categoryKey,
+        // The item's own catalogue subcategory, not whatever filter the
+        // grid currently happens to be scoped to — so الكل still records
+        // the right subcategory when the item's catalogue row has one.
+        subcategoryKey: item.subcategoryKey,
         paymentMethod: 'Cash',
         source: EntrySource.quickPick,
       );
@@ -67,16 +98,28 @@ class _AddSheetState extends State<AddSheet> {
   Future<void> _openNewItemDialog() async {
     final fallbackCategoryKey =
         _categories.isNotEmpty ? _categories.first.key : 'Food';
+    final categoryKey = _selectedCategoryKey ?? fallbackCategoryKey;
+    // The second chip row already holds the selected category's
+    // subcategories; only fetch them when there's nothing loaded yet
+    // (i.e. الكل is selected, so جديد falls back to the first category).
+    final subcategoriesForDialog = _selectedCategoryKey != null
+        ? _subcategories
+        : await widget.repository.subcategories(categoryKey);
+    if (!mounted) return;
+
     final result = await showNewItemDialog(
       context: context,
       categories: _categories,
-      initialCategoryKey: _selectedCategoryKey ?? fallbackCategoryKey,
+      initialCategoryKey: categoryKey,
+      subcategories: subcategoriesForDialog,
+      initialSubcategoryKey: _selectedSubcategoryKey,
     );
     if (result == null || !mounted) return;
 
     final created = await widget.repository.createItem(
       nameAr: result.nameAr,
       categoryKey: result.categoryKey,
+      subcategoryKey: result.subcategoryKey,
       defaultAmountPiastres: result.amountPiastres,
     );
     if (!mounted) return;
@@ -113,6 +156,17 @@ class _AddSheetState extends State<AddSheet> {
                   selectedKey: _selectedCategoryKey,
                   onSelected: _selectCategory,
                 ),
+                // Only exists once a real category is selected — الكل never
+                // has to make room for it, so the two-tap quick-pick path
+                // never grows an extra row of chips it didn't ask for.
+                if (_selectedCategoryKey != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  SubcategoryStrip(
+                    subcategories: _subcategories,
+                    selectedKey: _selectedSubcategoryKey,
+                    onSelected: _selectSubcategory,
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 // Cap tile WIDTH rather than fixing a column count. Tile height derives
                 // from tile width, so a fixed count makes tiles balloon on a wide surface

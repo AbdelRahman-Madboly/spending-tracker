@@ -196,6 +196,7 @@ class FixtureSpendingRepository implements SpendingRepository {
         id: 'i1',
         nameAr: 'شويبس',
         categoryKey: 'Drinks',
+        subcategoryKey: 'Soda',
         defaultAmountPiastres: 4000),
     const QuickPickItem(
         id: 'i2',
@@ -236,6 +237,7 @@ class FixtureSpendingRepository implements SpendingRepository {
         id: 'i9',
         nameAr: 'عصير',
         categoryKey: 'Drinks',
+        subcategoryKey: 'Juice',
         defaultAmountPiastres: 2000),
     const QuickPickItem(
         id: 'i10',
@@ -341,9 +343,20 @@ class FixtureSpendingRepository implements SpendingRepository {
           .toList();
 
   @override
+  Future<List<QuickPickItem>> itemsInSubcategory(
+          String subcategoryKey, int limit) async =>
+      _items
+          .where((i) =>
+              i.subcategoryKey == subcategoryKey &&
+              !_archivedItemIds.contains(i.id))
+          .take(limit)
+          .toList();
+
+  @override
   Future<QuickPickItem> createItem({
     required String nameAr,
     required String categoryKey,
+    String? subcategoryKey,
     int? defaultAmountPiastres,
     String? barcode,
   }) async {
@@ -351,6 +364,7 @@ class FixtureSpendingRepository implements SpendingRepository {
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       nameAr: nameAr,
       categoryKey: categoryKey,
+      subcategoryKey: subcategoryKey,
       defaultAmountPiastres: defaultAmountPiastres,
     );
     _items.insert(0, item);

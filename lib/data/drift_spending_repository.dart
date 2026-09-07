@@ -133,6 +133,17 @@ class DriftSpendingRepository implements SpendingRepository {
     return _topScored(rows, limit);
   }
 
+  @override
+  Future<List<QuickPickItem>> itemsInSubcategory(
+      String subcategoryKey, int limit) async {
+    final rows = await (_db.select(_db.items)
+          ..where((t) =>
+              t.archived.equals(false) &
+              t.subcategoryKey.equals(subcategoryKey)))
+        .get();
+    return _topScored(rows, limit);
+  }
+
   /// Same recency-weighted ranking [topItems] uses, shared by
   /// [itemsInCategory] so "most used" means the same thing everywhere in
   /// the sheet.
@@ -154,6 +165,7 @@ class DriftSpendingRepository implements SpendingRepository {
               id: i.id,
               nameAr: i.nameAr,
               categoryKey: i.categoryKey,
+              subcategoryKey: i.subcategoryKey,
               defaultAmountPiastres: i.defaultAmountPiastres,
             ))
         .toList();
@@ -195,6 +207,7 @@ class DriftSpendingRepository implements SpendingRepository {
   Future<QuickPickItem> createItem({
     required String nameAr,
     required String categoryKey,
+    String? subcategoryKey,
     int? defaultAmountPiastres,
     String? barcode,
   }) async {
@@ -206,6 +219,7 @@ class DriftSpendingRepository implements SpendingRepository {
           // English one to capture, so mirror it to satisfy the column.
           nameEn: nameAr,
           categoryKey: categoryKey,
+          subcategoryKey: Value(subcategoryKey),
           defaultAmountPiastres: Value(defaultAmountPiastres),
           barcode: Value(barcode),
         ));
@@ -213,6 +227,7 @@ class DriftSpendingRepository implements SpendingRepository {
       id: id,
       nameAr: nameAr,
       categoryKey: categoryKey,
+      subcategoryKey: subcategoryKey,
       defaultAmountPiastres: defaultAmountPiastres,
     );
   }
@@ -233,6 +248,7 @@ class DriftSpendingRepository implements SpendingRepository {
           date: _formatDate(now),
           amountPiastres: amount,
           categoryKey: categoryKey,
+          subcategoryKey: Value(draft.subcategoryKey),
           itemId: Value(draft.itemId),
           description: Value(draft.description ?? ''),
           paymentMethod: Value(draft.paymentMethod ?? 'Cash'),
@@ -376,6 +392,7 @@ class DriftSpendingRepository implements SpendingRepository {
               id: i.id,
               nameAr: i.nameAr,
               categoryKey: i.categoryKey,
+              subcategoryKey: i.subcategoryKey,
               defaultAmountPiastres: i.defaultAmountPiastres,
             ))
         .toList();

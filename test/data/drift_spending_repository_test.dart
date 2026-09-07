@@ -208,6 +208,34 @@ void main() {
     expect(drinks.every((i) => i.categoryKey == 'Drinks'), isTrue);
   });
 
+  test(
+      'itemsInSubcategory only returns items tagged with that subcategory, '
+      'scored', () async {
+    final now = DateTime.now();
+    await db.into(db.items).insert(ItemsCompanion.insert(
+          id: 'soda-1',
+          nameAr: 'كولا',
+          nameEn: 'cola',
+          categoryKey: 'Drinks',
+          subcategoryKey: const Value('Soda'),
+          useCount: const Value(10),
+          lastUsedAt: Value(now),
+        ));
+    await db.into(db.items).insert(ItemsCompanion.insert(
+          id: 'juice-1',
+          nameAr: 'عصير مانجا',
+          nameEn: 'mango juice',
+          categoryKey: 'Drinks',
+          subcategoryKey: const Value('Juice'),
+          useCount: const Value(10),
+          lastUsedAt: Value(now),
+        ));
+
+    final soda = await repo.itemsInSubcategory('Soda', 12);
+    expect(soda.map((i) => i.id), ['soda-1']);
+    expect(soda.every((i) => i.subcategoryKey == 'Soda'), isTrue);
+  });
+
   test('createItem inserts a new item and returns it as a QuickPickItem',
       () async {
     final created = await repo.createItem(
@@ -225,6 +253,36 @@ void main() {
             .getSingleOrNull();
     expect(fromDb != null, isTrue);
     expect(fromDb!.nameAr, 'شاي');
+  });
+
+  test('createItem persists a subcategory when one is given', () async {
+    final created = await repo.createItem(
+      nameAr: 'كولا',
+      categoryKey: 'Drinks',
+      subcategoryKey: 'Soda',
+      defaultAmountPiastres: 1500,
+    );
+
+    expect(created.subcategoryKey, 'Soda');
+
+    final fromDb =
+        await (db.select(db.items)..where((t) => t.id.equals(created.id)))
+            .getSingle();
+    expect(fromDb.subcategoryKey, 'Soda');
+  });
+
+  test("saveEntry persists the draft's subcategoryKey", () async {
+    await repo.saveEntry(const DraftEntry(
+      amountPiastres: 2000,
+      description: 'كولا',
+      categoryKey: 'Drinks',
+      subcategoryKey: 'Soda',
+      paymentMethod: 'Cash',
+      source: EntrySource.quickPick,
+    ));
+
+    final row = await db.select(db.entries).getSingle();
+    expect(row.subcategoryKey, 'Soda');
   });
 
   test('enabling foreign keys rejects an entry with an unknown category',

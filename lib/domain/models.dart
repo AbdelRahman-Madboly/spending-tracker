@@ -86,15 +86,21 @@ class QuickPickItem extends Equatable {
   final int? defaultAmountPiastres;
   final String categoryKey;
 
+  /// The item's own subcategory in the catalogue, if it has one — null for
+  /// the genuine one-offs that were never classified past their category.
+  final String? subcategoryKey;
+
   const QuickPickItem({
     required this.id,
     required this.nameAr,
     required this.categoryKey,
     this.defaultAmountPiastres,
+    this.subcategoryKey,
   });
 
   @override
-  List<Object?> get props => [id, nameAr, defaultAmountPiastres, categoryKey];
+  List<Object?> get props =>
+      [id, nameAr, defaultAmountPiastres, categoryKey, subcategoryKey];
 }
 
 class DraftEntry extends Equatable {
@@ -102,6 +108,7 @@ class DraftEntry extends Equatable {
   final String? itemId;
   final String? description;
   final String? categoryKey;
+  final String? subcategoryKey;
   final String? paymentMethod;
   final String? photoPath;
   final String? voiceNotePath;
@@ -113,6 +120,7 @@ class DraftEntry extends Equatable {
     this.itemId,
     this.description,
     this.categoryKey,
+    this.subcategoryKey,
     this.paymentMethod,
     this.photoPath,
     this.voiceNotePath,
@@ -126,6 +134,7 @@ class DraftEntry extends Equatable {
     int? amountPiastres,
     String? description,
     String? categoryKey,
+    String? subcategoryKey,
     String? paymentMethod,
   }) =>
       DraftEntry(
@@ -133,6 +142,7 @@ class DraftEntry extends Equatable {
         itemId: itemId,
         description: description ?? this.description,
         categoryKey: categoryKey ?? this.categoryKey,
+        subcategoryKey: subcategoryKey ?? this.subcategoryKey,
         paymentMethod: paymentMethod ?? this.paymentMethod,
         photoPath: photoPath,
         voiceNotePath: voiceNotePath,
@@ -141,6 +151,13 @@ class DraftEntry extends Equatable {
       );
 
   @override
-  List<Object?> get props =>
-      [amountPiastres, itemId, description, categoryKey, paymentMethod, source];
+  List<Object?> get props => [
+        amountPiastres,
+        itemId,
+        description,
+        categoryKey,
+        subcategoryKey,
+        paymentMethod,
+        source
+      ];
 }

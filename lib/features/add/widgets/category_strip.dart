@@ -29,6 +29,51 @@ IconData iconForName(String name) {
       return Icons.card_giftcard;
     case 'handshake':
       return Icons.handshake;
+    // Subcategory icon names (see `_seedSubcategoryRows` in
+    // `lib/data/db/database.dart`) — mapped here too since the subcategory
+    // chip row reuses this same lookup.
+    case 'local_bar':
+      return Icons.local_bar;
+    case 'water_drop':
+      return Icons.water_drop;
+    case 'emoji_food_beverage':
+      return Icons.emoji_food_beverage;
+    case 'local_cafe':
+      return Icons.local_cafe;
+    case 'tapas':
+      return Icons.tapas;
+    case 'cake':
+      return Icons.cake;
+    case 'icecream':
+      return Icons.icecream;
+    case 'fastfood':
+      return Icons.fastfood;
+    case 'free_breakfast':
+      return Icons.free_breakfast;
+    case 'lunch_dining':
+      return Icons.lunch_dining;
+    case 'dinner_dining':
+      return Icons.dinner_dining;
+    case 'local_grocery_store':
+      return Icons.local_grocery_store;
+    case 'local_taxi':
+      return Icons.local_taxi;
+    case 'smartphone':
+      return Icons.smartphone;
+    case 'wifi':
+      return Icons.wifi;
+    case 'spa':
+      return Icons.spa;
+    case 'checkroom':
+      return Icons.checkroom;
+    case 'devices':
+      return Icons.devices;
+    case 'shopping_cart':
+      return Icons.shopping_cart;
+    case 'flight':
+      return Icons.flight;
+    case 'people':
+      return Icons.people;
     default:
       return Icons.category_outlined;
   }
@@ -62,7 +107,7 @@ class CategoryStrip extends StatelessWidget {
         padding: const EdgeInsetsDirectional.only(end: AppSpacing.xs),
         child: Row(
           children: [
-            _CategoryChip(
+            SelectableChip(
               key: const Key('category-all'),
               label: 'الكل',
               icon: Icons.apps,
@@ -70,7 +115,7 @@ class CategoryStrip extends StatelessWidget {
               onTap: () => onSelected(null),
             ),
             for (final category in categories)
-              _CategoryChip(
+              SelectableChip(
                 key: Key('category-${category.key}'),
                 label: category.labelAr,
                 icon: iconForName(category.iconName),
@@ -84,13 +129,16 @@ class CategoryStrip extends StatelessWidget {
   }
 }
 
-class _CategoryChip extends StatelessWidget {
+/// A single chip in a filter row — used by both [CategoryStrip] and
+/// `SubcategoryStrip` so the 48dp minimum tap target and visual style stay
+/// identical between the two rows.
+class SelectableChip extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
 
-  const _CategoryChip({
+  const SelectableChip({
     super.key,
     required this.label,
     required this.icon,
