@@ -62,9 +62,9 @@ void main() {
     final salaryPeriods = await db.select(db.salaryPeriods).get();
     final items = await db.select(db.items).get();
 
-    expect(entries.length, 87);
-    expect(salaryPeriods.length, 3);
-    expect(items.length, 17);
+    expect(entries.length, 92);
+    expect(salaryPeriods.length, 2);
+    expect(items.length, 12);
   });
 
   test('the item catalogue has no duplicate or English-only Arabic names, '
@@ -100,6 +100,31 @@ void main() {
         categoryKeys,
         contains(item.categoryKey),
         reason: 'item ${item.id} has unknown category ${item.categoryKey}',
+      );
+    }
+  });
+
+  test('no catalogue item is built from a single occurrence', () async {
+    // A single purchase can't support a meaningful default price (e.g. a
+    // lump-sum "juice, drinks, water" hospital-visit line is not a juice
+    // price) — every item must be backed by at least two real purchases,
+    // and must actually carry a default price once it exists.
+    await db.seedFromJsonString(seedJson);
+
+    final items = await db.select(db.items).get();
+    expect(items, isNotEmpty);
+
+    for (final item in items) {
+      expect(
+        item.useCount,
+        greaterThanOrEqualTo(2),
+        reason: 'item ${item.id} (${item.nameAr}) has useCount '
+            '${item.useCount}, below the 2-occurrence threshold',
+      );
+      expect(
+        item.defaultAmountPiastres,
+        isNotNull,
+        reason: 'item ${item.id} (${item.nameAr}) has no defaultAmountPiastres',
       );
     }
   });
