@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
+import '../../data/photo_capture_service.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import 'widgets/category_strip.dart';
@@ -12,7 +15,18 @@ class AddSheet extends StatefulWidget {
   final SpendingRepository repository;
   final ValueChanged<DraftEntry> onSubmit;
 
-  const AddSheet({super.key, required this.repository, required this.onSubmit});
+  /// Defaults to the real image_picker/permission_handler-backed
+  /// implementation; overridable so widget tests can inject a fake — the
+  /// real one talks to platform channels that don't run under
+  /// `flutter test`.
+  final PhotoCaptureService? photoCaptureService;
+
+  const AddSheet({
+    super.key,
+    required this.repository,
+    required this.onSubmit,
+    this.photoCaptureService,
+  });
 
   @override
   State<AddSheet> createState() => _AddSheetState();
@@ -23,6 +37,19 @@ class _AddSheetState extends State<AddSheet> {
   List<QuickPickItem> _items = const [];
   List<CategoryView> _categories = const [];
   List<SubcategoryView> _subcategories = const [];
+
+  /// Created lazily (not in [initState]) so nothing touches image_picker's
+  /// platform channel until the user actually taps a capture button —
+  /// widget tests that never tap camera/gallery never pay for it.
+  PhotoCaptureService? _photoCaptureService;
+  PhotoCaptureService get _photoCapture =>
+      _photoCaptureService ??= widget.photoCaptureService ?? ImagePickerPhotoCaptureService();
+
+  /// Relative path of the currently attached photo, if any — kept apart
+  /// from [_draft] so a photo attached before an item is picked (_draft
+  /// still null) survives to be folded into the draft once one exists.
+  String? _photoPath;
+  File? _photoFile;
 
   /// null means "الكل" (all categories) — the default, so the most-used
   /// items across every category (and the two-tap path to them) is always
@@ -91,7 +118,46 @@ class _AddSheetState extends State<AddSheet> {
         subcategoryKey: item.subcategoryKey,
         paymentMethod: 'Cash',
         source: EntrySource.quickPick,
-      );
+        // Carries over a photo attached before an item was picked — photo
+        // and item selection can happen in either order.
+      ).withPhotoPath(_photoPath);
+    });
+  }
+
+  Future<void> _captureFromCamera() => _capture(_photoCapture.captureFromCamera);
+
+  Future<void> _pickFromGallery() => _capture(_photoCapture.pickFromGallery);
+
+  Future<void> _capture(
+      Future<PhotoCaptureResult> Function() capture) async {
+    final result = await capture();
+    if (!mounted) return;
+    switch (result.outcome) {
+      case PhotoCaptureOutcome.cancelled:
+        return;
+      case PhotoCaptureOutcome.permissionDenied:
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'تعذّر الوصول إلى الكاميرا. يرجى السماح بإذن الكاميرا من إعدادات التطبيق.'),
+        ));
+        return;
+      case PhotoCaptureOutcome.attached:
+        final relativePath = result.relativePath!;
+        final file = await _photoCapture.resolve(relativePath);
+        if (!mounted) return;
+        setState(() {
+          _photoPath = relativePath;
+          _photoFile = file;
+          if (_draft != null) _draft = _draft!.withPhotoPath(relativePath);
+        });
+    }
+  }
+
+  void _removePhoto() {
+    setState(() {
+      _photoPath = null;
+      _photoFile = null;
+      if (_draft != null) _draft = _draft!.withPhotoPath(null);
     });
   }
 
@@ -244,21 +310,68 @@ class _AddSheetState extends State<AddSheet> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                const Row(
-                  key: Key('capture-icons'),
+                Row(
+                  key: const Key('capture-icons'),
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Icon(Icons.photo_camera_outlined,
+                    IconButton(
+                      key: const Key('camera-button'),
+                      onPressed: _captureFromCamera,
+                      constraints:
+                          const BoxConstraints(minWidth: 48, minHeight: 48),
+                      icon: const Icon(Icons.photo_camera_outlined,
+                          color: AppColors.textSecondary),
+                    ),
+                    // Barcode, voice and manual-keyboard entry are separate
+                    // tasks — these three stay inert placeholders here.
+                    const Icon(Icons.qr_code_scanner,
                         color: AppColors.textSecondary),
-                    Icon(Icons.qr_code_scanner,
-                        color: AppColors.textSecondary),
-                    Icon(Icons.mic_none, color: AppColors.textSecondary),
-                    Icon(Icons.image_outlined,
-                        color: AppColors.textSecondary),
-                    Icon(Icons.keyboard_alt_outlined,
+                    const Icon(Icons.mic_none, color: AppColors.textSecondary),
+                    IconButton(
+                      key: const Key('gallery-button'),
+                      onPressed: _pickFromGallery,
+                      constraints:
+                          const BoxConstraints(minWidth: 48, minHeight: 48),
+                      icon: const Icon(Icons.image_outlined,
+                          color: AppColors.textSecondary),
+                    ),
+                    const Icon(Icons.keyboard_alt_outlined,
                         color: AppColors.textSecondary),
                   ],
                 ),
+                if (_photoFile != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          _photoFile!,
+                          key: const Key('photo-thumbnail'),
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                            width: 64,
+                            height: 64,
+                            color: AppColors.surface,
+                            child: const Icon(Icons.broken_image_outlined,
+                                color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        key: const Key('remove-photo-button'),
+                        onPressed: _removePhoto,
+                        constraints:
+                            const BoxConstraints(minWidth: 48, minHeight: 48),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 SizedBox(
                   width: double.infinity,

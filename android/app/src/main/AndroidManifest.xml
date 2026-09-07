@@ -1,5 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- This application performs no network I/O. Do not add INTERNET permission. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Not required: lets the app install and run (camera button simply
+         has nothing to do) on a device with no camera hardware, e.g. some
+         tablets. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <application
         android:label="مصاريفي"
         android:name="${applicationName}"

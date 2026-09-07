@@ -130,6 +130,22 @@ class DraftEntry extends Equatable {
 
   bool get isComplete => amountPiastres != null && categoryKey != null;
 
+  /// Returns a copy with [photoPath] replaced — including replacing it
+  /// with null to remove a previously attached photo. Kept separate from
+  /// [copyWith], whose `??`-based fields can't express "clear this value".
+  DraftEntry withPhotoPath(String? photoPath) => DraftEntry(
+        amountPiastres: amountPiastres,
+        itemId: itemId,
+        description: description,
+        categoryKey: categoryKey,
+        subcategoryKey: subcategoryKey,
+        paymentMethod: paymentMethod,
+        photoPath: photoPath,
+        voiceNotePath: voiceNotePath,
+        source: source,
+        confidence: confidence,
+      );
+
   DraftEntry copyWith({
     int? amountPiastres,
     String? description,

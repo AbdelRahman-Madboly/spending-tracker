@@ -285,6 +285,33 @@ void main() {
     expect(row.subcategoryKey, 'Soda');
   });
 
+  test("saveEntry persists the draft's photoPath", () async {
+    await repo.saveEntry(const DraftEntry(
+      amountPiastres: 2000,
+      description: 'كولا',
+      categoryKey: 'Drinks',
+      paymentMethod: 'Cash',
+      photoPath: 'photos/172000-0.jpg',
+      source: EntrySource.quickPick,
+    ));
+
+    final row = await db.select(db.entries).getSingle();
+    expect(row.photoPath, 'photos/172000-0.jpg');
+  });
+
+  test('saveEntry leaves photoPath null when the draft has none', () async {
+    await repo.saveEntry(const DraftEntry(
+      amountPiastres: 2000,
+      description: 'كولا',
+      categoryKey: 'Drinks',
+      paymentMethod: 'Cash',
+      source: EntrySource.quickPick,
+    ));
+
+    final row = await db.select(db.entries).getSingle();
+    expect(row.photoPath, null);
+  });
+
   test('enabling foreign keys rejects an entry with an unknown category',
       () async {
     await seedSalary();
