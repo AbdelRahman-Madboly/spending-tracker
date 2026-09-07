@@ -5,10 +5,14 @@ import 'package:spending_tracker/features/add/add_sheet.dart';
 
 /// The sheet is opened in production through `showModalBottomSheet`, which
 /// constrains its height. Hosting `AddSheet` directly in a `Scaffold` body — as
-/// the other add-sheet tests do — hands it the whole screen and cannot catch
-/// content being clipped by the sheet. On a real 384x832dp phone the content
-/// needed roughly 459dp while the sheet rendered about 362dp, putting the save
-/// button off-screen and making the app's primary action impossible to complete.
+/// the other add-sheet tests do — hands it the whole screen, so those tests
+/// cannot catch content being clipped by the sheet itself.
+///
+/// These tests close that gap at a real phone geometry (384x832dp). A device
+/// screenshot once appeared to show the save button missing; checking the same
+/// geometry on an emulator showed the sheet rendering in full, so that reading
+/// was mistaken. The coverage is kept because the constraint is real even
+/// though the defect was not.
 void main() {
   Future<void> openSheet(WidgetTester tester) async {
     // A Samsung A54: 1080x2340 at density 450, i.e. 384x832 logical pixels.
