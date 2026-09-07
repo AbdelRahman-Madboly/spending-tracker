@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -21,6 +23,10 @@ class _SpendingAppState extends State<SpendingApp> {
     super.initState();
     _database = AppDatabase();
     _repository = DriftSpendingRepository(_database);
+    // Fire-and-forget: loads the real historical spending data on first
+    // run only (see AppDatabase.seedRealDataIfNeeded). The repository's
+    // streams pick up the inserted rows as soon as it completes.
+    unawaited(_database.seedRealDataIfNeeded());
   }
 
   @override

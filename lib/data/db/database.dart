@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
@@ -27,6 +29,97 @@ class AppDatabase extends _$AppDatabase {
           await _seedCategories(this);
         },
       );
+
+  /// Loads the real historical spending data (assets/seed/seed.json) and
+  /// seeds it, but only the first time — safe to call every app start.
+  /// The ten categories are already in place by the time this can matter
+  /// (seeded in [onCreate]); this only ever adds items, entries and salary
+  /// periods, and only when the entries table is still empty.
+  Future<void> seedRealDataIfNeeded() async {
+    final jsonString = await rootBundle.loadString('assets/seed/seed.json');
+    await seedFromJsonString(jsonString);
+  }
+
+  /// The pure, asset-free half of [seedRealDataIfNeeded] — takes the seed
+  /// JSON as a string so it can be exercised directly in tests without a
+  /// Flutter asset bundle. Idempotent: a no-op whenever `entries` already
+  /// has rows, so calling this more than once never duplicates data.
+  Future<void> seedFromJsonString(String jsonString) async {
+    final alreadySeeded =
+        await (select(entries)..limit(1)).getSingleOrNull() != null;
+    if (alreadySeeded) return;
+
+    final data = jsonDecode(jsonString) as Map<String, dynamic>;
+    final items = (data['items'] as List).cast<Map<String, dynamic>>();
+    final entryRows = (data['entries'] as List).cast<Map<String, dynamic>>();
+    final salaryRows =
+        (data['salaryPeriods'] as List).cast<Map<String, dynamic>>();
+
+    await transaction(() async {
+      // Items before entries: entries reference items by id via itemId.
+      for (final item in items) {
+        await into(this.items).insert(
+              ItemsCompanion.insert(
+                id: item['id'] as String,
+                nameAr: item['nameAr'] as String,
+                nameEn: item['nameEn'] as String,
+                categoryKey: item['categoryKey'] as String,
+                defaultAmountPiastres: Value(
+                  item['defaultAmountPiastres'] as int?,
+                ),
+                barcode: Value(item['barcode'] as String?),
+                useCount: Value(item['useCount'] as int? ?? 0),
+                lastUsedAt: Value(
+                  item['lastUsedAt'] == null
+                      ? null
+                      : DateTime.parse(item['lastUsedAt'] as String),
+                ),
+                archived: Value(item['archived'] as bool? ?? false),
+              ),
+            );
+      }
+
+      for (final row in entryRows) {
+        await into(entries).insert(
+              EntriesCompanion.insert(
+                id: row['id'] as String,
+                date: row['date'] as String,
+                amountPiastres: row['amountPiastres'] as int,
+                categoryKey: row['categoryKey'] as String,
+                itemId: Value(row['itemId'] as String?),
+                description: Value(row['description'] as String? ?? ''),
+                paymentMethod: Value(
+                  row['paymentMethod'] as String? ?? 'Cash',
+                ),
+                photoPath: Value(row['photoPath'] as String?),
+                source: Value(row['source'] as String? ?? 'manual'),
+                note: Value(row['note'] as String?),
+                createdAt: DateTime.parse(row['createdAt'] as String),
+                updatedAt: DateTime.parse(row['updatedAt'] as String),
+                deletedAt: Value(
+                  row['deletedAt'] == null
+                      ? null
+                      : DateTime.parse(row['deletedAt'] as String),
+                ),
+              ),
+            );
+      }
+
+      for (final row in salaryRows) {
+        await into(salaryPeriods).insert(
+              SalaryPeriodsCompanion.insert(
+                id: row['id'] as String,
+                datePaid: row['datePaid'] as String,
+                amountPiastres: row['amountPiastres'] as int,
+                evidencePhotoPath: Value(
+                  row['evidencePhotoPath'] as String?,
+                ),
+                note: Value(row['note'] as String?),
+              ),
+            );
+      }
+    });
+  }
 }
 
 /// The ten fixed categories this app understands. Keys are English and are
