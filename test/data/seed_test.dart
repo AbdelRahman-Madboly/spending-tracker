@@ -64,6 +64,43 @@ void main() {
 
     expect(entries.length, 87);
     expect(salaryPeriods.length, 3);
-    expect(items.length, 13);
+    expect(items.length, 17);
+  });
+
+  test('the item catalogue has no duplicate or English-only Arabic names, '
+      'and every item category is real', () async {
+    await db.seedFromJsonString(seedJson);
+
+    final items = await db.select(db.items).get();
+    final categories = await db.select(db.categories).get();
+    final categoryKeys = categories.map((c) => c.key).toSet();
+
+    expect(items, isNotEmpty);
+
+    final nameArValues = items.map((i) => i.nameAr).toList();
+    expect(
+      nameArValues.toSet().length,
+      nameArValues.length,
+      reason: 'two or more items share the same nameAr: $nameArValues',
+    );
+
+    final arabicChar = RegExp(r'[؀-ۿ]');
+    for (final item in items) {
+      expect(
+        arabicChar.hasMatch(item.nameAr),
+        isTrue,
+        reason:
+            'item ${item.id} has no Arabic character in nameAr: '
+            '"${item.nameAr}"',
+      );
+    }
+
+    for (final item in items) {
+      expect(
+        categoryKeys,
+        contains(item.categoryKey),
+        reason: 'item ${item.id} has unknown category ${item.categoryKey}',
+      );
+    }
   });
 }
