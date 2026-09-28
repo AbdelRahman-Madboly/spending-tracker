@@ -7,7 +7,9 @@ plugins {
 
 android {
     namespace = "com.madboly.spending_tracker"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android 14 compiles against platform 37; Flutter
+    // 3.44 still defaults to 36. Compiling higher is backward compatible.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
