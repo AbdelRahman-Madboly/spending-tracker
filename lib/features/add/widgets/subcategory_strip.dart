@@ -17,7 +17,11 @@ class SubcategoryStrip extends StatelessWidget {
   final String? selectedKey;
   final ValueChanged<String?> onSelected;
 
+  /// The parent category's colour, which its subcategory chips share.
+  final String? colorKey;
+
   const SubcategoryStrip({
+    this.colorKey,
     super.key,
     required this.subcategories,
     required this.selectedKey,
@@ -45,6 +49,7 @@ class SubcategoryStrip extends StatelessWidget {
                 key: Key('subcategory-${subcategory.key}'),
                 label: subcategory.labelAr,
                 icon: iconFor(subcategory.iconName),
+                colorKey: colorKey,
                 selected: selectedKey == subcategory.key,
                 onTap: () => onSelected(subcategory.key),
               ),

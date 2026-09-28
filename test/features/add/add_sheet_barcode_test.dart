@@ -32,7 +32,7 @@ void main() {
     required FakeBarcodeScanService scanService,
     ValueChanged<DraftEntry>? onSubmit,
   }) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(

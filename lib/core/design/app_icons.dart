@@ -117,6 +117,27 @@ abstract final class AppIcons {
   static const unarchive = Symbols.unarchive_rounded;
   static const brokenImage = Symbols.broken_image_rounded;
   static const keyboard = Symbols.keyboard_rounded;
+  static const warning = Symbols.warning_rounded;
+  static const backspace = Symbols.backspace_rounded;
+  static const payment = Symbols.payments_rounded;
+
+  /// Chevrons pointing toward the start and the end side. Both carry
+  /// `matchTextDirection`, so "left" draws pointing right in the app's
+  /// right-to-left layout, toward the start.
+  static const chevronStart = Symbols.chevron_left_rounded;
+  static const chevronEnd = Symbols.chevron_right_rounded;
+  static const bill = Symbols.event_upcoming_rounded;
+  static const review = Symbols.rate_review_rounded;
+  static const trendDown = Symbols.trending_down_rounded;
+  static const trendUp = Symbols.trending_up_rounded;
+  static const trendFlat = Symbols.trending_flat_rounded;
+  static const emptyReceipt = Symbols.receipt_long_rounded;
+
+  // Bottom navigation.
+  static const navHome = Symbols.home_rounded;
+  static const navTransactions = Symbols.receipt_long_rounded;
+  static const navStats = Symbols.bar_chart_rounded;
+  static const navSettings = Symbols.settings_rounded;
 
   // Capture (spec §7.2).
   static const mic = Symbols.mic_rounded;

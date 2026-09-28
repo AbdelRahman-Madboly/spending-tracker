@@ -90,7 +90,7 @@ void main() {
     required FakePhotoCaptureService service,
     ValueChanged<DraftEntry>? onSubmit,
   }) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(
@@ -209,7 +209,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('camera-button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('شويبس'));
+    await tester.tap(find.descendant(of: find.byType(GridView), matching: find.text('شويبس')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('save-button')));
     await tester.pumpAndSettle();
@@ -232,7 +232,7 @@ void main() {
     // Photo first, item second — order must not matter.
     await tester.tap(find.byKey(const Key('camera-button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('شويبس'));
+    await tester.tap(find.descendant(of: find.byType(GridView), matching: find.text('شويبس')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('save-button')));
     await tester.pumpAndSettle();
@@ -288,7 +288,7 @@ void main() {
       required FakePhotoCaptureService service,
       ValueChanged<DraftEntry>? onSubmit,
     }) async {
-      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.physicalSize = const Size(1080, 4800);
       tester.view.devicePixelRatio = 3.0;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(MaterialApp(
@@ -360,7 +360,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('camera-button')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('شويبس'));
+      await tester.tap(find.descendant(of: find.byType(GridView), matching: find.text('شويبس')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('save-button')));
       await tester.pumpAndSettle();
@@ -398,7 +398,7 @@ void main() {
       await tester.tap(find.byKey(const Key('camera-button')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('شويبس'));
+      await tester.tap(find.descendant(of: find.byType(GridView), matching: find.text('شويبس')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('save-button')));
       await tester.pumpAndSettle();

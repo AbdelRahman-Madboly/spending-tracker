@@ -9,7 +9,7 @@ void main() {
   testWidgets(
       'save button clears the 48dp minimum tap target under the real app theme',
       (tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(
@@ -30,9 +30,9 @@ void main() {
     expect(height, greaterThanOrEqualTo(48));
   });
 
-  testWidgets('shows twelve quick pick items and five capture icons',
+  testWidgets('shows the quick pick items and the capture icons',
       (tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(
@@ -48,13 +48,13 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('شويبس'), findsOneWidget);
+    expect(find.descendant(of: find.byType(GridView), matching: find.text('شويبس')), findsOneWidget);
     expect(find.byKey(const Key('capture-icons')), findsOneWidget);
   });
 
   testWidgets('tapping an item submits a complete draft in one tap',
       (tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
     DraftEntry? captured;
@@ -71,7 +71,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('شويبس'));
+    await tester.tap(find.descendant(of: find.byType(GridView), matching: find.text('شويبس')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('save-button')));
     await tester.pumpAndSettle();
@@ -86,7 +86,7 @@ void main() {
   testWidgets(
       'category strip defaults to الكل and selecting a category filters the grid',
       (tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(
@@ -128,7 +128,7 @@ void main() {
       'selecting a category reveals its subcategory row (hidden by default), '
       'and the two-tap quick-pick path still works with الكل selected',
       (tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
     DraftEntry? captured;
@@ -150,7 +150,7 @@ void main() {
 
     // Tapping شويبس then حفظ must remain exactly two taps — this must not
     // regress by the subcategory feature existing.
-    await tester.tap(find.text('شويبس'));
+    await tester.tap(find.descendant(of: find.byType(GridView), matching: find.text('شويبس')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('save-button')));
     await tester.pumpAndSettle();
@@ -176,7 +176,7 @@ void main() {
   testWidgets(
       'selecting a category then a subcategory filters the grid to that '
       "subcategory's items", (tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
     DraftEntry? captured;
@@ -216,7 +216,7 @@ void main() {
     expect(find.descendant(of: grid, matching: find.text('عصير')), findsNothing);
 
     // Tap it and save: the draft records the item's own subcategory.
-    await tester.tap(find.text('شويبس'));
+    await tester.tap(find.descendant(of: find.byType(GridView), matching: find.text('شويبس')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('save-button')));
     await tester.pumpAndSettle();
@@ -228,7 +228,7 @@ void main() {
   testWidgets(
       'tapping جديد opens the new item dialog, and saving creates and selects it',
       (tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
     DraftEntry? captured;
@@ -268,7 +268,7 @@ void main() {
   testWidgets(
       'تايل جديد opens the dialog with both category and subcategory '
       'pre-filled from the current selection', (tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
     DraftEntry? captured;

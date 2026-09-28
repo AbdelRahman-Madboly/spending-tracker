@@ -64,7 +64,7 @@ void main() {
             '($screenHeight) — the user cannot reach it');
 
     // And prove it can actually be driven, not merely that it is on screen.
-    await tester.tap(find.text('شويبس'));
+    await tester.tap(find.byKey(const Key('recent-i1'))); // شويبس
     await tester.pumpAndSettle();
     await tester.tap(save);
     await tester.pumpAndSettle();
@@ -110,7 +110,7 @@ void main() {
         tester.getSize(find.byKey(const Key('save-button')));
     expect(saveButtonSize.height, greaterThanOrEqualTo(48));
 
-    await tester.tap(find.text('شويبس'));
+    await tester.tap(find.byKey(const Key('recent-i1'))); // شويبس
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('save-button')));
     await tester.pumpAndSettle();
