@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../core/arabic_text.dart';
 import '../domain/models.dart';
 import '../domain/spending_repository.dart';
 
@@ -8,22 +9,55 @@ import '../domain/spending_repository.dart';
 /// category set the app ships with.
 final _seedCategories = [
   const CategoryView(
-      key: 'Drinks', labelAr: 'مشروبات', iconName: 'local_drink'),
-  const CategoryView(key: 'Snacks', labelAr: 'سناكس', iconName: 'cookie'),
-  const CategoryView(key: 'Food', labelAr: 'أكل', iconName: 'restaurant'),
+      key: 'Drinks',
+      labelAr: 'مشروبات',
+      iconName: 'local_drink',
+      colorKey: 'Drinks'),
   const CategoryView(
-      key: 'Transport', labelAr: 'مواصلات', iconName: 'directions_bus'),
+      key: 'Snacks',
+      labelAr: 'سناكس',
+      iconName: 'cookie',
+      colorKey: 'Snacks'),
   const CategoryView(
-      key: 'Bills', labelAr: 'فواتير', iconName: 'receipt_long'),
+      key: 'Food',
+      labelAr: 'أكل',
+      iconName: 'restaurant',
+      colorKey: 'Food'),
   const CategoryView(
-      key: 'Personal Care', labelAr: 'عناية شخصية', iconName: 'content_cut'),
+      key: 'Transport',
+      labelAr: 'مواصلات',
+      iconName: 'directions_bus',
+      colorKey: 'Transport'),
   const CategoryView(
-      key: 'Shopping', labelAr: 'تسوق', iconName: 'shopping_bag'),
+      key: 'Bills',
+      labelAr: 'فواتير',
+      iconName: 'receipt_long',
+      colorKey: 'Bills'),
   const CategoryView(
-      key: 'Family/Social', labelAr: 'عائلة وزيارات', iconName: 'groups'),
+      key: 'Personal Care',
+      labelAr: 'عناية شخصية',
+      iconName: 'content_cut',
+      colorKey: 'Personal Care'),
   const CategoryView(
-      key: 'Gifts', labelAr: 'هدايا', iconName: 'card_giftcard'),
-  const CategoryView(key: 'Loans', labelAr: 'سلف', iconName: 'handshake'),
+      key: 'Shopping',
+      labelAr: 'تسوق',
+      iconName: 'shopping_bag',
+      colorKey: 'Shopping'),
+  const CategoryView(
+      key: 'Family/Social',
+      labelAr: 'عائلة وزيارات',
+      iconName: 'groups',
+      colorKey: 'Family/Social'),
+  const CategoryView(
+      key: 'Gifts',
+      labelAr: 'هدايا',
+      iconName: 'card_giftcard',
+      colorKey: 'Gifts'),
+  const CategoryView(
+      key: 'Loans',
+      labelAr: 'سلف',
+      iconName: 'handshake',
+      colorKey: 'Loans'),
 ];
 
 /// Mirrors the subcategory catalogue seeded into the real database (see
@@ -360,9 +394,10 @@ class FixtureSpendingRepository implements SpendingRepository {
     required String key,
     required String labelAr,
     required String iconName,
+    String colorKey = 'Other',
   }) async {
-    final category =
-        CategoryView(key: key, labelAr: labelAr, iconName: iconName);
+    final category = CategoryView(
+        key: key, labelAr: labelAr, iconName: iconName, colorKey: colorKey);
     _categories.add(category);
     _controller.add(null);
     return category;
@@ -373,11 +408,15 @@ class FixtureSpendingRepository implements SpendingRepository {
     required String key,
     required String labelAr,
     required String iconName,
+    String? colorKey,
   }) async {
     final index = _categories.indexWhere((c) => c.key == key);
     if (index == -1) return;
-    _categories[index] =
-        CategoryView(key: key, labelAr: labelAr, iconName: iconName);
+    _categories[index] = CategoryView(
+        key: key,
+        labelAr: labelAr,
+        iconName: iconName,
+        colorKey: colorKey ?? _categories[index].colorKey);
     _controller.add(null);
   }
 
@@ -531,6 +570,9 @@ class FixtureSpendingRepository implements SpendingRepository {
     int? defaultAmountPiastres,
     String? barcode,
   }) async {
+    if (barcode != null && await itemByBarcode(barcode) != null) {
+      throw DuplicateBarcodeException(barcode);
+    }
     final item = QuickPickItem(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       nameAr: nameAr,
@@ -560,14 +602,25 @@ class FixtureSpendingRepository implements SpendingRepository {
         .firstWhere((c) => c.key == categoryKey,
             orElse: () => _categories.first)
         .labelAr;
+    final id = _newId();
     _entries.add(EntryView(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: id,
       displayName: draft.description ?? '',
       amountPiastres: draft.amountPiastres ?? 0,
       categoryKey: categoryKey,
       categoryLabelAr: categoryLabelAr,
       date: DateTime(2026, 9, _today),
     ));
+    final photoPath = draft.photoPath;
+    if (photoPath != null) {
+      _attachments.add(AttachmentView(
+        id: _newId(),
+        entryId: id,
+        kind: AttachmentKind.photo,
+        path: photoPath,
+        createdAt: DateTime.now(),
+      ));
+    }
     _controller.add(null);
   }
 
@@ -648,4 +701,229 @@ class FixtureSpendingRepository implements SpendingRepository {
     }
     return totals;
   }
+
+  // ---- v3 ----
+
+  int _idSequence = 0;
+  String _newId() =>
+      '${DateTime.now().microsecondsSinceEpoch}-${_idSequence++}';
+
+  final _groups = <String, CaptureGroupView>{};
+  final _records = <String, EntryRecord>{};
+  final _attachments = <AttachmentView>[];
+  final _aliases = <String, String>{};
+  final _settings = <String, String>{};
+  final _bills = <RecurringBillView>[];
+
+  @override
+  Future<String> saveCapture(CaptureDraft draft) async {
+    // Validate everything first, then write: the fixture's stand-in for the
+    // drift repository's single transaction, so a bad line saves nothing.
+    final known = await knownExternalIds();
+    final seenIds = <String>{};
+    for (final line in draft.lines) {
+      if (!_categories.any((c) => c.key == line.categoryKey)) {
+        throw ArgumentError.value(line.categoryKey, 'categoryKey');
+      }
+      final externalId = line.externalId;
+      if (externalId != null &&
+          (known.contains(externalId) || !seenIds.add(externalId))) {
+        throw StateError('external id $externalId already exists');
+      }
+    }
+
+    final now = DateTime.now();
+    final groupId = _newId();
+    final day = DateTime(draft.date.year, draft.date.month, draft.date.day);
+    final records = <EntryRecord>[];
+    for (final line in draft.lines) {
+      final record = EntryRecord(
+        id: _newId(),
+        date: day,
+        amountPiastres: line.amountPiastres,
+        categoryKey: line.categoryKey,
+        subcategoryKey: line.subcategoryKey,
+        itemId: line.itemId,
+        description: line.description,
+        paymentMethod: draft.paymentMethod,
+        source: draft.kind.entrySource,
+        quantityMilli: line.quantityMilli,
+        unit: line.unit,
+        unitPricePiastres: line.unitPricePiastres,
+        captureGroupId: groupId,
+        externalId: line.externalId,
+        reference: line.reference,
+        note: line.note,
+      );
+      records.add(record);
+      _records[record.id] = record;
+      _entries.add(EntryView(
+        id: record.id,
+        displayName: line.description,
+        amountPiastres: line.amountPiastres,
+        categoryKey: line.categoryKey,
+        categoryLabelAr:
+            _categories.firstWhere((c) => c.key == line.categoryKey).labelAr,
+        date: day,
+      ));
+    }
+    final attachments = [
+      for (final a in draft.attachments)
+        _attachmentFrom(a, captureGroupId: groupId, now: now),
+    ];
+    _attachments.addAll(attachments);
+    _groups[groupId] = CaptureGroupView(
+      id: groupId,
+      kind: draft.kind,
+      status: draft.status,
+      rawText: draft.rawText,
+      cleanText: draft.cleanText,
+      parsedBy: draft.parsedBy,
+      date: day,
+      entries: records,
+      attachments: attachments,
+    );
+    _controller.add(null);
+    return groupId;
+  }
+
+  AttachmentView _attachmentFrom(
+    DraftAttachment a, {
+    String? entryId,
+    String? captureGroupId,
+    required DateTime now,
+  }) =>
+      AttachmentView(
+        id: _newId(),
+        entryId: entryId,
+        captureGroupId: captureGroupId,
+        kind: a.kind,
+        path: a.path,
+        text: a.text,
+        transcript: a.transcript,
+        durationMs: a.durationMs,
+        createdAt: now,
+      );
+
+  @override
+  Future<CaptureGroupView?> captureGroup(String id) async {
+    final group = _groups[id];
+    if (group == null) return null;
+    return CaptureGroupView(
+      id: group.id,
+      kind: group.kind,
+      status: group.status,
+      rawText: group.rawText,
+      cleanText: group.cleanText,
+      parsedBy: group.parsedBy,
+      date: group.date,
+      entries: group.entries,
+      attachments:
+          _attachments.where((a) => a.captureGroupId == id).toList(),
+    );
+  }
+
+  @override
+  Future<List<AttachmentView>> attachmentsForEntry(String entryId) async {
+    final groupId = _records[entryId]?.captureGroupId;
+    return _attachments
+        .where((a) =>
+            a.entryId == entryId ||
+            (groupId != null && a.captureGroupId == groupId))
+        .toList();
+  }
+
+  @override
+  Future<AttachmentView> addAttachment({
+    String? entryId,
+    String? captureGroupId,
+    required DraftAttachment attachment,
+  }) async {
+    if (entryId == null && captureGroupId == null) {
+      throw ArgumentError('an attachment needs an entry or a capture group');
+    }
+    final view = _attachmentFrom(attachment,
+        entryId: entryId, captureGroupId: captureGroupId, now: DateTime.now());
+    _attachments.add(view);
+    return view;
+  }
+
+  @override
+  Future<void> learnAlias(String alias, String itemId) async {
+    _aliases[normalizeArabic(alias)] = itemId;
+  }
+
+  @override
+  Future<Map<String, String>> itemAliases() async => Map.of(_aliases);
+
+  @override
+  Future<String?> setting(String key) async => _settings[key];
+
+  @override
+  Future<void> setSetting(String key, String value) async {
+    if (isSecretSettingKey(key)) {
+      throw ArgumentError.value(
+          key, 'key', 'secrets belong in secure storage, not app_settings');
+    }
+    _settings[key] = value;
+  }
+
+  @override
+  Future<List<RecurringBillView>> recurringBills() async =>
+      _bills.where((b) => !b.archived).toList()
+        ..sort((a, b) => a.nextDue.compareTo(b.nextDue));
+
+  @override
+  Future<RecurringBillView> createRecurringBill({
+    required String nameAr,
+    required int amountPiastres,
+    required String categoryKey,
+    String? subcategoryKey,
+    int everyMonths = 1,
+    required DateTime nextDue,
+    int remindDaysBefore = 2,
+  }) async {
+    final bill = RecurringBillView(
+      id: _newId(),
+      nameAr: nameAr,
+      amountPiastres: amountPiastres,
+      categoryKey: categoryKey,
+      subcategoryKey: subcategoryKey,
+      everyMonths: everyMonths,
+      nextDue: DateTime(nextDue.year, nextDue.month, nextDue.day),
+      remindDaysBefore: remindDaysBefore,
+    );
+    _bills.add(bill);
+    return bill;
+  }
+
+  @override
+  Future<void> updateRecurringBill(RecurringBillView bill) async {
+    final index = _bills.indexWhere((b) => b.id == bill.id);
+    if (index != -1) _bills[index] = bill;
+  }
+
+  @override
+  Future<void> archiveRecurringBill(String id) async {
+    final index = _bills.indexWhere((b) => b.id == id);
+    if (index == -1) return;
+    final b = _bills[index];
+    _bills[index] = RecurringBillView(
+      id: b.id,
+      nameAr: b.nameAr,
+      amountPiastres: b.amountPiastres,
+      categoryKey: b.categoryKey,
+      subcategoryKey: b.subcategoryKey,
+      everyMonths: b.everyMonths,
+      nextDue: b.nextDue,
+      remindDaysBefore: b.remindDaysBefore,
+      archived: true,
+    );
+  }
+
+  @override
+  Future<Set<String>> knownExternalIds() async => {
+        for (final r in _records.values)
+          if (r.externalId != null) r.externalId!,
+      };
 }

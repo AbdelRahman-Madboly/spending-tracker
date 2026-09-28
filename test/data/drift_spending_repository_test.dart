@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/db/database.dart';
@@ -334,7 +334,9 @@ void main() {
     expect(row.subcategoryKey, 'Soda');
   });
 
-  test("saveEntry persists the draft's photoPath", () async {
+  // Since v3 the photo is an attachment row; entries.photoPath is only
+  // kept for rows written before v3.
+  test("saveEntry persists the draft's photo as an attachment", () async {
     await repo.saveEntry(const DraftEntry(
       amountPiastres: 2000,
       description: 'كولا',
@@ -345,7 +347,11 @@ void main() {
     ));
 
     final row = await db.select(db.entries).getSingle();
-    expect(row.photoPath, 'photos/172000-0.jpg');
+    expect(row.photoPath, isNull);
+    final attachment = await db.select(db.attachments).getSingle();
+    expect(attachment.entryId, row.id);
+    expect(attachment.kind, 'photo');
+    expect(attachment.path, 'photos/172000-0.jpg');
   });
 
   test('saveEntry leaves photoPath null when the draft has none', () async {
@@ -929,6 +935,60 @@ void main() {
       final archivedSubs = await repo.archivedSubcategories();
       expect(archivedSubs.map((s) => s.key), ['Haircut']);
       expect(await repo.archivedCategories(), isEmpty);
+    });
+  });
+
+  group('v3 storage', () {
+    test('the database refuses an attachment that belongs to nothing',
+        () async {
+      await expectLater(
+        db.into(db.attachments).insert(AttachmentsCompanion.insert(
+              id: 'orphan',
+              kind: 'text',
+              body: const Value('x'),
+              createdAt: DateTime.now(),
+            )),
+        throwsA(anything),
+      );
+    });
+
+    test('a fresh install seeds every category with its own colour key',
+        () async {
+      final rows = await db.select(db.categories).get();
+      expect(rows, hasLength(10));
+      for (final c in rows) {
+        expect(c.colorKey, c.key);
+        expect(categoryColorKeys, contains(c.colorKey));
+      }
+    });
+
+    test('knownExternalIds includes salary periods', () async {
+      await db.into(db.salaryPeriods).insert(SalaryPeriodsCompanion.insert(
+            id: 'sp-x',
+            datePaid: '2026-09-23',
+            amountPiastres: 900000,
+            externalId: const Value('wt-salary-7'),
+          ));
+      expect(await repo.knownExternalIds(), {'wt-salary-7'});
+    });
+
+    test('a capture saves entries with the capture kind as their source',
+        () async {
+      final id = await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.import,
+        date: DateTime(2026, 9, 3),
+        lines: const [
+          CaptureLine(
+              amountPiastres: 700, categoryKey: 'Transport', externalId: 'sn-1'),
+        ],
+      ));
+      final entry = await db.select(db.entries).getSingle();
+      expect(entry.source, 'import');
+      expect(entry.captureGroupId, id);
+      expect(entry.date, '2026-09-03');
+      final group = await db.select(db.captureGroups).getSingle();
+      expect(group.kind, 'import');
+      expect(group.status, 'saved');
     });
   });
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 
 import 'db/database.dart';
+import '../core/arabic_text.dart';
 import '../domain/models.dart';
 import '../domain/spending_repository.dart';
 
@@ -14,6 +15,13 @@ class DriftSpendingRepository implements SpendingRepository {
   DriftSpendingRepository(this._db);
 
   final AppDatabase _db;
+
+  static int _idSequence = 0;
+
+  /// A time-based id with a per-process counter, so ids generated in the
+  /// same microsecond (several lines of one capture) never collide.
+  static String _newId() =>
+      '${DateTime.now().microsecondsSinceEpoch}-${_idSequence++}';
 
   static String _formatDate(DateTime date) {
     final y = date.year.toString().padLeft(4, '0');
@@ -178,14 +186,15 @@ class DriftSpendingRepository implements SpendingRepository {
           ..where((t) => t.archived.equals(false))
           ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
         .get();
-    return rows
-        .map((c) => CategoryView(
-              key: c.key,
-              labelAr: c.labelAr,
-              iconName: c.iconName,
-            ))
-        .toList();
+    return rows.map(_categoryView).toList();
   }
+
+  static CategoryView _categoryView(Category c) => CategoryView(
+        key: c.key,
+        labelAr: c.labelAr,
+        iconName: c.iconName,
+        colorKey: c.colorKey ?? 'Other',
+      );
 
   @override
   Future<List<SubcategoryView>> subcategories(String categoryKey) async {
@@ -212,6 +221,9 @@ class DriftSpendingRepository implements SpendingRepository {
     int? defaultAmountPiastres,
     String? barcode,
   }) async {
+    if (barcode != null && await itemByBarcode(barcode) != null) {
+      throw DuplicateBarcodeException(barcode);
+    }
     final id = DateTime.now().microsecondsSinceEpoch.toString();
     await _db.into(_db.items).insert(ItemsCompanion.insert(
           id: id,
@@ -262,35 +274,47 @@ class DriftSpendingRepository implements SpendingRepository {
     final now = DateTime.now();
     final id = now.microsecondsSinceEpoch.toString();
 
-    await _db.into(_db.entries).insert(EntriesCompanion.insert(
-          id: id,
-          date: _formatDate(now),
-          amountPiastres: amount,
-          categoryKey: categoryKey,
-          subcategoryKey: Value(draft.subcategoryKey),
-          itemId: Value(draft.itemId),
-          description: Value(draft.description ?? ''),
-          paymentMethod: Value(draft.paymentMethod ?? 'Cash'),
-          photoPath: Value(draft.photoPath),
-          source: Value(draft.source.name),
-          createdAt: now,
-          updatedAt: now,
-        ));
-
-    final itemId = draft.itemId;
-    if (itemId != null) {
-      final item = await (_db.select(_db.items)
-            ..where((t) => t.id.equals(itemId)))
-          .getSingleOrNull();
-      if (item != null) {
-        await (_db.update(_db.items)..where((t) => t.id.equals(itemId))).write(
-          ItemsCompanion(
-            useCount: Value(item.useCount + 1),
-            lastUsedAt: Value(now),
-          ),
+    await _db.transaction(() async {
+      await _db.into(_db.entries).insert(EntriesCompanion.insert(
+            id: id,
+            date: _formatDate(now),
+            amountPiastres: amount,
+            categoryKey: categoryKey,
+            subcategoryKey: Value(draft.subcategoryKey),
+            itemId: Value(draft.itemId),
+            description: Value(draft.description ?? ''),
+            paymentMethod: Value(draft.paymentMethod ?? 'Cash'),
+            source: Value(draft.source.name),
+            createdAt: now,
+            updatedAt: now,
+          ));
+      // Since v3 a photo is an attachment row; entries.photoPath is only
+      // read for rows written before v3 (and was backfilled then).
+      final photoPath = draft.photoPath;
+      if (photoPath != null) {
+        await _insertAttachment(
+          entryId: id,
+          attachment:
+              DraftAttachment(kind: AttachmentKind.photo, path: photoPath),
+          now: now,
         );
       }
-    }
+      await _bumpItemUse(draft.itemId, now);
+    });
+  }
+
+  Future<void> _bumpItemUse(String? itemId, DateTime now) async {
+    if (itemId == null) return;
+    final item = await (_db.select(_db.items)
+          ..where((t) => t.id.equals(itemId)))
+        .getSingleOrNull();
+    if (item == null) return;
+    await (_db.update(_db.items)..where((t) => t.id.equals(itemId))).write(
+      ItemsCompanion(
+        useCount: Value(item.useCount + 1),
+        lastUsedAt: Value(now),
+      ),
+    );
   }
 
   @override
@@ -445,6 +469,7 @@ class DriftSpendingRepository implements SpendingRepository {
     required String key,
     required String labelAr,
     required String iconName,
+    String colorKey = 'Other',
   }) async {
     final rows = await (_db.select(_db.categories)
           ..orderBy([(t) => OrderingTerm.desc(t.sortOrder)])
@@ -455,9 +480,11 @@ class DriftSpendingRepository implements SpendingRepository {
           key: key,
           labelAr: labelAr,
           iconName: iconName,
+          colorKey: Value(colorKey),
           sortOrder: Value(nextSortOrder),
         ));
-    return CategoryView(key: key, labelAr: labelAr, iconName: iconName);
+    return CategoryView(
+        key: key, labelAr: labelAr, iconName: iconName, colorKey: colorKey);
   }
 
   @override
@@ -465,11 +492,13 @@ class DriftSpendingRepository implements SpendingRepository {
     required String key,
     required String labelAr,
     required String iconName,
+    String? colorKey,
   }) async {
     await (_db.update(_db.categories)..where((t) => t.key.equals(key))).write(
       CategoriesCompanion(
         labelAr: Value(labelAr),
         iconName: Value(iconName),
+        colorKey: colorKey == null ? const Value.absent() : Value(colorKey),
       ),
     );
   }
@@ -618,13 +647,7 @@ class DriftSpendingRepository implements SpendingRepository {
           ..where((t) => t.archived.equals(true))
           ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
         .get();
-    return rows
-        .map((c) => CategoryView(
-              key: c.key,
-              labelAr: c.labelAr,
-              iconName: c.iconName,
-            ))
-        .toList();
+    return rows.map(_categoryView).toList();
   }
 
   @override
@@ -641,5 +664,287 @@ class DriftSpendingRepository implements SpendingRepository {
               iconName: s.iconName,
             ))
         .toList();
+  }
+
+  // ---- v3 ----
+
+  @override
+  Future<String> saveCapture(CaptureDraft draft) async {
+    final now = DateTime.now();
+    final groupId = _newId();
+    final date = _formatDate(draft.date);
+    // One transaction: a failure on any line (a foreign key, the unique
+    // external id) rolls back the group, the earlier lines and the
+    // attachments with it, so a capture is never half-saved.
+    await _db.transaction(() async {
+      await _db.into(_db.captureGroups).insert(CaptureGroupsCompanion.insert(
+            id: groupId,
+            kind: draft.kind.name,
+            status: draft.status.name,
+            rawText: Value(draft.rawText),
+            cleanText: Value(draft.cleanText),
+            parsedBy: Value(draft.parsedBy),
+            date: date,
+            createdAt: now,
+            updatedAt: now,
+          ));
+      for (final line in draft.lines) {
+        await _db.into(_db.entries).insert(EntriesCompanion.insert(
+              id: _newId(),
+              date: date,
+              amountPiastres: line.amountPiastres,
+              categoryKey: line.categoryKey,
+              subcategoryKey: Value(line.subcategoryKey),
+              itemId: Value(line.itemId),
+              description: Value(line.description),
+              paymentMethod: Value(draft.paymentMethod),
+              source: Value(draft.kind.entrySource.name),
+              note: Value(line.note),
+              quantityMilli: Value(line.quantityMilli),
+              unit: Value(line.unit),
+              unitPricePiastres: Value(line.unitPricePiastres),
+              captureGroupId: Value(groupId),
+              externalId: Value(line.externalId),
+              reference: Value(line.reference),
+              createdAt: now,
+              updatedAt: now,
+            ));
+        await _bumpItemUse(line.itemId, now);
+      }
+      for (final attachment in draft.attachments) {
+        await _insertAttachment(
+            captureGroupId: groupId, attachment: attachment, now: now);
+      }
+    });
+    return groupId;
+  }
+
+  @override
+  Future<CaptureGroupView?> captureGroup(String id) async {
+    final group = await (_db.select(_db.captureGroups)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    if (group == null) return null;
+    final entries = await (_db.select(_db.entries)
+          ..where((t) => t.captureGroupId.equals(id) & t.deletedAt.isNull())
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+    final attachments = await (_db.select(_db.attachments)
+          ..where((t) => t.captureGroupId.equals(id))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+    return CaptureGroupView(
+      id: group.id,
+      kind: CaptureKind.fromName(group.kind),
+      status: CaptureStatus.fromName(group.status),
+      rawText: group.rawText,
+      cleanText: group.cleanText,
+      parsedBy: group.parsedBy,
+      date: DateTime.parse(group.date),
+      entries: entries.map(_entryRecord).toList(),
+      attachments: attachments.map(_attachmentView).toList(),
+    );
+  }
+
+  static EntryRecord _entryRecord(Entry e) => EntryRecord(
+        id: e.id,
+        date: DateTime.parse(e.date),
+        amountPiastres: e.amountPiastres,
+        categoryKey: e.categoryKey,
+        subcategoryKey: e.subcategoryKey,
+        itemId: e.itemId,
+        description: e.description,
+        paymentMethod: e.paymentMethod,
+        source: EntrySource.fromName(e.source),
+        quantityMilli: e.quantityMilli,
+        unit: e.unit,
+        unitPricePiastres: e.unitPricePiastres,
+        captureGroupId: e.captureGroupId,
+        externalId: e.externalId,
+        reference: e.reference,
+        note: e.note,
+      );
+
+  static AttachmentView _attachmentView(Attachment a) => AttachmentView(
+        id: a.id,
+        entryId: a.entryId,
+        captureGroupId: a.captureGroupId,
+        kind: AttachmentKind.fromName(a.kind),
+        path: a.path,
+        text: a.body,
+        transcript: a.transcript,
+        durationMs: a.durationMs,
+        createdAt: a.createdAt,
+      );
+
+  @override
+  Future<List<AttachmentView>> attachmentsForEntry(String entryId) async {
+    final entry = await (_db.select(_db.entries)
+          ..where((t) => t.id.equals(entryId)))
+        .getSingleOrNull();
+    if (entry == null) return const [];
+    final groupId = entry.captureGroupId;
+    final rows = await (_db.select(_db.attachments)
+          ..where((t) => groupId == null
+              ? t.entryId.equals(entryId)
+              : t.entryId.equals(entryId) | t.captureGroupId.equals(groupId))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+    return rows.map(_attachmentView).toList();
+  }
+
+  @override
+  Future<AttachmentView> addAttachment({
+    String? entryId,
+    String? captureGroupId,
+    required DraftAttachment attachment,
+  }) async {
+    if (entryId == null && captureGroupId == null) {
+      throw ArgumentError('an attachment needs an entry or a capture group');
+    }
+    return _insertAttachment(
+      entryId: entryId,
+      captureGroupId: captureGroupId,
+      attachment: attachment,
+      now: DateTime.now(),
+    );
+  }
+
+  Future<AttachmentView> _insertAttachment({
+    String? entryId,
+    String? captureGroupId,
+    required DraftAttachment attachment,
+    required DateTime now,
+  }) async {
+    final row = AttachmentsCompanion.insert(
+      id: _newId(),
+      entryId: Value(entryId),
+      captureGroupId: Value(captureGroupId),
+      kind: attachment.kind.name,
+      path: Value(attachment.path),
+      body: Value(attachment.text),
+      transcript: Value(attachment.transcript),
+      durationMs: Value(attachment.durationMs),
+      createdAt: now,
+    );
+    final saved = await _db.into(_db.attachments).insertReturning(row);
+    return _attachmentView(saved);
+  }
+
+  @override
+  Future<void> learnAlias(String alias, String itemId) async {
+    await _db.into(_db.itemAliases).insertOnConflictUpdate(
+          ItemAliasesCompanion.insert(
+            alias: normalizeArabic(alias),
+            itemId: itemId,
+            createdAt: DateTime.now(),
+          ),
+        );
+  }
+
+  @override
+  Future<Map<String, String>> itemAliases() async {
+    final rows = await _db.select(_db.itemAliases).get();
+    return {for (final r in rows) r.alias: r.itemId};
+  }
+
+  @override
+  Future<String?> setting(String key) async {
+    final row = await (_db.select(_db.appSettings)
+          ..where((t) => t.key.equals(key)))
+        .getSingleOrNull();
+    return row?.value;
+  }
+
+  @override
+  Future<void> setSetting(String key, String value) async {
+    if (isSecretSettingKey(key)) {
+      throw ArgumentError.value(
+          key, 'key', 'secrets belong in secure storage, not app_settings');
+    }
+    await _db.into(_db.appSettings).insertOnConflictUpdate(
+        AppSettingsCompanion.insert(key: key, value: value));
+  }
+
+  static RecurringBillView _billView(RecurringBill b) => RecurringBillView(
+        id: b.id,
+        nameAr: b.nameAr,
+        amountPiastres: b.amountPiastres,
+        categoryKey: b.categoryKey,
+        subcategoryKey: b.subcategoryKey,
+        everyMonths: b.everyMonths,
+        nextDue: DateTime.parse(b.nextDue),
+        remindDaysBefore: b.remindDaysBefore,
+        archived: b.archived,
+      );
+
+  @override
+  Future<List<RecurringBillView>> recurringBills() async {
+    final rows = await (_db.select(_db.recurringBills)
+          ..where((t) => t.archived.equals(false))
+          ..orderBy([(t) => OrderingTerm.asc(t.nextDue)]))
+        .get();
+    return rows.map(_billView).toList();
+  }
+
+  @override
+  Future<RecurringBillView> createRecurringBill({
+    required String nameAr,
+    required int amountPiastres,
+    required String categoryKey,
+    String? subcategoryKey,
+    int everyMonths = 1,
+    required DateTime nextDue,
+    int remindDaysBefore = 2,
+  }) async {
+    final row = await _db.into(_db.recurringBills).insertReturning(
+          RecurringBillsCompanion.insert(
+            id: _newId(),
+            nameAr: nameAr,
+            amountPiastres: amountPiastres,
+            categoryKey: categoryKey,
+            subcategoryKey: Value(subcategoryKey),
+            everyMonths: Value(everyMonths),
+            nextDue: _formatDate(nextDue),
+            remindDaysBefore: Value(remindDaysBefore),
+          ),
+        );
+    return _billView(row);
+  }
+
+  @override
+  Future<void> updateRecurringBill(RecurringBillView bill) async {
+    await (_db.update(_db.recurringBills)..where((t) => t.id.equals(bill.id)))
+        .write(RecurringBillsCompanion(
+      nameAr: Value(bill.nameAr),
+      amountPiastres: Value(bill.amountPiastres),
+      categoryKey: Value(bill.categoryKey),
+      subcategoryKey: Value(bill.subcategoryKey),
+      everyMonths: Value(bill.everyMonths),
+      nextDue: Value(_formatDate(bill.nextDue)),
+      remindDaysBefore: Value(bill.remindDaysBefore),
+      archived: Value(bill.archived),
+    ));
+  }
+
+  @override
+  Future<void> archiveRecurringBill(String id) async {
+    await (_db.update(_db.recurringBills)..where((t) => t.id.equals(id)))
+        .write(const RecurringBillsCompanion(archived: Value(true)));
+  }
+
+  @override
+  Future<Set<String>> knownExternalIds() async {
+    final entryIds = await (_db.selectOnly(_db.entries)
+          ..addColumns([_db.entries.externalId])
+          ..where(_db.entries.externalId.isNotNull()))
+        .map((r) => r.read(_db.entries.externalId)!)
+        .get();
+    final salaryIds = await (_db.selectOnly(_db.salaryPeriods)
+          ..addColumns([_db.salaryPeriods.externalId])
+          ..where(_db.salaryPeriods.externalId.isNotNull()))
+        .map((r) => r.read(_db.salaryPeriods.externalId)!)
+        .get();
+    return {...entryIds, ...salaryIds};
   }
 }

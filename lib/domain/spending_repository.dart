@@ -19,6 +19,8 @@ abstract class SpendingRepository {
   Future<List<QuickPickItem>> itemsInSubcategory(
       String subcategoryKey, int limit);
 
+  /// Throws [DuplicateBarcodeException] when [barcode] is already held by
+  /// another non-archived item.
   Future<QuickPickItem> createItem({
     required String nameAr,
     required String categoryKey,
@@ -93,15 +95,19 @@ abstract class SpendingRepository {
     required String key,
     required String labelAr,
     required String iconName,
+    String colorKey = 'Other',
   });
 
   /// Updates a category's own display row — its Arabic label and icon.
   /// [key] is never touched: renaming only ever changes [labelAr], never
   /// the storage identity that items and past entries reference.
+  ///
+  /// [colorKey], when given, replaces the category's colour; null keeps it.
   Future<void> updateCategory({
     required String key,
     required String labelAr,
     required String iconName,
+    String? colorKey,
   });
 
   /// Archives a category (soft delete): it disappears from
@@ -184,4 +190,66 @@ abstract class SpendingRepository {
   /// screen's archived view, so it can be brought back with
   /// [unarchiveSubcategory].
   Future<List<SubcategoryView>> archivedSubcategories();
+
+  // ---- v3: captures, attachments, aliases, settings, recurring bills ----
+
+  /// Saves a whole capture atomically: the capture group, one entry per
+  /// line, and the draft's attachments linked to the group. Either all of
+  /// it is written or, if anything fails (an unknown category, an import
+  /// identity already present), none of it is and the error is rethrown.
+  /// Returns the new capture group's id.
+  Future<String> saveCapture(CaptureDraft draft);
+
+  /// The capture group with its entries (soft-deleted ones excluded) and
+  /// its own attachments, or null if there is no such group.
+  Future<CaptureGroupView?> captureGroup(String id);
+
+  /// Attachments linked to the entry itself plus those of the capture group
+  /// it was saved from, oldest first.
+  Future<List<AttachmentView>> attachmentsForEntry(String entryId);
+
+  /// Links [attachment] to an entry, a capture group, or both. Throws
+  /// [ArgumentError] when neither is given.
+  Future<AttachmentView> addAttachment({
+    String? entryId,
+    String? captureGroupId,
+    required DraftAttachment attachment,
+  });
+
+  /// Remembers that [alias] (stored normalised, see `normalizeArabic`)
+  /// means [itemId]. Learning an alias again re-points it.
+  Future<void> learnAlias(String alias, String itemId);
+
+  /// Every learned alias, normalised alias to item id.
+  Future<Map<String, String>> itemAliases();
+
+  /// A stored preference, or null when never set.
+  Future<String?> setting(String key);
+
+  /// Stores a preference. Throws [ArgumentError] for a key that looks like
+  /// a secret (api key, token, secret, password): those belong in secure
+  /// storage and must never reach the database, where exports and backups
+  /// would carry them.
+  Future<void> setSetting(String key, String value);
+
+  /// Non-archived recurring bills, soonest due first.
+  Future<List<RecurringBillView>> recurringBills();
+
+  Future<RecurringBillView> createRecurringBill({
+    required String nameAr,
+    required int amountPiastres,
+    required String categoryKey,
+    String? subcategoryKey,
+    int everyMonths = 1,
+    required DateTime nextDue,
+    int remindDaysBefore = 2,
+  });
+
+  Future<void> updateRecurringBill(RecurringBillView bill);
+
+  Future<void> archiveRecurringBill(String id);
+
+  /// Every import identity already present on entries and salary periods,
+  /// for the importer's duplicate check.
+  Future<Set<String>> knownExternalIds();
 }
