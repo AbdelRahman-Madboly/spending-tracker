@@ -498,8 +498,30 @@ class FixtureSpendingRepository implements SpendingRepository {
 
   @override
   Future<void> unarchiveItem(String itemId) async {
+    final barcode = _items.where((i) => i.id == itemId).firstOrNull?.barcode;
+    if (barcode != null) {
+      final holder = await itemByBarcode(barcode);
+      if (holder != null && holder.id != itemId) {
+        throw DuplicateBarcodeException(barcode);
+      }
+    }
     _archivedItemIds.remove(itemId);
     _controller.add(null);
+  }
+
+  /// Mirrors the drift repository's cascade restore: an item whose barcode
+  /// a non-archived item now holds stays archived, untouched, and of two
+  /// archived items sharing a barcode the first in id order comes back.
+  Future<void> _restoreItemsWhere(bool Function(QuickPickItem) where) async {
+    final candidates = _items
+        .where((i) => _archivedItemIds.contains(i.id) && where(i))
+        .toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
+    for (final item in candidates) {
+      final barcode = item.barcode;
+      if (barcode != null && await itemByBarcode(barcode) != null) continue;
+      _archivedItemIds.remove(item.id);
+    }
   }
 
   @override
@@ -514,18 +536,14 @@ class FixtureSpendingRepository implements SpendingRepository {
     for (final sub in _subcategories.where((s) => s.categoryKey == key)) {
       _archivedSubcategoryKeys.remove(sub.key);
     }
-    for (final item in _items.where((i) => i.categoryKey == key)) {
-      _archivedItemIds.remove(item.id);
-    }
+    await _restoreItemsWhere((i) => i.categoryKey == key);
     _controller.add(null);
   }
 
   @override
   Future<void> unarchiveSubcategory(String key) async {
     _archivedSubcategoryKeys.remove(key);
-    for (final item in _items.where((i) => i.subcategoryKey == key)) {
-      _archivedItemIds.remove(item.id);
-    }
+    await _restoreItemsWhere((i) => i.subcategoryKey == key);
     // Deliberately does NOT touch the subcategory's own category: this
     // must never cascade upward and resurrect a category the user
     // archived on purpose.

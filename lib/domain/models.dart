@@ -276,10 +276,15 @@ class DraftEntry extends Equatable {
 /// True for a settings key that names a secret (an API key, token, secret
 /// or password). `app_settings` refuses these: secrets live in secure
 /// storage only, never in the database, exports or backups.
+///
+/// A key ending in "key" is refused too, because the natural name for a
+/// provider credential is `gemini_key`, with no "api" in it. None of the
+/// benign settings (theme, model id, online switches, last payment method,
+/// rate stamp) end that way.
 bool isSecretSettingKey(String key) {
   final folded = key.toLowerCase().replaceAll(RegExp(r'[_\-\s.]'), '');
-  return const ['apikey', 'secret', 'token', 'password']
-      .any(folded.contains);
+  return folded.endsWith('key') ||
+      const ['apikey', 'secret', 'token', 'password'].any(folded.contains);
 }
 
 /// Thrown by `SpendingRepository.createItem` when another non-archived item

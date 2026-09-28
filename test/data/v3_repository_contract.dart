@@ -94,6 +94,23 @@ void runV3RepositoryContract(
           containsAll(group.entries.map((e) => e.id)));
     });
 
+    test('a capture group lists its lines in the order they were captured',
+        () async {
+      const names = ['عيش', 'طماطم', 'لبن', 'بيض', 'جبنة', 'أرز'];
+      final groupId = await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.text,
+        date: DateTime(2026, 9, 21),
+        lines: [
+          for (final name in names)
+            CaptureLine(
+                amountPiastres: 500, categoryKey: 'Food', description: name),
+        ],
+      ));
+
+      final group = await repo.captureGroup(groupId);
+      expect(group!.entries.map((e) => e.description), names);
+    });
+
     test('an entry\'s attachments include its capture group\'s', () async {
       final groupId = await repo.saveCapture(twoLines());
       final entryId = (await repo.captureGroup(groupId))!.entries.first.id;
@@ -210,9 +227,30 @@ void runV3RepositoryContract(
     });
 
     test('settings refuse anything that looks like a secret', () async {
-      for (final key in ['geminiApiKey', 'api_key', 'authToken', 'secret']) {
+      for (final key in [
+        'geminiApiKey',
+        'api_key',
+        'authToken',
+        'secret',
+        'gemini_key',
+        'geminiKey',
+      ]) {
         expect(() => repo.setSetting(key, 'x'), throwsArgumentError,
             reason: key);
+      }
+    });
+
+    test('settings accept the benign keys the app stores', () async {
+      for (final key in [
+        'theme',
+        'gemini_model',
+        'online_master',
+        'online_gemini',
+        'last_payment_method',
+        'barcode_lookup_stamp',
+      ]) {
+        await repo.setSetting(key, 'x');
+        expect(await repo.setting(key), 'x', reason: key);
       }
     });
 
@@ -270,6 +308,81 @@ void runV3RepositoryContract(
       final second = await repo.createItem(
           nameAr: 'بيبسي', categoryKey: 'Drinks', barcode: '6221');
       expect((await repo.itemByBarcode('6221'))!.id, second.id);
+    });
+
+    test('unarchiveItem refuses to bring back a barcode another item holds',
+        () async {
+      final first = await repo.createItem(
+          nameAr: 'بيبسي كانز', categoryKey: 'Drinks', barcode: '6221');
+      await repo.archiveItem(first.id);
+      final second = await repo.createItem(
+          nameAr: 'بيبسي', categoryKey: 'Drinks', barcode: '6221');
+
+      await expectLater(repo.unarchiveItem(first.id),
+          throwsA(isA<DuplicateBarcodeException>()));
+
+      expect((await repo.archivedItems()).map((i) => i.id), contains(first.id));
+      expect((await repo.itemByBarcode('6221'))!.id, second.id);
+    });
+
+    test('unarchiveCategory leaves an item whose barcode is now taken archived',
+        () async {
+      final old = await repo.createItem(
+          nameAr: 'بيبسي كانز', categoryKey: 'Drinks', barcode: '6221');
+      final plain =
+          await repo.createItem(nameAr: 'مياه', categoryKey: 'Drinks');
+      await repo.archiveCategory('Drinks');
+      final replacement = await repo.createItem(
+          nameAr: 'بيبسي', categoryKey: 'Food', barcode: '6221');
+
+      await repo.unarchiveCategory('Drinks');
+
+      final visible = (await repo.allItems()).map((i) => i.id);
+      expect(visible, contains(plain.id));
+      expect(visible, isNot(contains(old.id)));
+      expect((await repo.archivedItems()).map((i) => i.id), contains(old.id));
+      expect((await repo.itemByBarcode('6221'))!.id, replacement.id);
+    });
+
+    test(
+        'unarchiveSubcategory leaves an item whose barcode is now taken '
+        'archived', () async {
+      final old = await repo.createItem(
+          nameAr: 'طماطم معلبة',
+          categoryKey: 'Food',
+          subcategoryKey: 'Groceries',
+          barcode: '6222');
+      final plain = await repo.createItem(
+          nameAr: 'خيار', categoryKey: 'Food', subcategoryKey: 'Groceries');
+      await repo.archiveSubcategory('Groceries');
+      final replacement = await repo.createItem(
+          nameAr: 'صلصة', categoryKey: 'Food', barcode: '6222');
+
+      await repo.unarchiveSubcategory('Groceries');
+
+      final visible = (await repo.allItems()).map((i) => i.id);
+      expect(visible, contains(plain.id));
+      expect(visible, isNot(contains(old.id)));
+      expect((await repo.itemByBarcode('6222'))!.id, replacement.id);
+    });
+
+    test('a cascade restores only one of two archived items sharing a barcode',
+        () async {
+      final a = await repo.createItem(
+          nameAr: 'بيبسي كانز', categoryKey: 'Drinks', barcode: '6223');
+      await repo.archiveItem(a.id);
+      final b = await repo.createItem(
+          nameAr: 'بيبسي', categoryKey: 'Drinks', barcode: '6223');
+      await repo.archiveCategory('Drinks');
+
+      await repo.unarchiveCategory('Drinks');
+
+      final holders = (await repo.allItems())
+          .where((i) => i.barcode == '6223')
+          .map((i) => i.id);
+      expect(holders, hasLength(1));
+      expect([a.id, b.id], contains(holders.single));
+      expect((await repo.itemByBarcode('6223'))!.id, holders.single);
     });
 
     test('categories carry a colour key', () async {

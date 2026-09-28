@@ -250,7 +250,12 @@ class DriftSpendingRepository implements SpendingRepository {
   Future<QuickPickItem?> itemByBarcode(String barcode) async {
     final row = await (_db.select(_db.items)
           ..where((t) =>
-              t.archived.equals(false) & t.barcode.equals(barcode)))
+              t.archived.equals(false) & t.barcode.equals(barcode))
+          // Every write path keeps a barcode on one live item, but a pair
+          // written before that rule existed must still resolve to an item
+          // rather than throw out of a scan: take the first in id order.
+          ..orderBy([(t) => OrderingTerm.asc(t.id)])
+          ..limit(1))
         .getSingleOrNull();
     if (row == null) return null;
     return QuickPickItem(
@@ -587,8 +592,47 @@ class DriftSpendingRepository implements SpendingRepository {
 
   @override
   Future<void> unarchiveItem(String itemId) async {
-    await (_db.update(_db.items)..where((t) => t.id.equals(itemId)))
+    await _db.transaction(() async {
+      final row = await (_db.select(_db.items)
+            ..where((t) => t.id.equals(itemId)))
+          .getSingleOrNull();
+      final barcode = row?.barcode;
+      if (barcode != null) {
+        final holder = await itemByBarcode(barcode);
+        if (holder != null && holder.id != itemId) {
+          throw DuplicateBarcodeException(barcode);
+        }
+      }
+      await (_db.update(_db.items)..where((t) => t.id.equals(itemId)))
+          .write(const ItemsCompanion(archived: Value(false)));
+    });
+  }
+
+  /// Un-archives the archived items [where] selects, for the category and
+  /// subcategory cascades.
+  ///
+  /// A barcode must stay on one non-archived item, and while an item sat in
+  /// the archive the user may have taught its barcode to a new one. Such an
+  /// item is skipped and stays archived with its barcode intact: the
+  /// cascade restores everything else, nothing is rewritten, and an
+  /// explicit [unarchiveItem] on it later reports the clash. When two
+  /// archived items share a barcode, the first in id order comes back.
+  Future<void> _restoreItemsWhere(
+      Expression<bool> Function($ItemsTable t) where) async {
+    await (_db.update(_db.items)
+          ..where(
+              (t) => t.archived.equals(true) & t.barcode.isNull() & where(t)))
         .write(const ItemsCompanion(archived: Value(false)));
+    final withBarcode = await (_db.select(_db.items)
+          ..where(
+              (t) => t.archived.equals(true) & t.barcode.isNotNull() & where(t))
+          ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+        .get();
+    for (final row in withBarcode) {
+      if (await itemByBarcode(row.barcode!) != null) continue;
+      await (_db.update(_db.items)..where((t) => t.id.equals(row.id)))
+          .write(const ItemsCompanion(archived: Value(false)));
+    }
   }
 
   @override
@@ -622,8 +666,7 @@ class DriftSpendingRepository implements SpendingRepository {
       await (_db.update(_db.subcategories)
             ..where((t) => t.categoryKey.equals(key)))
           .write(const SubcategoriesCompanion(archived: Value(false)));
-      await (_db.update(_db.items)..where((t) => t.categoryKey.equals(key)))
-          .write(const ItemsCompanion(archived: Value(false)));
+      await _restoreItemsWhere((t) => t.categoryKey.equals(key));
     });
   }
 
@@ -632,9 +675,7 @@ class DriftSpendingRepository implements SpendingRepository {
     await _db.transaction(() async {
       await (_db.update(_db.subcategories)..where((t) => t.key.equals(key)))
           .write(const SubcategoriesCompanion(archived: Value(false)));
-      await (_db.update(_db.items)
-            ..where((t) => t.subcategoryKey.equals(key)))
-          .write(const ItemsCompanion(archived: Value(false)));
+      await _restoreItemsWhere((t) => t.subcategoryKey.equals(key));
       // Deliberately does NOT touch the subcategory's own category row:
       // unarchiving a subcategory must never cascade upward and resurrect
       // a category the user archived on purpose.
@@ -725,13 +766,23 @@ class DriftSpendingRepository implements SpendingRepository {
           ..where((t) => t.id.equals(id)))
         .getSingleOrNull();
     if (group == null) return null;
+    // saveCapture stamps every line (and attachment) of a capture with the
+    // same createdAt, and SQLite promises no order among ties, so rowid,
+    // the insertion sequence, breaks them: lines come back in the order
+    // they were captured. createdAt still leads, for a line added later.
     final entries = await (_db.select(_db.entries)
           ..where((t) => t.captureGroupId.equals(id) & t.deletedAt.isNull())
-          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.createdAt),
+            (t) => OrderingTerm.asc(t.rowId),
+          ]))
         .get();
     final attachments = await (_db.select(_db.attachments)
           ..where((t) => t.captureGroupId.equals(id))
-          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.createdAt),
+            (t) => OrderingTerm.asc(t.rowId),
+          ]))
         .get();
     return CaptureGroupView(
       id: group.id,

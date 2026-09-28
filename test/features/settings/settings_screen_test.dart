@@ -534,5 +534,28 @@ void main() {
       final items = await repository.allItems();
       expect(items.map((i) => i.id), contains('i1'));
     });
+
+    testWidgets(
+        'unarchiving an item whose barcode another item now holds keeps it '
+        'archived and says why', (tester) async {
+      final repository = FixtureSpendingRepository();
+      final old = await repository.createItem(
+          nameAr: 'بيبسي كانز', categoryKey: 'Drinks', barcode: '6221');
+      await repository.archiveItem(old.id);
+      await repository.createItem(
+          nameAr: 'بيبسي', categoryKey: 'Drinks', barcode: '6221');
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('items-view-archived')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('unarchive-item-${old.id}')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('الباركود مسجل لصنف آخر، فلا يمكن استرجاع هذا الصنف'),
+          findsOneWidget);
+      expect(find.text('بيبسي كانز'), findsOneWidget);
+      expect((await repository.archivedItems()).map((i) => i.id),
+          contains(old.id));
+    });
   });
 }

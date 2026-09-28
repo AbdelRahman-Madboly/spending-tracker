@@ -47,10 +47,10 @@ int? readUserVersion(File dbFile) {
 /// drift has not initialised yet (`user_version` 0), or when the file is
 /// already on [targetVersion].
 ///
-/// The copy's size is checked against the original; a mismatch deletes the
-/// partial copy and throws [PreMigrationBackupException]. Journal sidecars
-/// (`-wal`, `-journal`) are copied alongside when present, because the main
-/// file alone may not hold the last committed writes after a crash.
+/// Journal sidecars (`-wal`, `-journal`) are copied alongside when present,
+/// because the main file alone may not hold the last committed writes after
+/// a crash. Every copy's size is checked against its original; a mismatch
+/// deletes all the copies and throws [PreMigrationBackupException].
 Future<File?> backupBeforeMigration({
   required File dbFile,
   required Directory backupsDir,
@@ -71,22 +71,38 @@ Future<File?> backupBeforeMigration({
     target = File(p.join(backupsDir.path, '$base-$n.sqlite'));
   }
 
-  await dbFile.copy(target.path);
-  final expected = await dbFile.length();
-  final actual = await target.length();
-  if (actual != expected) {
-    await target.delete();
-    throw PreMigrationBackupException(
-        'backup of ${dbFile.path} is $actual bytes, expected $expected');
-  }
-
-  for (final suffix in const ['-wal', '-journal']) {
-    final sidecar = File('${dbFile.path}$suffix');
-    if (sidecar.existsSync()) {
-      await sidecar.copy('${target.path}$suffix');
+  final copies = <File>[];
+  try {
+    await _copyVerified(dbFile, target, copies);
+    for (final suffix in const ['-wal', '-journal']) {
+      final sidecar = File('${dbFile.path}$suffix');
+      if (sidecar.existsSync()) {
+        await _copyVerified(sidecar, File('${target.path}$suffix'), copies);
+      }
     }
+  } on PreMigrationBackupException {
+    // A sidecar can hold the last committed writes, so a short copy of one
+    // is as bad as a short main file: drop the whole set, not just the
+    // file that failed, so no half-backup is left looking usable.
+    for (final copy in copies) {
+      if (copy.existsSync()) await copy.delete();
+    }
+    rethrow;
   }
   return target;
+}
+
+/// Copies [source] to [target], records the copy in [copies], and throws
+/// [PreMigrationBackupException] when the copy's size differs.
+Future<void> _copyVerified(File source, File target, List<File> copies) async {
+  await source.copy(target.path);
+  copies.add(target);
+  final expected = await source.length();
+  final actual = await target.length();
+  if (actual != expected) {
+    throw PreMigrationBackupException(
+        'backup of ${source.path} is $actual bytes, expected $expected');
+  }
 }
 
 String _stamp(DateTime t) {

@@ -990,5 +990,22 @@ void main() {
       expect(group.kind, 'import');
       expect(group.status, 'saved');
     });
+
+    test('itemByBarcode resolves a barcode two live rows already share',
+        () async {
+      // The repository never writes such a pair, but a row written before
+      // the rule existed must not crash a scan.
+      for (final id in ['dup-1', 'dup-2']) {
+        await db.into(db.items).insert(ItemsCompanion.insert(
+              id: id,
+              nameAr: 'بيبسي',
+              nameEn: 'بيبسي',
+              categoryKey: 'Drinks',
+              barcode: const Value('6229'),
+            ));
+      }
+      final item = await repo.itemByBarcode('6229');
+      expect(['dup-1', 'dup-2'], contains(item!.id));
+    });
   });
 }

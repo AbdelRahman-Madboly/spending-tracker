@@ -155,6 +155,9 @@ abstract class SpendingRepository {
 
   /// Restores a previously archived item: it reappears in [allItems] and
   /// the quick-pick pickers. The inverse of [archiveItem].
+  ///
+  /// Throws [DuplicateBarcodeException] when another non-archived item has
+  /// taken the item's barcode meanwhile: a scan must resolve to one item.
   Future<void> unarchiveItem(String itemId);
 
   /// Every archived item in the catalogue, for the settings screen's
@@ -169,6 +172,10 @@ abstract class SpendingRepository {
   /// whole rather than leaving its children stranded in the archive. Past
   /// `entries` rows are never touched (there is nothing on them to
   /// restore: they were never archived in the first place).
+  ///
+  /// An item whose barcode another non-archived item now holds is skipped
+  /// and stays archived with its barcode intact, so the cascade never
+  /// breaks barcode uniqueness; [unarchiveItem] on it reports the clash.
   Future<void> unarchiveCategory(String key);
 
   /// Restores a previously archived subcategory: it reappears in
@@ -178,7 +185,8 @@ abstract class SpendingRepository {
   /// itself is still archived, the subcategory simply isn't reachable
   /// through [subcategories] until the category is unarchived too, the
   /// same way a freshly-created subcategory under an archived category
-  /// would behave. Past `entries` rows are never touched.
+  /// would behave. Past `entries` rows are never touched. Items whose
+  /// barcode is now taken stay archived, as in [unarchiveCategory].
   Future<void> unarchiveSubcategory(String key);
 
   /// Every archived category, for the settings screen's archived view —

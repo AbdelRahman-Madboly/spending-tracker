@@ -112,7 +112,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _unarchiveItem(String itemId) async {
-    await widget.repository.unarchiveItem(itemId);
+    try {
+      await widget.repository.unarchiveItem(itemId);
+    } on DuplicateBarcodeException {
+      // Another live item took this barcode while this one was archived;
+      // bringing it back would make a scan ambiguous, so it stays put.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:
+                Text('الباركود مسجل لصنف آخر، فلا يمكن استرجاع هذا الصنف')));
+      }
+      return;
+    }
     await _load();
   }
 
