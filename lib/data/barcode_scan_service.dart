@@ -74,7 +74,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         // Never crash/hang on a denied camera permission or missing
         // camera hardware — show a plain Arabic message and let the user
         // back out with the app bar's back button instead.
-        errorBuilder: (context, error, child) => const Center(
+        errorBuilder: (context, error) => const Center(
           child: Padding(
             padding: EdgeInsets.all(24),
             child: Text(

@@ -12,76 +12,116 @@ class $CategoriesTable extends Categories
   static const VerificationMeta _keyMeta = const VerificationMeta('key');
   @override
   late final GeneratedColumn<String> key = GeneratedColumn<String>(
-      'key', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _labelArMeta =
-      const VerificationMeta('labelAr');
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _labelArMeta = const VerificationMeta(
+    'labelAr',
+  );
   @override
   late final GeneratedColumn<String> labelAr = GeneratedColumn<String>(
-      'label_ar', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _iconNameMeta =
-      const VerificationMeta('iconName');
+    'label_ar',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _iconNameMeta = const VerificationMeta(
+    'iconName',
+  );
   @override
   late final GeneratedColumn<String> iconName = GeneratedColumn<String>(
-      'icon_name', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _sortOrderMeta =
-      const VerificationMeta('sortOrder');
+    'icon_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
   @override
   late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
-      'sort_order', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _archivedMeta =
-      const VerificationMeta('archived');
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _archivedMeta = const VerificationMeta(
+    'archived',
+  );
   @override
   late final GeneratedColumn<bool> archived = GeneratedColumn<bool>(
-      'archived', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("archived" IN (0, 1))'),
-      defaultValue: const Constant(false));
+    'archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
-  List<GeneratedColumn> get $columns =>
-      [key, labelAr, iconName, sortOrder, archived];
+  List<GeneratedColumn> get $columns => [
+    key,
+    labelAr,
+    iconName,
+    sortOrder,
+    archived,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'categories';
   @override
-  VerificationContext validateIntegrity(Insertable<Category> instance,
-      {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<Category> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('key')) {
       context.handle(
-          _keyMeta, key.isAcceptableOrUnknown(data['key']!, _keyMeta));
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
     } else if (isInserting) {
       context.missing(_keyMeta);
     }
     if (data.containsKey('label_ar')) {
-      context.handle(_labelArMeta,
-          labelAr.isAcceptableOrUnknown(data['label_ar']!, _labelArMeta));
+      context.handle(
+        _labelArMeta,
+        labelAr.isAcceptableOrUnknown(data['label_ar']!, _labelArMeta),
+      );
     } else if (isInserting) {
       context.missing(_labelArMeta);
     }
     if (data.containsKey('icon_name')) {
-      context.handle(_iconNameMeta,
-          iconName.isAcceptableOrUnknown(data['icon_name']!, _iconNameMeta));
+      context.handle(
+        _iconNameMeta,
+        iconName.isAcceptableOrUnknown(data['icon_name']!, _iconNameMeta),
+      );
     } else if (isInserting) {
       context.missing(_iconNameMeta);
     }
     if (data.containsKey('sort_order')) {
-      context.handle(_sortOrderMeta,
-          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
     }
     if (data.containsKey('archived')) {
-      context.handle(_archivedMeta,
-          archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta));
+      context.handle(
+        _archivedMeta,
+        archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta),
+      );
     }
     return context;
   }
@@ -92,16 +132,26 @@ class $CategoriesTable extends Categories
   Category map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Category(
-      key: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}key'])!,
-      labelAr: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}label_ar'])!,
-      iconName: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}icon_name'])!,
-      sortOrder: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
-      archived: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}archived'])!,
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      labelAr: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label_ar'],
+      )!,
+      iconName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_name'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      archived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}archived'],
+      )!,
     );
   }
 
@@ -117,12 +167,13 @@ class Category extends DataClass implements Insertable<Category> {
   final String iconName;
   final int sortOrder;
   final bool archived;
-  const Category(
-      {required this.key,
-      required this.labelAr,
-      required this.iconName,
-      required this.sortOrder,
-      required this.archived});
+  const Category({
+    required this.key,
+    required this.labelAr,
+    required this.iconName,
+    required this.sortOrder,
+    required this.archived,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -144,8 +195,10 @@ class Category extends DataClass implements Insertable<Category> {
     );
   }
 
-  factory Category.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory Category.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Category(
       key: serializer.fromJson<String>(json['key']),
@@ -167,19 +220,19 @@ class Category extends DataClass implements Insertable<Category> {
     };
   }
 
-  Category copyWith(
-          {String? key,
-          String? labelAr,
-          String? iconName,
-          int? sortOrder,
-          bool? archived}) =>
-      Category(
-        key: key ?? this.key,
-        labelAr: labelAr ?? this.labelAr,
-        iconName: iconName ?? this.iconName,
-        sortOrder: sortOrder ?? this.sortOrder,
-        archived: archived ?? this.archived,
-      );
+  Category copyWith({
+    String? key,
+    String? labelAr,
+    String? iconName,
+    int? sortOrder,
+    bool? archived,
+  }) => Category(
+    key: key ?? this.key,
+    labelAr: labelAr ?? this.labelAr,
+    iconName: iconName ?? this.iconName,
+    sortOrder: sortOrder ?? this.sortOrder,
+    archived: archived ?? this.archived,
+  );
   Category copyWithCompanion(CategoriesCompanion data) {
     return Category(
       key: data.key.present ? data.key.value : this.key,
@@ -237,9 +290,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.sortOrder = const Value.absent(),
     this.archived = const Value.absent(),
     this.rowid = const Value.absent(),
-  })  : key = Value(key),
-        labelAr = Value(labelAr),
-        iconName = Value(iconName);
+  }) : key = Value(key),
+       labelAr = Value(labelAr),
+       iconName = Value(iconName);
   static Insertable<Category> custom({
     Expression<String>? key,
     Expression<String>? labelAr,
@@ -258,13 +311,14 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     });
   }
 
-  CategoriesCompanion copyWith(
-      {Value<String>? key,
-      Value<String>? labelAr,
-      Value<String>? iconName,
-      Value<int>? sortOrder,
-      Value<bool>? archived,
-      Value<int>? rowid}) {
+  CategoriesCompanion copyWith({
+    Value<String>? key,
+    Value<String>? labelAr,
+    Value<String>? iconName,
+    Value<int>? sortOrder,
+    Value<bool>? archived,
+    Value<int>? rowid,
+  }) {
     return CategoriesCompanion(
       key: key ?? this.key,
       labelAr: labelAr ?? this.labelAr,
@@ -322,93 +376,142 @@ class $SubcategoriesTable extends Subcategories
   static const VerificationMeta _keyMeta = const VerificationMeta('key');
   @override
   late final GeneratedColumn<String> key = GeneratedColumn<String>(
-      'key', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _categoryKeyMeta =
-      const VerificationMeta('categoryKey');
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryKeyMeta = const VerificationMeta(
+    'categoryKey',
+  );
   @override
   late final GeneratedColumn<String> categoryKey = GeneratedColumn<String>(
-      'category_key', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('REFERENCES categories ("key")'));
-  static const VerificationMeta _labelArMeta =
-      const VerificationMeta('labelAr');
+    'category_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES categories ("key")',
+    ),
+  );
+  static const VerificationMeta _labelArMeta = const VerificationMeta(
+    'labelAr',
+  );
   @override
   late final GeneratedColumn<String> labelAr = GeneratedColumn<String>(
-      'label_ar', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _iconNameMeta =
-      const VerificationMeta('iconName');
+    'label_ar',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _iconNameMeta = const VerificationMeta(
+    'iconName',
+  );
   @override
   late final GeneratedColumn<String> iconName = GeneratedColumn<String>(
-      'icon_name', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _sortOrderMeta =
-      const VerificationMeta('sortOrder');
+    'icon_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
   @override
   late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
-      'sort_order', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _archivedMeta =
-      const VerificationMeta('archived');
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _archivedMeta = const VerificationMeta(
+    'archived',
+  );
   @override
   late final GeneratedColumn<bool> archived = GeneratedColumn<bool>(
-      'archived', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("archived" IN (0, 1))'),
-      defaultValue: const Constant(false));
+    'archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
-  List<GeneratedColumn> get $columns =>
-      [key, categoryKey, labelAr, iconName, sortOrder, archived];
+  List<GeneratedColumn> get $columns => [
+    key,
+    categoryKey,
+    labelAr,
+    iconName,
+    sortOrder,
+    archived,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'subcategories';
   @override
-  VerificationContext validateIntegrity(Insertable<Subcategory> instance,
-      {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<Subcategory> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('key')) {
       context.handle(
-          _keyMeta, key.isAcceptableOrUnknown(data['key']!, _keyMeta));
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
     } else if (isInserting) {
       context.missing(_keyMeta);
     }
     if (data.containsKey('category_key')) {
       context.handle(
+        _categoryKeyMeta,
+        categoryKey.isAcceptableOrUnknown(
+          data['category_key']!,
           _categoryKeyMeta,
-          categoryKey.isAcceptableOrUnknown(
-              data['category_key']!, _categoryKeyMeta));
+        ),
+      );
     } else if (isInserting) {
       context.missing(_categoryKeyMeta);
     }
     if (data.containsKey('label_ar')) {
-      context.handle(_labelArMeta,
-          labelAr.isAcceptableOrUnknown(data['label_ar']!, _labelArMeta));
+      context.handle(
+        _labelArMeta,
+        labelAr.isAcceptableOrUnknown(data['label_ar']!, _labelArMeta),
+      );
     } else if (isInserting) {
       context.missing(_labelArMeta);
     }
     if (data.containsKey('icon_name')) {
-      context.handle(_iconNameMeta,
-          iconName.isAcceptableOrUnknown(data['icon_name']!, _iconNameMeta));
+      context.handle(
+        _iconNameMeta,
+        iconName.isAcceptableOrUnknown(data['icon_name']!, _iconNameMeta),
+      );
     } else if (isInserting) {
       context.missing(_iconNameMeta);
     }
     if (data.containsKey('sort_order')) {
-      context.handle(_sortOrderMeta,
-          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
     }
     if (data.containsKey('archived')) {
-      context.handle(_archivedMeta,
-          archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta));
+      context.handle(
+        _archivedMeta,
+        archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta),
+      );
     }
     return context;
   }
@@ -419,18 +522,30 @@ class $SubcategoriesTable extends Subcategories
   Subcategory map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Subcategory(
-      key: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}key'])!,
-      categoryKey: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}category_key'])!,
-      labelAr: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}label_ar'])!,
-      iconName: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}icon_name'])!,
-      sortOrder: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
-      archived: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}archived'])!,
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      categoryKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_key'],
+      )!,
+      labelAr: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label_ar'],
+      )!,
+      iconName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_name'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      archived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}archived'],
+      )!,
     );
   }
 
@@ -447,13 +562,14 @@ class Subcategory extends DataClass implements Insertable<Subcategory> {
   final String iconName;
   final int sortOrder;
   final bool archived;
-  const Subcategory(
-      {required this.key,
-      required this.categoryKey,
-      required this.labelAr,
-      required this.iconName,
-      required this.sortOrder,
-      required this.archived});
+  const Subcategory({
+    required this.key,
+    required this.categoryKey,
+    required this.labelAr,
+    required this.iconName,
+    required this.sortOrder,
+    required this.archived,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -477,8 +593,10 @@ class Subcategory extends DataClass implements Insertable<Subcategory> {
     );
   }
 
-  factory Subcategory.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory Subcategory.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Subcategory(
       key: serializer.fromJson<String>(json['key']),
@@ -502,26 +620,27 @@ class Subcategory extends DataClass implements Insertable<Subcategory> {
     };
   }
 
-  Subcategory copyWith(
-          {String? key,
-          String? categoryKey,
-          String? labelAr,
-          String? iconName,
-          int? sortOrder,
-          bool? archived}) =>
-      Subcategory(
-        key: key ?? this.key,
-        categoryKey: categoryKey ?? this.categoryKey,
-        labelAr: labelAr ?? this.labelAr,
-        iconName: iconName ?? this.iconName,
-        sortOrder: sortOrder ?? this.sortOrder,
-        archived: archived ?? this.archived,
-      );
+  Subcategory copyWith({
+    String? key,
+    String? categoryKey,
+    String? labelAr,
+    String? iconName,
+    int? sortOrder,
+    bool? archived,
+  }) => Subcategory(
+    key: key ?? this.key,
+    categoryKey: categoryKey ?? this.categoryKey,
+    labelAr: labelAr ?? this.labelAr,
+    iconName: iconName ?? this.iconName,
+    sortOrder: sortOrder ?? this.sortOrder,
+    archived: archived ?? this.archived,
+  );
   Subcategory copyWithCompanion(SubcategoriesCompanion data) {
     return Subcategory(
       key: data.key.present ? data.key.value : this.key,
-      categoryKey:
-          data.categoryKey.present ? data.categoryKey.value : this.categoryKey,
+      categoryKey: data.categoryKey.present
+          ? data.categoryKey.value
+          : this.categoryKey,
       labelAr: data.labelAr.present ? data.labelAr.value : this.labelAr,
       iconName: data.iconName.present ? data.iconName.value : this.iconName,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
@@ -582,10 +701,10 @@ class SubcategoriesCompanion extends UpdateCompanion<Subcategory> {
     this.sortOrder = const Value.absent(),
     this.archived = const Value.absent(),
     this.rowid = const Value.absent(),
-  })  : key = Value(key),
-        categoryKey = Value(categoryKey),
-        labelAr = Value(labelAr),
-        iconName = Value(iconName);
+  }) : key = Value(key),
+       categoryKey = Value(categoryKey),
+       labelAr = Value(labelAr),
+       iconName = Value(iconName);
   static Insertable<Subcategory> custom({
     Expression<String>? key,
     Expression<String>? categoryKey,
@@ -606,14 +725,15 @@ class SubcategoriesCompanion extends UpdateCompanion<Subcategory> {
     });
   }
 
-  SubcategoriesCompanion copyWith(
-      {Value<String>? key,
-      Value<String>? categoryKey,
-      Value<String>? labelAr,
-      Value<String>? iconName,
-      Value<int>? sortOrder,
-      Value<bool>? archived,
-      Value<int>? rowid}) {
+  SubcategoriesCompanion copyWith({
+    Value<String>? key,
+    Value<String>? categoryKey,
+    Value<String>? labelAr,
+    Value<String>? iconName,
+    Value<int>? sortOrder,
+    Value<bool>? archived,
+    Value<int>? rowid,
+  }) {
     return SubcategoriesCompanion(
       key: key ?? this.key,
       categoryKey: categoryKey ?? this.categoryKey,
@@ -675,93 +795,140 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _nameArMeta = const VerificationMeta('nameAr');
   @override
   late final GeneratedColumn<String> nameAr = GeneratedColumn<String>(
-      'name_ar', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'name_ar',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _nameEnMeta = const VerificationMeta('nameEn');
   @override
   late final GeneratedColumn<String> nameEn = GeneratedColumn<String>(
-      'name_en', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _categoryKeyMeta =
-      const VerificationMeta('categoryKey');
+    'name_en',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryKeyMeta = const VerificationMeta(
+    'categoryKey',
+  );
   @override
   late final GeneratedColumn<String> categoryKey = GeneratedColumn<String>(
-      'category_key', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('REFERENCES categories ("key")'));
-  static const VerificationMeta _subcategoryKeyMeta =
-      const VerificationMeta('subcategoryKey');
+    'category_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES categories ("key")',
+    ),
+  );
+  static const VerificationMeta _subcategoryKeyMeta = const VerificationMeta(
+    'subcategoryKey',
+  );
   @override
   late final GeneratedColumn<String> subcategoryKey = GeneratedColumn<String>(
-      'subcategory_key', aliasedName, true,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'REFERENCES subcategories ("key")'));
+    'subcategory_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES subcategories ("key")',
+    ),
+  );
   static const VerificationMeta _defaultAmountPiastresMeta =
       const VerificationMeta('defaultAmountPiastres');
   @override
   late final GeneratedColumn<int> defaultAmountPiastres = GeneratedColumn<int>(
-      'default_amount_piastres', aliasedName, true,
-      type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _barcodeMeta =
-      const VerificationMeta('barcode');
+    'default_amount_piastres',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _barcodeMeta = const VerificationMeta(
+    'barcode',
+  );
   @override
   late final GeneratedColumn<String> barcode = GeneratedColumn<String>(
-      'barcode', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _useCountMeta =
-      const VerificationMeta('useCount');
+    'barcode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _useCountMeta = const VerificationMeta(
+    'useCount',
+  );
   @override
   late final GeneratedColumn<int> useCount = GeneratedColumn<int>(
-      'use_count', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _lastUsedAtMeta =
-      const VerificationMeta('lastUsedAt');
+    'use_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastUsedAtMeta = const VerificationMeta(
+    'lastUsedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> lastUsedAt = GeneratedColumn<DateTime>(
-      'last_used_at', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
-  static const VerificationMeta _archivedMeta =
-      const VerificationMeta('archived');
+    'last_used_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _archivedMeta = const VerificationMeta(
+    'archived',
+  );
   @override
   late final GeneratedColumn<bool> archived = GeneratedColumn<bool>(
-      'archived', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("archived" IN (0, 1))'),
-      defaultValue: const Constant(false));
+    'archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        nameAr,
-        nameEn,
-        categoryKey,
-        subcategoryKey,
-        defaultAmountPiastres,
-        barcode,
-        useCount,
-        lastUsedAt,
-        archived
-      ];
+    id,
+    nameAr,
+    nameEn,
+    categoryKey,
+    subcategoryKey,
+    defaultAmountPiastres,
+    barcode,
+    useCount,
+    lastUsedAt,
+    archived,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'items';
   @override
-  VerificationContext validateIntegrity(Insertable<Item> instance,
-      {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<Item> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -770,54 +937,76 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
       context.missing(_idMeta);
     }
     if (data.containsKey('name_ar')) {
-      context.handle(_nameArMeta,
-          nameAr.isAcceptableOrUnknown(data['name_ar']!, _nameArMeta));
+      context.handle(
+        _nameArMeta,
+        nameAr.isAcceptableOrUnknown(data['name_ar']!, _nameArMeta),
+      );
     } else if (isInserting) {
       context.missing(_nameArMeta);
     }
     if (data.containsKey('name_en')) {
-      context.handle(_nameEnMeta,
-          nameEn.isAcceptableOrUnknown(data['name_en']!, _nameEnMeta));
+      context.handle(
+        _nameEnMeta,
+        nameEn.isAcceptableOrUnknown(data['name_en']!, _nameEnMeta),
+      );
     } else if (isInserting) {
       context.missing(_nameEnMeta);
     }
     if (data.containsKey('category_key')) {
       context.handle(
+        _categoryKeyMeta,
+        categoryKey.isAcceptableOrUnknown(
+          data['category_key']!,
           _categoryKeyMeta,
-          categoryKey.isAcceptableOrUnknown(
-              data['category_key']!, _categoryKeyMeta));
+        ),
+      );
     } else if (isInserting) {
       context.missing(_categoryKeyMeta);
     }
     if (data.containsKey('subcategory_key')) {
       context.handle(
+        _subcategoryKeyMeta,
+        subcategoryKey.isAcceptableOrUnknown(
+          data['subcategory_key']!,
           _subcategoryKeyMeta,
-          subcategoryKey.isAcceptableOrUnknown(
-              data['subcategory_key']!, _subcategoryKeyMeta));
+        ),
+      );
     }
     if (data.containsKey('default_amount_piastres')) {
       context.handle(
+        _defaultAmountPiastresMeta,
+        defaultAmountPiastres.isAcceptableOrUnknown(
+          data['default_amount_piastres']!,
           _defaultAmountPiastresMeta,
-          defaultAmountPiastres.isAcceptableOrUnknown(
-              data['default_amount_piastres']!, _defaultAmountPiastresMeta));
+        ),
+      );
     }
     if (data.containsKey('barcode')) {
-      context.handle(_barcodeMeta,
-          barcode.isAcceptableOrUnknown(data['barcode']!, _barcodeMeta));
+      context.handle(
+        _barcodeMeta,
+        barcode.isAcceptableOrUnknown(data['barcode']!, _barcodeMeta),
+      );
     }
     if (data.containsKey('use_count')) {
-      context.handle(_useCountMeta,
-          useCount.isAcceptableOrUnknown(data['use_count']!, _useCountMeta));
+      context.handle(
+        _useCountMeta,
+        useCount.isAcceptableOrUnknown(data['use_count']!, _useCountMeta),
+      );
     }
     if (data.containsKey('last_used_at')) {
       context.handle(
+        _lastUsedAtMeta,
+        lastUsedAt.isAcceptableOrUnknown(
+          data['last_used_at']!,
           _lastUsedAtMeta,
-          lastUsedAt.isAcceptableOrUnknown(
-              data['last_used_at']!, _lastUsedAtMeta));
+        ),
+      );
     }
     if (data.containsKey('archived')) {
-      context.handle(_archivedMeta,
-          archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta));
+      context.handle(
+        _archivedMeta,
+        archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta),
+      );
     }
     return context;
   }
@@ -828,26 +1017,46 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
   Item map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Item(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      nameAr: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}name_ar'])!,
-      nameEn: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}name_en'])!,
-      categoryKey: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}category_key'])!,
-      subcategoryKey: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}subcategory_key']),
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      nameAr: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name_ar'],
+      )!,
+      nameEn: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name_en'],
+      )!,
+      categoryKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_key'],
+      )!,
+      subcategoryKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subcategory_key'],
+      ),
       defaultAmountPiastres: attachedDatabase.typeMapping.read(
-          DriftSqlType.int, data['${effectivePrefix}default_amount_piastres']),
-      barcode: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}barcode']),
-      useCount: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}use_count'])!,
-      lastUsedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}last_used_at']),
-      archived: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}archived'])!,
+        DriftSqlType.int,
+        data['${effectivePrefix}default_amount_piastres'],
+      ),
+      barcode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}barcode'],
+      ),
+      useCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}use_count'],
+      )!,
+      lastUsedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_used_at'],
+      ),
+      archived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}archived'],
+      )!,
     );
   }
 
@@ -868,17 +1077,18 @@ class Item extends DataClass implements Insertable<Item> {
   final int useCount;
   final DateTime? lastUsedAt;
   final bool archived;
-  const Item(
-      {required this.id,
-      required this.nameAr,
-      required this.nameEn,
-      required this.categoryKey,
-      this.subcategoryKey,
-      this.defaultAmountPiastres,
-      this.barcode,
-      required this.useCount,
-      this.lastUsedAt,
-      required this.archived});
+  const Item({
+    required this.id,
+    required this.nameAr,
+    required this.nameEn,
+    required this.categoryKey,
+    this.subcategoryKey,
+    this.defaultAmountPiastres,
+    this.barcode,
+    required this.useCount,
+    this.lastUsedAt,
+    required this.archived,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -926,8 +1136,10 @@ class Item extends DataClass implements Insertable<Item> {
     );
   }
 
-  factory Item.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory Item.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Item(
       id: serializer.fromJson<String>(json['id']),
@@ -935,8 +1147,9 @@ class Item extends DataClass implements Insertable<Item> {
       nameEn: serializer.fromJson<String>(json['nameEn']),
       categoryKey: serializer.fromJson<String>(json['categoryKey']),
       subcategoryKey: serializer.fromJson<String?>(json['subcategoryKey']),
-      defaultAmountPiastres:
-          serializer.fromJson<int?>(json['defaultAmountPiastres']),
+      defaultAmountPiastres: serializer.fromJson<int?>(
+        json['defaultAmountPiastres'],
+      ),
       barcode: serializer.fromJson<String?>(json['barcode']),
       useCount: serializer.fromJson<int>(json['useCount']),
       lastUsedAt: serializer.fromJson<DateTime?>(json['lastUsedAt']),
@@ -960,39 +1173,41 @@ class Item extends DataClass implements Insertable<Item> {
     };
   }
 
-  Item copyWith(
-          {String? id,
-          String? nameAr,
-          String? nameEn,
-          String? categoryKey,
-          Value<String?> subcategoryKey = const Value.absent(),
-          Value<int?> defaultAmountPiastres = const Value.absent(),
-          Value<String?> barcode = const Value.absent(),
-          int? useCount,
-          Value<DateTime?> lastUsedAt = const Value.absent(),
-          bool? archived}) =>
-      Item(
-        id: id ?? this.id,
-        nameAr: nameAr ?? this.nameAr,
-        nameEn: nameEn ?? this.nameEn,
-        categoryKey: categoryKey ?? this.categoryKey,
-        subcategoryKey:
-            subcategoryKey.present ? subcategoryKey.value : this.subcategoryKey,
-        defaultAmountPiastres: defaultAmountPiastres.present
-            ? defaultAmountPiastres.value
-            : this.defaultAmountPiastres,
-        barcode: barcode.present ? barcode.value : this.barcode,
-        useCount: useCount ?? this.useCount,
-        lastUsedAt: lastUsedAt.present ? lastUsedAt.value : this.lastUsedAt,
-        archived: archived ?? this.archived,
-      );
+  Item copyWith({
+    String? id,
+    String? nameAr,
+    String? nameEn,
+    String? categoryKey,
+    Value<String?> subcategoryKey = const Value.absent(),
+    Value<int?> defaultAmountPiastres = const Value.absent(),
+    Value<String?> barcode = const Value.absent(),
+    int? useCount,
+    Value<DateTime?> lastUsedAt = const Value.absent(),
+    bool? archived,
+  }) => Item(
+    id: id ?? this.id,
+    nameAr: nameAr ?? this.nameAr,
+    nameEn: nameEn ?? this.nameEn,
+    categoryKey: categoryKey ?? this.categoryKey,
+    subcategoryKey: subcategoryKey.present
+        ? subcategoryKey.value
+        : this.subcategoryKey,
+    defaultAmountPiastres: defaultAmountPiastres.present
+        ? defaultAmountPiastres.value
+        : this.defaultAmountPiastres,
+    barcode: barcode.present ? barcode.value : this.barcode,
+    useCount: useCount ?? this.useCount,
+    lastUsedAt: lastUsedAt.present ? lastUsedAt.value : this.lastUsedAt,
+    archived: archived ?? this.archived,
+  );
   Item copyWithCompanion(ItemsCompanion data) {
     return Item(
       id: data.id.present ? data.id.value : this.id,
       nameAr: data.nameAr.present ? data.nameAr.value : this.nameAr,
       nameEn: data.nameEn.present ? data.nameEn.value : this.nameEn,
-      categoryKey:
-          data.categoryKey.present ? data.categoryKey.value : this.categoryKey,
+      categoryKey: data.categoryKey.present
+          ? data.categoryKey.value
+          : this.categoryKey,
       subcategoryKey: data.subcategoryKey.present
           ? data.subcategoryKey.value
           : this.subcategoryKey,
@@ -1001,8 +1216,9 @@ class Item extends DataClass implements Insertable<Item> {
           : this.defaultAmountPiastres,
       barcode: data.barcode.present ? data.barcode.value : this.barcode,
       useCount: data.useCount.present ? data.useCount.value : this.useCount,
-      lastUsedAt:
-          data.lastUsedAt.present ? data.lastUsedAt.value : this.lastUsedAt,
+      lastUsedAt: data.lastUsedAt.present
+          ? data.lastUsedAt.value
+          : this.lastUsedAt,
       archived: data.archived.present ? data.archived.value : this.archived,
     );
   }
@@ -1026,16 +1242,17 @@ class Item extends DataClass implements Insertable<Item> {
 
   @override
   int get hashCode => Object.hash(
-      id,
-      nameAr,
-      nameEn,
-      categoryKey,
-      subcategoryKey,
-      defaultAmountPiastres,
-      barcode,
-      useCount,
-      lastUsedAt,
-      archived);
+    id,
+    nameAr,
+    nameEn,
+    categoryKey,
+    subcategoryKey,
+    defaultAmountPiastres,
+    barcode,
+    useCount,
+    lastUsedAt,
+    archived,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1089,10 +1306,10 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.lastUsedAt = const Value.absent(),
     this.archived = const Value.absent(),
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        nameAr = Value(nameAr),
-        nameEn = Value(nameEn),
-        categoryKey = Value(categoryKey);
+  }) : id = Value(id),
+       nameAr = Value(nameAr),
+       nameEn = Value(nameEn),
+       categoryKey = Value(categoryKey);
   static Insertable<Item> custom({
     Expression<String>? id,
     Expression<String>? nameAr,
@@ -1122,18 +1339,19 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     });
   }
 
-  ItemsCompanion copyWith(
-      {Value<String>? id,
-      Value<String>? nameAr,
-      Value<String>? nameEn,
-      Value<String>? categoryKey,
-      Value<String?>? subcategoryKey,
-      Value<int?>? defaultAmountPiastres,
-      Value<String?>? barcode,
-      Value<int>? useCount,
-      Value<DateTime?>? lastUsedAt,
-      Value<bool>? archived,
-      Value<int>? rowid}) {
+  ItemsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? nameAr,
+    Value<String>? nameEn,
+    Value<String>? categoryKey,
+    Value<String?>? subcategoryKey,
+    Value<int?>? defaultAmountPiastres,
+    Value<String?>? barcode,
+    Value<int>? useCount,
+    Value<DateTime?>? lastUsedAt,
+    Value<bool>? archived,
+    Value<int>? rowid,
+  }) {
     return ItemsCompanion(
       id: id ?? this.id,
       nameAr: nameAr ?? this.nameAr,
@@ -1169,8 +1387,9 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       map['subcategory_key'] = Variable<String>(subcategoryKey.value);
     }
     if (defaultAmountPiastres.present) {
-      map['default_amount_piastres'] =
-          Variable<int>(defaultAmountPiastres.value);
+      map['default_amount_piastres'] = Variable<int>(
+        defaultAmountPiastres.value,
+      );
     }
     if (barcode.present) {
       map['barcode'] = Variable<String>(barcode.value);
@@ -1217,119 +1436,183 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _dateMeta = const VerificationMeta('date');
   @override
   late final GeneratedColumn<String> date = GeneratedColumn<String>(
-      'date', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _amountPiastresMeta =
-      const VerificationMeta('amountPiastres');
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountPiastresMeta = const VerificationMeta(
+    'amountPiastres',
+  );
   @override
   late final GeneratedColumn<int> amountPiastres = GeneratedColumn<int>(
-      'amount_piastres', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
-  static const VerificationMeta _categoryKeyMeta =
-      const VerificationMeta('categoryKey');
+    'amount_piastres',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryKeyMeta = const VerificationMeta(
+    'categoryKey',
+  );
   @override
   late final GeneratedColumn<String> categoryKey = GeneratedColumn<String>(
-      'category_key', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('REFERENCES categories ("key")'));
-  static const VerificationMeta _subcategoryKeyMeta =
-      const VerificationMeta('subcategoryKey');
+    'category_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES categories ("key")',
+    ),
+  );
+  static const VerificationMeta _subcategoryKeyMeta = const VerificationMeta(
+    'subcategoryKey',
+  );
   @override
   late final GeneratedColumn<String> subcategoryKey = GeneratedColumn<String>(
-      'subcategory_key', aliasedName, true,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'REFERENCES subcategories ("key")'));
+    'subcategory_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES subcategories ("key")',
+    ),
+  );
   static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
   @override
   late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
-      'item_id', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _descriptionMeta =
-      const VerificationMeta('description');
+    'item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
   @override
   late final GeneratedColumn<String> description = GeneratedColumn<String>(
-      'description', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(''));
-  static const VerificationMeta _paymentMethodMeta =
-      const VerificationMeta('paymentMethod');
+    'description',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _paymentMethodMeta = const VerificationMeta(
+    'paymentMethod',
+  );
   @override
   late final GeneratedColumn<String> paymentMethod = GeneratedColumn<String>(
-      'payment_method', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('Cash'));
-  static const VerificationMeta _photoPathMeta =
-      const VerificationMeta('photoPath');
+    'payment_method',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Cash'),
+  );
+  static const VerificationMeta _photoPathMeta = const VerificationMeta(
+    'photoPath',
+  );
   @override
   late final GeneratedColumn<String> photoPath = GeneratedColumn<String>(
-      'photo_path', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
+    'photo_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _sourceMeta = const VerificationMeta('source');
   @override
   late final GeneratedColumn<String> source = GeneratedColumn<String>(
-      'source', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('manual'));
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('manual'),
+  );
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
-      'note', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _deletedAtMeta =
-      const VerificationMeta('deletedAt');
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
-      'deleted_at', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        date,
-        amountPiastres,
-        categoryKey,
-        subcategoryKey,
-        itemId,
-        description,
-        paymentMethod,
-        photoPath,
-        source,
-        note,
-        createdAt,
-        updatedAt,
-        deletedAt
-      ];
+    id,
+    date,
+    amountPiastres,
+    categoryKey,
+    subcategoryKey,
+    itemId,
+    description,
+    paymentMethod,
+    photoPath,
+    source,
+    note,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'entries';
   @override
-  VerificationContext validateIntegrity(Insertable<Entry> instance,
-      {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<Entry> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -1339,75 +1622,106 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
     }
     if (data.containsKey('date')) {
       context.handle(
-          _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
     } else if (isInserting) {
       context.missing(_dateMeta);
     }
     if (data.containsKey('amount_piastres')) {
       context.handle(
+        _amountPiastresMeta,
+        amountPiastres.isAcceptableOrUnknown(
+          data['amount_piastres']!,
           _amountPiastresMeta,
-          amountPiastres.isAcceptableOrUnknown(
-              data['amount_piastres']!, _amountPiastresMeta));
+        ),
+      );
     } else if (isInserting) {
       context.missing(_amountPiastresMeta);
     }
     if (data.containsKey('category_key')) {
       context.handle(
+        _categoryKeyMeta,
+        categoryKey.isAcceptableOrUnknown(
+          data['category_key']!,
           _categoryKeyMeta,
-          categoryKey.isAcceptableOrUnknown(
-              data['category_key']!, _categoryKeyMeta));
+        ),
+      );
     } else if (isInserting) {
       context.missing(_categoryKeyMeta);
     }
     if (data.containsKey('subcategory_key')) {
       context.handle(
+        _subcategoryKeyMeta,
+        subcategoryKey.isAcceptableOrUnknown(
+          data['subcategory_key']!,
           _subcategoryKeyMeta,
-          subcategoryKey.isAcceptableOrUnknown(
-              data['subcategory_key']!, _subcategoryKeyMeta));
+        ),
+      );
     }
     if (data.containsKey('item_id')) {
-      context.handle(_itemIdMeta,
-          itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta));
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
     }
     if (data.containsKey('description')) {
       context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
           _descriptionMeta,
-          description.isAcceptableOrUnknown(
-              data['description']!, _descriptionMeta));
+        ),
+      );
     }
     if (data.containsKey('payment_method')) {
       context.handle(
+        _paymentMethodMeta,
+        paymentMethod.isAcceptableOrUnknown(
+          data['payment_method']!,
           _paymentMethodMeta,
-          paymentMethod.isAcceptableOrUnknown(
-              data['payment_method']!, _paymentMethodMeta));
+        ),
+      );
     }
     if (data.containsKey('photo_path')) {
-      context.handle(_photoPathMeta,
-          photoPath.isAcceptableOrUnknown(data['photo_path']!, _photoPathMeta));
+      context.handle(
+        _photoPathMeta,
+        photoPath.isAcceptableOrUnknown(data['photo_path']!, _photoPathMeta),
+      );
     }
     if (data.containsKey('source')) {
-      context.handle(_sourceMeta,
-          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
     }
     if (data.containsKey('note')) {
       context.handle(
-          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
     }
     if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
     if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
     if (data.containsKey('deleted_at')) {
-      context.handle(_deletedAtMeta,
-          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
     }
     return context;
   }
@@ -1418,34 +1732,62 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
   Entry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Entry(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      date: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}date'])!,
-      amountPiastres: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}amount_piastres'])!,
-      categoryKey: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}category_key'])!,
-      subcategoryKey: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}subcategory_key']),
-      itemId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}item_id']),
-      description: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
-      paymentMethod: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}payment_method'])!,
-      photoPath: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}photo_path']),
-      source: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
-      note: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}note']),
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
-      deletedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}deleted_at']),
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      )!,
+      amountPiastres: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_piastres'],
+      )!,
+      categoryKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_key'],
+      )!,
+      subcategoryKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subcategory_key'],
+      ),
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      )!,
+      paymentMethod: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_method'],
+      )!,
+      photoPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}photo_path'],
+      ),
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -1470,21 +1812,22 @@ class Entry extends DataClass implements Insertable<Entry> {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
-  const Entry(
-      {required this.id,
-      required this.date,
-      required this.amountPiastres,
-      required this.categoryKey,
-      this.subcategoryKey,
-      this.itemId,
-      required this.description,
-      required this.paymentMethod,
-      this.photoPath,
-      required this.source,
-      this.note,
-      required this.createdAt,
-      required this.updatedAt,
-      this.deletedAt});
+  const Entry({
+    required this.id,
+    required this.date,
+    required this.amountPiastres,
+    required this.categoryKey,
+    this.subcategoryKey,
+    this.itemId,
+    required this.description,
+    required this.paymentMethod,
+    this.photoPath,
+    required this.source,
+    this.note,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1524,8 +1867,9 @@ class Entry extends DataClass implements Insertable<Entry> {
       subcategoryKey: subcategoryKey == null && nullToAbsent
           ? const Value.absent()
           : Value(subcategoryKey),
-      itemId:
-          itemId == null && nullToAbsent ? const Value.absent() : Value(itemId),
+      itemId: itemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(itemId),
       description: Value(description),
       paymentMethod: Value(paymentMethod),
       photoPath: photoPath == null && nullToAbsent
@@ -1541,8 +1885,10 @@ class Entry extends DataClass implements Insertable<Entry> {
     );
   }
 
-  factory Entry.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory Entry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Entry(
       id: serializer.fromJson<String>(json['id']),
@@ -1582,38 +1928,39 @@ class Entry extends DataClass implements Insertable<Entry> {
     };
   }
 
-  Entry copyWith(
-          {String? id,
-          String? date,
-          int? amountPiastres,
-          String? categoryKey,
-          Value<String?> subcategoryKey = const Value.absent(),
-          Value<String?> itemId = const Value.absent(),
-          String? description,
-          String? paymentMethod,
-          Value<String?> photoPath = const Value.absent(),
-          String? source,
-          Value<String?> note = const Value.absent(),
-          DateTime? createdAt,
-          DateTime? updatedAt,
-          Value<DateTime?> deletedAt = const Value.absent()}) =>
-      Entry(
-        id: id ?? this.id,
-        date: date ?? this.date,
-        amountPiastres: amountPiastres ?? this.amountPiastres,
-        categoryKey: categoryKey ?? this.categoryKey,
-        subcategoryKey:
-            subcategoryKey.present ? subcategoryKey.value : this.subcategoryKey,
-        itemId: itemId.present ? itemId.value : this.itemId,
-        description: description ?? this.description,
-        paymentMethod: paymentMethod ?? this.paymentMethod,
-        photoPath: photoPath.present ? photoPath.value : this.photoPath,
-        source: source ?? this.source,
-        note: note.present ? note.value : this.note,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-      );
+  Entry copyWith({
+    String? id,
+    String? date,
+    int? amountPiastres,
+    String? categoryKey,
+    Value<String?> subcategoryKey = const Value.absent(),
+    Value<String?> itemId = const Value.absent(),
+    String? description,
+    String? paymentMethod,
+    Value<String?> photoPath = const Value.absent(),
+    String? source,
+    Value<String?> note = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => Entry(
+    id: id ?? this.id,
+    date: date ?? this.date,
+    amountPiastres: amountPiastres ?? this.amountPiastres,
+    categoryKey: categoryKey ?? this.categoryKey,
+    subcategoryKey: subcategoryKey.present
+        ? subcategoryKey.value
+        : this.subcategoryKey,
+    itemId: itemId.present ? itemId.value : this.itemId,
+    description: description ?? this.description,
+    paymentMethod: paymentMethod ?? this.paymentMethod,
+    photoPath: photoPath.present ? photoPath.value : this.photoPath,
+    source: source ?? this.source,
+    note: note.present ? note.value : this.note,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
   Entry copyWithCompanion(EntriesCompanion data) {
     return Entry(
       id: data.id.present ? data.id.value : this.id,
@@ -1621,14 +1968,16 @@ class Entry extends DataClass implements Insertable<Entry> {
       amountPiastres: data.amountPiastres.present
           ? data.amountPiastres.value
           : this.amountPiastres,
-      categoryKey:
-          data.categoryKey.present ? data.categoryKey.value : this.categoryKey,
+      categoryKey: data.categoryKey.present
+          ? data.categoryKey.value
+          : this.categoryKey,
       subcategoryKey: data.subcategoryKey.present
           ? data.subcategoryKey.value
           : this.subcategoryKey,
       itemId: data.itemId.present ? data.itemId.value : this.itemId,
-      description:
-          data.description.present ? data.description.value : this.description,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
       paymentMethod: data.paymentMethod.present
           ? data.paymentMethod.value
           : this.paymentMethod,
@@ -1664,20 +2013,21 @@ class Entry extends DataClass implements Insertable<Entry> {
 
   @override
   int get hashCode => Object.hash(
-      id,
-      date,
-      amountPiastres,
-      categoryKey,
-      subcategoryKey,
-      itemId,
-      description,
-      paymentMethod,
-      photoPath,
-      source,
-      note,
-      createdAt,
-      updatedAt,
-      deletedAt);
+    id,
+    date,
+    amountPiastres,
+    categoryKey,
+    subcategoryKey,
+    itemId,
+    description,
+    paymentMethod,
+    photoPath,
+    source,
+    note,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1747,12 +2097,12 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        date = Value(date),
-        amountPiastres = Value(amountPiastres),
-        categoryKey = Value(categoryKey),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt);
+  }) : id = Value(id),
+       date = Value(date),
+       amountPiastres = Value(amountPiastres),
+       categoryKey = Value(categoryKey),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
   static Insertable<Entry> custom({
     Expression<String>? id,
     Expression<String>? date,
@@ -1789,22 +2139,23 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     });
   }
 
-  EntriesCompanion copyWith(
-      {Value<String>? id,
-      Value<String>? date,
-      Value<int>? amountPiastres,
-      Value<String>? categoryKey,
-      Value<String?>? subcategoryKey,
-      Value<String?>? itemId,
-      Value<String>? description,
-      Value<String>? paymentMethod,
-      Value<String?>? photoPath,
-      Value<String>? source,
-      Value<String?>? note,
-      Value<DateTime>? createdAt,
-      Value<DateTime>? updatedAt,
-      Value<DateTime?>? deletedAt,
-      Value<int>? rowid}) {
+  EntriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? date,
+    Value<int>? amountPiastres,
+    Value<String>? categoryKey,
+    Value<String?>? subcategoryKey,
+    Value<String?>? itemId,
+    Value<String>? description,
+    Value<String>? paymentMethod,
+    Value<String?>? photoPath,
+    Value<String>? source,
+    Value<String?>? note,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
     return EntriesCompanion(
       id: id ?? this.id,
       date: date ?? this.date,
@@ -1907,42 +2258,73 @@ class $SalaryPeriodsTable extends SalaryPeriods
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _datePaidMeta =
-      const VerificationMeta('datePaid');
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _datePaidMeta = const VerificationMeta(
+    'datePaid',
+  );
   @override
   late final GeneratedColumn<String> datePaid = GeneratedColumn<String>(
-      'date_paid', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _amountPiastresMeta =
-      const VerificationMeta('amountPiastres');
+    'date_paid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountPiastresMeta = const VerificationMeta(
+    'amountPiastres',
+  );
   @override
   late final GeneratedColumn<int> amountPiastres = GeneratedColumn<int>(
-      'amount_piastres', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
-  static const VerificationMeta _evidencePhotoPathMeta =
-      const VerificationMeta('evidencePhotoPath');
+    'amount_piastres',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _evidencePhotoPathMeta = const VerificationMeta(
+    'evidencePhotoPath',
+  );
   @override
   late final GeneratedColumn<String> evidencePhotoPath =
-      GeneratedColumn<String>('evidence_photo_path', aliasedName, true,
-          type: DriftSqlType.string, requiredDuringInsert: false);
+      GeneratedColumn<String>(
+        'evidence_photo_path',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
-      'note', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, datePaid, amountPiastres, evidencePhotoPath, note];
+  List<GeneratedColumn> get $columns => [
+    id,
+    datePaid,
+    amountPiastres,
+    evidencePhotoPath,
+    note,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'salary_periods';
   @override
-  VerificationContext validateIntegrity(Insertable<SalaryPeriod> instance,
-      {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<SalaryPeriod> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -1951,28 +2333,38 @@ class $SalaryPeriodsTable extends SalaryPeriods
       context.missing(_idMeta);
     }
     if (data.containsKey('date_paid')) {
-      context.handle(_datePaidMeta,
-          datePaid.isAcceptableOrUnknown(data['date_paid']!, _datePaidMeta));
+      context.handle(
+        _datePaidMeta,
+        datePaid.isAcceptableOrUnknown(data['date_paid']!, _datePaidMeta),
+      );
     } else if (isInserting) {
       context.missing(_datePaidMeta);
     }
     if (data.containsKey('amount_piastres')) {
       context.handle(
+        _amountPiastresMeta,
+        amountPiastres.isAcceptableOrUnknown(
+          data['amount_piastres']!,
           _amountPiastresMeta,
-          amountPiastres.isAcceptableOrUnknown(
-              data['amount_piastres']!, _amountPiastresMeta));
+        ),
+      );
     } else if (isInserting) {
       context.missing(_amountPiastresMeta);
     }
     if (data.containsKey('evidence_photo_path')) {
       context.handle(
+        _evidencePhotoPathMeta,
+        evidencePhotoPath.isAcceptableOrUnknown(
+          data['evidence_photo_path']!,
           _evidencePhotoPathMeta,
-          evidencePhotoPath.isAcceptableOrUnknown(
-              data['evidence_photo_path']!, _evidencePhotoPathMeta));
+        ),
+      );
     }
     if (data.containsKey('note')) {
       context.handle(
-          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
     }
     return context;
   }
@@ -1983,16 +2375,26 @@ class $SalaryPeriodsTable extends SalaryPeriods
   SalaryPeriod map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return SalaryPeriod(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      datePaid: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}date_paid'])!,
-      amountPiastres: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}amount_piastres'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      datePaid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date_paid'],
+      )!,
+      amountPiastres: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_piastres'],
+      )!,
       evidencePhotoPath: attachedDatabase.typeMapping.read(
-          DriftSqlType.string, data['${effectivePrefix}evidence_photo_path']),
-      note: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+        DriftSqlType.string,
+        data['${effectivePrefix}evidence_photo_path'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
     );
   }
 
@@ -2008,12 +2410,13 @@ class SalaryPeriod extends DataClass implements Insertable<SalaryPeriod> {
   final int amountPiastres;
   final String? evidencePhotoPath;
   final String? note;
-  const SalaryPeriod(
-      {required this.id,
-      required this.datePaid,
-      required this.amountPiastres,
-      this.evidencePhotoPath,
-      this.note});
+  const SalaryPeriod({
+    required this.id,
+    required this.datePaid,
+    required this.amountPiastres,
+    this.evidencePhotoPath,
+    this.note,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2041,15 +2444,18 @@ class SalaryPeriod extends DataClass implements Insertable<SalaryPeriod> {
     );
   }
 
-  factory SalaryPeriod.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory SalaryPeriod.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return SalaryPeriod(
       id: serializer.fromJson<String>(json['id']),
       datePaid: serializer.fromJson<String>(json['datePaid']),
       amountPiastres: serializer.fromJson<int>(json['amountPiastres']),
-      evidencePhotoPath:
-          serializer.fromJson<String?>(json['evidencePhotoPath']),
+      evidencePhotoPath: serializer.fromJson<String?>(
+        json['evidencePhotoPath'],
+      ),
       note: serializer.fromJson<String?>(json['note']),
     );
   }
@@ -2065,21 +2471,21 @@ class SalaryPeriod extends DataClass implements Insertable<SalaryPeriod> {
     };
   }
 
-  SalaryPeriod copyWith(
-          {String? id,
-          String? datePaid,
-          int? amountPiastres,
-          Value<String?> evidencePhotoPath = const Value.absent(),
-          Value<String?> note = const Value.absent()}) =>
-      SalaryPeriod(
-        id: id ?? this.id,
-        datePaid: datePaid ?? this.datePaid,
-        amountPiastres: amountPiastres ?? this.amountPiastres,
-        evidencePhotoPath: evidencePhotoPath.present
-            ? evidencePhotoPath.value
-            : this.evidencePhotoPath,
-        note: note.present ? note.value : this.note,
-      );
+  SalaryPeriod copyWith({
+    String? id,
+    String? datePaid,
+    int? amountPiastres,
+    Value<String?> evidencePhotoPath = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+  }) => SalaryPeriod(
+    id: id ?? this.id,
+    datePaid: datePaid ?? this.datePaid,
+    amountPiastres: amountPiastres ?? this.amountPiastres,
+    evidencePhotoPath: evidencePhotoPath.present
+        ? evidencePhotoPath.value
+        : this.evidencePhotoPath,
+    note: note.present ? note.value : this.note,
+  );
   SalaryPeriod copyWithCompanion(SalaryPeriodsCompanion data) {
     return SalaryPeriod(
       id: data.id.present ? data.id.value : this.id,
@@ -2142,9 +2548,9 @@ class SalaryPeriodsCompanion extends UpdateCompanion<SalaryPeriod> {
     this.evidencePhotoPath = const Value.absent(),
     this.note = const Value.absent(),
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        datePaid = Value(datePaid),
-        amountPiastres = Value(amountPiastres);
+  }) : id = Value(id),
+       datePaid = Value(datePaid),
+       amountPiastres = Value(amountPiastres);
   static Insertable<SalaryPeriod> custom({
     Expression<String>? id,
     Expression<String>? datePaid,
@@ -2163,13 +2569,14 @@ class SalaryPeriodsCompanion extends UpdateCompanion<SalaryPeriod> {
     });
   }
 
-  SalaryPeriodsCompanion copyWith(
-      {Value<String>? id,
-      Value<String>? datePaid,
-      Value<int>? amountPiastres,
-      Value<String?>? evidencePhotoPath,
-      Value<String?>? note,
-      Value<int>? rowid}) {
+  SalaryPeriodsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? datePaid,
+    Value<int>? amountPiastres,
+    Value<String?>? evidencePhotoPath,
+    Value<String?>? note,
+    Value<int>? rowid,
+  }) {
     return SalaryPeriodsCompanion(
       id: id ?? this.id,
       datePaid: datePaid ?? this.datePaid,
@@ -2230,74 +2637,92 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [categories, subcategories, items, entries, salaryPeriods];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    categories,
+    subcategories,
+    items,
+    entries,
+    salaryPeriods,
+  ];
 }
 
-typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
-  required String key,
-  required String labelAr,
-  required String iconName,
-  Value<int> sortOrder,
-  Value<bool> archived,
-  Value<int> rowid,
-});
-typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
-  Value<String> key,
-  Value<String> labelAr,
-  Value<String> iconName,
-  Value<int> sortOrder,
-  Value<bool> archived,
-  Value<int> rowid,
-});
+typedef $$CategoriesTableCreateCompanionBuilder =
+    CategoriesCompanion Function({
+      required String key,
+      required String labelAr,
+      required String iconName,
+      Value<int> sortOrder,
+      Value<bool> archived,
+      Value<int> rowid,
+    });
+typedef $$CategoriesTableUpdateCompanionBuilder =
+    CategoriesCompanion Function({
+      Value<String> key,
+      Value<String> labelAr,
+      Value<String> iconName,
+      Value<int> sortOrder,
+      Value<bool> archived,
+      Value<int> rowid,
+    });
 
 final class $$CategoriesTableReferences
     extends BaseReferences<_$AppDatabase, $CategoriesTable, Category> {
   $$CategoriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static MultiTypedResultKey<$SubcategoriesTable, List<Subcategory>>
-      _subcategoriesRefsTable(_$AppDatabase db) =>
-          MultiTypedResultKey.fromTable(db.subcategories,
-              aliasName: $_aliasNameGenerator(
-                  db.categories.key, db.subcategories.categoryKey));
+  _subcategoriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.subcategories,
+    aliasName: 'categories__key__subcategories__category_key',
+  );
 
   $$SubcategoriesTableProcessedTableManager get subcategoriesRefs {
-    final manager = $$SubcategoriesTableTableManager($_db, $_db.subcategories)
-        .filter((f) => f.categoryKey.key($_item.key));
+    final manager = $$SubcategoriesTableTableManager(
+      $_db,
+      $_db.subcategories,
+    ).filter((f) => f.categoryKey.key.sqlEquals($_itemColumn<String>('key')!));
 
     final cache = $_typedResult.readTableOrNull(_subcategoriesRefsTable($_db));
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 
   static MultiTypedResultKey<$ItemsTable, List<Item>> _itemsRefsTable(
-          _$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(db.items,
-          aliasName:
-              $_aliasNameGenerator(db.categories.key, db.items.categoryKey));
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.items,
+    aliasName: 'categories__key__items__category_key',
+  );
 
   $$ItemsTableProcessedTableManager get itemsRefs {
-    final manager = $$ItemsTableTableManager($_db, $_db.items)
-        .filter((f) => f.categoryKey.key($_item.key));
+    final manager = $$ItemsTableTableManager(
+      $_db,
+      $_db.items,
+    ).filter((f) => f.categoryKey.key.sqlEquals($_itemColumn<String>('key')!));
 
     final cache = $_typedResult.readTableOrNull(_itemsRefsTable($_db));
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 
   static MultiTypedResultKey<$EntriesTable, List<Entry>> _entriesRefsTable(
-          _$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(db.entries,
-          aliasName:
-              $_aliasNameGenerator(db.categories.key, db.entries.categoryKey));
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.entries,
+    aliasName: 'categories__key__entries__category_key',
+  );
 
   $$EntriesTableProcessedTableManager get entriesRefs {
-    final manager = $$EntriesTableTableManager($_db, $_db.entries)
-        .filter((f) => f.categoryKey.key($_item.key));
+    final manager = $$EntriesTableTableManager(
+      $_db,
+      $_db.entries,
+    ).filter((f) => f.categoryKey.key.sqlEquals($_itemColumn<String>('key')!));
 
     final cache = $_typedResult.readTableOrNull(_entriesRefsTable($_db));
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 }
 
@@ -2311,80 +2736,102 @@ class $$CategoriesTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get key => $composableBuilder(
-      column: $table.key, builder: (column) => ColumnFilters(column));
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get labelAr => $composableBuilder(
-      column: $table.labelAr, builder: (column) => ColumnFilters(column));
+    column: $table.labelAr,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get iconName => $composableBuilder(
-      column: $table.iconName, builder: (column) => ColumnFilters(column));
+    column: $table.iconName,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
-      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get archived => $composableBuilder(
-      column: $table.archived, builder: (column) => ColumnFilters(column));
+    column: $table.archived,
+    builder: (column) => ColumnFilters(column),
+  );
 
   Expression<bool> subcategoriesRefs(
-      Expression<bool> Function($$SubcategoriesTableFilterComposer f) f) {
+    Expression<bool> Function($$SubcategoriesTableFilterComposer f) f,
+  ) {
     final $$SubcategoriesTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.key,
-        referencedTable: $db.subcategories,
-        getReferencedColumn: (t) => t.categoryKey,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$SubcategoriesTableFilterComposer(
-              $db: $db,
-              $table: $db.subcategories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.key,
+      referencedTable: $db.subcategories,
+      getReferencedColumn: (t) => t.categoryKey,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubcategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.subcategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 
   Expression<bool> itemsRefs(
-      Expression<bool> Function($$ItemsTableFilterComposer f) f) {
+    Expression<bool> Function($$ItemsTableFilterComposer f) f,
+  ) {
     final $$ItemsTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.key,
-        referencedTable: $db.items,
-        getReferencedColumn: (t) => t.categoryKey,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ItemsTableFilterComposer(
-              $db: $db,
-              $table: $db.items,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.key,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.categoryKey,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 
   Expression<bool> entriesRefs(
-      Expression<bool> Function($$EntriesTableFilterComposer f) f) {
+    Expression<bool> Function($$EntriesTableFilterComposer f) f,
+  ) {
     final $$EntriesTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.key,
-        referencedTable: $db.entries,
-        getReferencedColumn: (t) => t.categoryKey,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$EntriesTableFilterComposer(
-              $db: $db,
-              $table: $db.entries,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.key,
+      referencedTable: $db.entries,
+      getReferencedColumn: (t) => t.categoryKey,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.entries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
@@ -2399,19 +2846,29 @@ class $$CategoriesTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get key => $composableBuilder(
-      column: $table.key, builder: (column) => ColumnOrderings(column));
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get labelAr => $composableBuilder(
-      column: $table.labelAr, builder: (column) => ColumnOrderings(column));
+    column: $table.labelAr,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get iconName => $composableBuilder(
-      column: $table.iconName, builder: (column) => ColumnOrderings(column));
+    column: $table.iconName,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get sortOrder => $composableBuilder(
-      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get archived => $composableBuilder(
-      column: $table.archived, builder: (column) => ColumnOrderings(column));
+    column: $table.archived,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CategoriesTableAnnotationComposer
@@ -2439,84 +2896,103 @@ class $$CategoriesTableAnnotationComposer
       $composableBuilder(column: $table.archived, builder: (column) => column);
 
   Expression<T> subcategoriesRefs<T extends Object>(
-      Expression<T> Function($$SubcategoriesTableAnnotationComposer a) f) {
+    Expression<T> Function($$SubcategoriesTableAnnotationComposer a) f,
+  ) {
     final $$SubcategoriesTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.key,
-        referencedTable: $db.subcategories,
-        getReferencedColumn: (t) => t.categoryKey,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$SubcategoriesTableAnnotationComposer(
-              $db: $db,
-              $table: $db.subcategories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.key,
+      referencedTable: $db.subcategories,
+      getReferencedColumn: (t) => t.categoryKey,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubcategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.subcategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 
   Expression<T> itemsRefs<T extends Object>(
-      Expression<T> Function($$ItemsTableAnnotationComposer a) f) {
+    Expression<T> Function($$ItemsTableAnnotationComposer a) f,
+  ) {
     final $$ItemsTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.key,
-        referencedTable: $db.items,
-        getReferencedColumn: (t) => t.categoryKey,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ItemsTableAnnotationComposer(
-              $db: $db,
-              $table: $db.items,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.key,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.categoryKey,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 
   Expression<T> entriesRefs<T extends Object>(
-      Expression<T> Function($$EntriesTableAnnotationComposer a) f) {
+    Expression<T> Function($$EntriesTableAnnotationComposer a) f,
+  ) {
     final $$EntriesTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.key,
-        referencedTable: $db.entries,
-        getReferencedColumn: (t) => t.categoryKey,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$EntriesTableAnnotationComposer(
-              $db: $db,
-              $table: $db.entries,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.key,
+      referencedTable: $db.entries,
+      getReferencedColumn: (t) => t.categoryKey,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.entries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
 
-class $$CategoriesTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $CategoriesTable,
-    Category,
-    $$CategoriesTableFilterComposer,
-    $$CategoriesTableOrderingComposer,
-    $$CategoriesTableAnnotationComposer,
-    $$CategoriesTableCreateCompanionBuilder,
-    $$CategoriesTableUpdateCompanionBuilder,
-    (Category, $$CategoriesTableReferences),
-    Category,
-    PrefetchHooks Function(
-        {bool subcategoriesRefs, bool itemsRefs, bool entriesRefs})> {
+class $$CategoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CategoriesTable,
+          Category,
+          $$CategoriesTableFilterComposer,
+          $$CategoriesTableOrderingComposer,
+          $$CategoriesTableAnnotationComposer,
+          $$CategoriesTableCreateCompanionBuilder,
+          $$CategoriesTableUpdateCompanionBuilder,
+          (Category, $$CategoriesTableReferences),
+          Category,
+          PrefetchHooks Function({
+            bool subcategoriesRefs,
+            bool itemsRefs,
+            bool entriesRefs,
+          })
+        > {
   $$CategoriesTableTableManager(_$AppDatabase db, $CategoriesTable table)
-      : super(TableManagerState(
+    : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -2525,181 +3001,231 @@ class $$CategoriesTableTableManager extends RootTableManager<
               $$CategoriesTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$CategoriesTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> key = const Value.absent(),
-            Value<String> labelAr = const Value.absent(),
-            Value<String> iconName = const Value.absent(),
-            Value<int> sortOrder = const Value.absent(),
-            Value<bool> archived = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              CategoriesCompanion(
-            key: key,
-            labelAr: labelAr,
-            iconName: iconName,
-            sortOrder: sortOrder,
-            archived: archived,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String key,
-            required String labelAr,
-            required String iconName,
-            Value<int> sortOrder = const Value.absent(),
-            Value<bool> archived = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              CategoriesCompanion.insert(
-            key: key,
-            labelAr: labelAr,
-            iconName: iconName,
-            sortOrder: sortOrder,
-            archived: archived,
-            rowid: rowid,
-          ),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String> labelAr = const Value.absent(),
+                Value<String> iconName = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> archived = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CategoriesCompanion(
+                key: key,
+                labelAr: labelAr,
+                iconName: iconName,
+                sortOrder: sortOrder,
+                archived: archived,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String key,
+                required String labelAr,
+                required String iconName,
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> archived = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CategoriesCompanion.insert(
+                key: key,
+                labelAr: labelAr,
+                iconName: iconName,
+                sortOrder: sortOrder,
+                archived: archived,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (
-                    e.readTable(table),
-                    $$CategoriesTableReferences(db, table, e)
-                  ))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$CategoriesTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: (
-              {subcategoriesRefs = false,
-              itemsRefs = false,
-              entriesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (subcategoriesRefs) db.subcategories,
-                if (itemsRefs) db.items,
-                if (entriesRefs) db.entries
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (subcategoriesRefs)
-                    await $_getPrefetchedData(
-                        currentTable: table,
-                        referencedTable: $$CategoriesTableReferences
-                            ._subcategoriesRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$CategoriesTableReferences(db, table, p0)
-                                .subcategoriesRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems
-                                .where((e) => e.categoryKey == item.key),
-                        typedResults: items),
-                  if (itemsRefs)
-                    await $_getPrefetchedData(
-                        currentTable: table,
-                        referencedTable:
-                            $$CategoriesTableReferences._itemsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$CategoriesTableReferences(db, table, p0)
-                                .itemsRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems
-                                .where((e) => e.categoryKey == item.key),
-                        typedResults: items),
-                  if (entriesRefs)
-                    await $_getPrefetchedData(
-                        currentTable: table,
-                        referencedTable:
-                            $$CategoriesTableReferences._entriesRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$CategoriesTableReferences(db, table, p0)
-                                .entriesRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems
-                                .where((e) => e.categoryKey == item.key),
-                        typedResults: items)
-                ];
+          prefetchHooksCallback:
+              ({
+                subcategoriesRefs = false,
+                itemsRefs = false,
+                entriesRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (subcategoriesRefs) db.subcategories,
+                    if (itemsRefs) db.items,
+                    if (entriesRefs) db.entries,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (subcategoriesRefs)
+                        await $_getPrefetchedData<
+                          Category,
+                          $CategoriesTable,
+                          Subcategory
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CategoriesTableReferences
+                              ._subcategoriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).subcategoriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.categoryKey == item.key,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (itemsRefs)
+                        await $_getPrefetchedData<
+                          Category,
+                          $CategoriesTable,
+                          Item
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CategoriesTableReferences
+                              ._itemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).itemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.categoryKey == item.key,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (entriesRefs)
+                        await $_getPrefetchedData<
+                          Category,
+                          $CategoriesTable,
+                          Entry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CategoriesTableReferences
+                              ._entriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).entriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.categoryKey == item.key,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
-        ));
+        ),
+      );
 }
 
-typedef $$CategoriesTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $CategoriesTable,
-    Category,
-    $$CategoriesTableFilterComposer,
-    $$CategoriesTableOrderingComposer,
-    $$CategoriesTableAnnotationComposer,
-    $$CategoriesTableCreateCompanionBuilder,
-    $$CategoriesTableUpdateCompanionBuilder,
-    (Category, $$CategoriesTableReferences),
-    Category,
-    PrefetchHooks Function(
-        {bool subcategoriesRefs, bool itemsRefs, bool entriesRefs})>;
-typedef $$SubcategoriesTableCreateCompanionBuilder = SubcategoriesCompanion
-    Function({
-  required String key,
-  required String categoryKey,
-  required String labelAr,
-  required String iconName,
-  Value<int> sortOrder,
-  Value<bool> archived,
-  Value<int> rowid,
-});
-typedef $$SubcategoriesTableUpdateCompanionBuilder = SubcategoriesCompanion
-    Function({
-  Value<String> key,
-  Value<String> categoryKey,
-  Value<String> labelAr,
-  Value<String> iconName,
-  Value<int> sortOrder,
-  Value<bool> archived,
-  Value<int> rowid,
-});
+typedef $$CategoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CategoriesTable,
+      Category,
+      $$CategoriesTableFilterComposer,
+      $$CategoriesTableOrderingComposer,
+      $$CategoriesTableAnnotationComposer,
+      $$CategoriesTableCreateCompanionBuilder,
+      $$CategoriesTableUpdateCompanionBuilder,
+      (Category, $$CategoriesTableReferences),
+      Category,
+      PrefetchHooks Function({
+        bool subcategoriesRefs,
+        bool itemsRefs,
+        bool entriesRefs,
+      })
+    >;
+typedef $$SubcategoriesTableCreateCompanionBuilder =
+    SubcategoriesCompanion Function({
+      required String key,
+      required String categoryKey,
+      required String labelAr,
+      required String iconName,
+      Value<int> sortOrder,
+      Value<bool> archived,
+      Value<int> rowid,
+    });
+typedef $$SubcategoriesTableUpdateCompanionBuilder =
+    SubcategoriesCompanion Function({
+      Value<String> key,
+      Value<String> categoryKey,
+      Value<String> labelAr,
+      Value<String> iconName,
+      Value<int> sortOrder,
+      Value<bool> archived,
+      Value<int> rowid,
+    });
 
 final class $$SubcategoriesTableReferences
     extends BaseReferences<_$AppDatabase, $SubcategoriesTable, Subcategory> {
   $$SubcategoriesTableReferences(
-      super.$_db, super.$_table, super.$_typedResult);
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
 
   static $CategoriesTable _categoryKeyTable(_$AppDatabase db) =>
-      db.categories.createAlias($_aliasNameGenerator(
-          db.subcategories.categoryKey, db.categories.key));
+      db.categories.createAlias('subcategories__category_key__categories__key');
 
   $$CategoriesTableProcessedTableManager get categoryKey {
-    final manager = $$CategoriesTableTableManager($_db, $_db.categories)
-        .filter((f) => f.key($_item.categoryKey));
+    final $_column = $_itemColumn<String>('category_key')!;
+
+    final manager = $$CategoriesTableTableManager(
+      $_db,
+      $_db.categories,
+    ).filter((f) => f.key.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_categoryKeyTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 
   static MultiTypedResultKey<$ItemsTable, List<Item>> _itemsRefsTable(
-          _$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(db.items,
-          aliasName: $_aliasNameGenerator(
-              db.subcategories.key, db.items.subcategoryKey));
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.items,
+    aliasName: 'subcategories__key__items__subcategory_key',
+  );
 
   $$ItemsTableProcessedTableManager get itemsRefs {
-    final manager = $$ItemsTableTableManager($_db, $_db.items)
-        .filter((f) => f.subcategoryKey.key($_item.key));
+    final manager = $$ItemsTableTableManager($_db, $_db.items).filter(
+      (f) => f.subcategoryKey.key.sqlEquals($_itemColumn<String>('key')!),
+    );
 
     final cache = $_typedResult.readTableOrNull(_itemsRefsTable($_db));
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 
   static MultiTypedResultKey<$EntriesTable, List<Entry>> _entriesRefsTable(
-          _$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(db.entries,
-          aliasName: $_aliasNameGenerator(
-              db.subcategories.key, db.entries.subcategoryKey));
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.entries,
+    aliasName: 'subcategories__key__entries__subcategory_key',
+  );
 
   $$EntriesTableProcessedTableManager get entriesRefs {
-    final manager = $$EntriesTableTableManager($_db, $_db.entries)
-        .filter((f) => f.subcategoryKey.key($_item.key));
+    final manager = $$EntriesTableTableManager($_db, $_db.entries).filter(
+      (f) => f.subcategoryKey.key.sqlEquals($_itemColumn<String>('key')!),
+    );
 
     final cache = $_typedResult.readTableOrNull(_entriesRefsTable($_db));
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 }
 
@@ -2713,79 +3239,100 @@ class $$SubcategoriesTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get key => $composableBuilder(
-      column: $table.key, builder: (column) => ColumnFilters(column));
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get labelAr => $composableBuilder(
-      column: $table.labelAr, builder: (column) => ColumnFilters(column));
+    column: $table.labelAr,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get iconName => $composableBuilder(
-      column: $table.iconName, builder: (column) => ColumnFilters(column));
+    column: $table.iconName,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
-      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get archived => $composableBuilder(
-      column: $table.archived, builder: (column) => ColumnFilters(column));
+    column: $table.archived,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$CategoriesTableFilterComposer get categoryKey {
     final $$CategoriesTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.categoryKey,
-        referencedTable: $db.categories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$CategoriesTableFilterComposer(
-              $db: $db,
-              $table: $db.categories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.categoryKey,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 
   Expression<bool> itemsRefs(
-      Expression<bool> Function($$ItemsTableFilterComposer f) f) {
+    Expression<bool> Function($$ItemsTableFilterComposer f) f,
+  ) {
     final $$ItemsTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.key,
-        referencedTable: $db.items,
-        getReferencedColumn: (t) => t.subcategoryKey,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ItemsTableFilterComposer(
-              $db: $db,
-              $table: $db.items,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.key,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.subcategoryKey,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 
   Expression<bool> entriesRefs(
-      Expression<bool> Function($$EntriesTableFilterComposer f) f) {
+    Expression<bool> Function($$EntriesTableFilterComposer f) f,
+  ) {
     final $$EntriesTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.key,
-        referencedTable: $db.entries,
-        getReferencedColumn: (t) => t.subcategoryKey,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$EntriesTableFilterComposer(
-              $db: $db,
-              $table: $db.entries,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.key,
+      referencedTable: $db.entries,
+      getReferencedColumn: (t) => t.subcategoryKey,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.entries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
@@ -2800,37 +3347,50 @@ class $$SubcategoriesTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get key => $composableBuilder(
-      column: $table.key, builder: (column) => ColumnOrderings(column));
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get labelAr => $composableBuilder(
-      column: $table.labelAr, builder: (column) => ColumnOrderings(column));
+    column: $table.labelAr,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get iconName => $composableBuilder(
-      column: $table.iconName, builder: (column) => ColumnOrderings(column));
+    column: $table.iconName,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get sortOrder => $composableBuilder(
-      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get archived => $composableBuilder(
-      column: $table.archived, builder: (column) => ColumnOrderings(column));
+    column: $table.archived,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$CategoriesTableOrderingComposer get categoryKey {
     final $$CategoriesTableOrderingComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.categoryKey,
-        referencedTable: $db.categories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$CategoriesTableOrderingComposer(
-              $db: $db,
-              $table: $db.categories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.categoryKey,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
@@ -2861,82 +3421,100 @@ class $$SubcategoriesTableAnnotationComposer
 
   $$CategoriesTableAnnotationComposer get categoryKey {
     final $$CategoriesTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.categoryKey,
-        referencedTable: $db.categories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$CategoriesTableAnnotationComposer(
-              $db: $db,
-              $table: $db.categories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.categoryKey,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 
   Expression<T> itemsRefs<T extends Object>(
-      Expression<T> Function($$ItemsTableAnnotationComposer a) f) {
+    Expression<T> Function($$ItemsTableAnnotationComposer a) f,
+  ) {
     final $$ItemsTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.key,
-        referencedTable: $db.items,
-        getReferencedColumn: (t) => t.subcategoryKey,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ItemsTableAnnotationComposer(
-              $db: $db,
-              $table: $db.items,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.key,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.subcategoryKey,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 
   Expression<T> entriesRefs<T extends Object>(
-      Expression<T> Function($$EntriesTableAnnotationComposer a) f) {
+    Expression<T> Function($$EntriesTableAnnotationComposer a) f,
+  ) {
     final $$EntriesTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.key,
-        referencedTable: $db.entries,
-        getReferencedColumn: (t) => t.subcategoryKey,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$EntriesTableAnnotationComposer(
-              $db: $db,
-              $table: $db.entries,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.key,
+      referencedTable: $db.entries,
+      getReferencedColumn: (t) => t.subcategoryKey,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.entries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
 
-class $$SubcategoriesTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $SubcategoriesTable,
-    Subcategory,
-    $$SubcategoriesTableFilterComposer,
-    $$SubcategoriesTableOrderingComposer,
-    $$SubcategoriesTableAnnotationComposer,
-    $$SubcategoriesTableCreateCompanionBuilder,
-    $$SubcategoriesTableUpdateCompanionBuilder,
-    (Subcategory, $$SubcategoriesTableReferences),
-    Subcategory,
-    PrefetchHooks Function(
-        {bool categoryKey, bool itemsRefs, bool entriesRefs})> {
+class $$SubcategoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SubcategoriesTable,
+          Subcategory,
+          $$SubcategoriesTableFilterComposer,
+          $$SubcategoriesTableOrderingComposer,
+          $$SubcategoriesTableAnnotationComposer,
+          $$SubcategoriesTableCreateCompanionBuilder,
+          $$SubcategoriesTableUpdateCompanionBuilder,
+          (Subcategory, $$SubcategoriesTableReferences),
+          Subcategory,
+          PrefetchHooks Function({
+            bool categoryKey,
+            bool itemsRefs,
+            bool entriesRefs,
+          })
+        > {
   $$SubcategoriesTableTableManager(_$AppDatabase db, $SubcategoriesTable table)
-      : super(TableManagerState(
+    : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -2945,185 +3523,228 @@ class $$SubcategoriesTableTableManager extends RootTableManager<
               $$SubcategoriesTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$SubcategoriesTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> key = const Value.absent(),
-            Value<String> categoryKey = const Value.absent(),
-            Value<String> labelAr = const Value.absent(),
-            Value<String> iconName = const Value.absent(),
-            Value<int> sortOrder = const Value.absent(),
-            Value<bool> archived = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              SubcategoriesCompanion(
-            key: key,
-            categoryKey: categoryKey,
-            labelAr: labelAr,
-            iconName: iconName,
-            sortOrder: sortOrder,
-            archived: archived,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String key,
-            required String categoryKey,
-            required String labelAr,
-            required String iconName,
-            Value<int> sortOrder = const Value.absent(),
-            Value<bool> archived = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              SubcategoriesCompanion.insert(
-            key: key,
-            categoryKey: categoryKey,
-            labelAr: labelAr,
-            iconName: iconName,
-            sortOrder: sortOrder,
-            archived: archived,
-            rowid: rowid,
-          ),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String> categoryKey = const Value.absent(),
+                Value<String> labelAr = const Value.absent(),
+                Value<String> iconName = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> archived = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SubcategoriesCompanion(
+                key: key,
+                categoryKey: categoryKey,
+                labelAr: labelAr,
+                iconName: iconName,
+                sortOrder: sortOrder,
+                archived: archived,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String key,
+                required String categoryKey,
+                required String labelAr,
+                required String iconName,
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> archived = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SubcategoriesCompanion.insert(
+                key: key,
+                categoryKey: categoryKey,
+                labelAr: labelAr,
+                iconName: iconName,
+                sortOrder: sortOrder,
+                archived: archived,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (
-                    e.readTable(table),
-                    $$SubcategoriesTableReferences(db, table, e)
-                  ))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SubcategoriesTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: (
-              {categoryKey = false, itemsRefs = false, entriesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (itemsRefs) db.items,
-                if (entriesRefs) db.entries
-              ],
-              addJoins: <
-                  T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic>>(state) {
-                if (categoryKey) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.categoryKey,
-                    referencedTable:
-                        $$SubcategoriesTableReferences._categoryKeyTable(db),
-                    referencedColumn: $$SubcategoriesTableReferences
-                        ._categoryKeyTable(db)
-                        .key,
-                  ) as T;
-                }
+          prefetchHooksCallback:
+              ({categoryKey = false, itemsRefs = false, entriesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (itemsRefs) db.items,
+                    if (entriesRefs) db.entries,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (categoryKey) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.categoryKey,
+                                    referencedTable:
+                                        $$SubcategoriesTableReferences
+                                            ._categoryKeyTable(db),
+                                    referencedColumn:
+                                        $$SubcategoriesTableReferences
+                                            ._categoryKeyTable(db)
+                                            .key,
+                                  )
+                                  as T;
+                        }
 
-                return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (itemsRefs)
+                        await $_getPrefetchedData<
+                          Subcategory,
+                          $SubcategoriesTable,
+                          Item
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SubcategoriesTableReferences
+                              ._itemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SubcategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).itemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.subcategoryKey == item.key,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (entriesRefs)
+                        await $_getPrefetchedData<
+                          Subcategory,
+                          $SubcategoriesTable,
+                          Entry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SubcategoriesTableReferences
+                              ._entriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SubcategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).entriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.subcategoryKey == item.key,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (itemsRefs)
-                    await $_getPrefetchedData(
-                        currentTable: table,
-                        referencedTable:
-                            $$SubcategoriesTableReferences._itemsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$SubcategoriesTableReferences(db, table, p0)
-                                .itemsRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems
-                                .where((e) => e.subcategoryKey == item.key),
-                        typedResults: items),
-                  if (entriesRefs)
-                    await $_getPrefetchedData(
-                        currentTable: table,
-                        referencedTable: $$SubcategoriesTableReferences
-                            ._entriesRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$SubcategoriesTableReferences(db, table, p0)
-                                .entriesRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems
-                                .where((e) => e.subcategoryKey == item.key),
-                        typedResults: items)
-                ];
-              },
-            );
-          },
-        ));
+        ),
+      );
 }
 
-typedef $$SubcategoriesTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $SubcategoriesTable,
-    Subcategory,
-    $$SubcategoriesTableFilterComposer,
-    $$SubcategoriesTableOrderingComposer,
-    $$SubcategoriesTableAnnotationComposer,
-    $$SubcategoriesTableCreateCompanionBuilder,
-    $$SubcategoriesTableUpdateCompanionBuilder,
-    (Subcategory, $$SubcategoriesTableReferences),
-    Subcategory,
-    PrefetchHooks Function(
-        {bool categoryKey, bool itemsRefs, bool entriesRefs})>;
-typedef $$ItemsTableCreateCompanionBuilder = ItemsCompanion Function({
-  required String id,
-  required String nameAr,
-  required String nameEn,
-  required String categoryKey,
-  Value<String?> subcategoryKey,
-  Value<int?> defaultAmountPiastres,
-  Value<String?> barcode,
-  Value<int> useCount,
-  Value<DateTime?> lastUsedAt,
-  Value<bool> archived,
-  Value<int> rowid,
-});
-typedef $$ItemsTableUpdateCompanionBuilder = ItemsCompanion Function({
-  Value<String> id,
-  Value<String> nameAr,
-  Value<String> nameEn,
-  Value<String> categoryKey,
-  Value<String?> subcategoryKey,
-  Value<int?> defaultAmountPiastres,
-  Value<String?> barcode,
-  Value<int> useCount,
-  Value<DateTime?> lastUsedAt,
-  Value<bool> archived,
-  Value<int> rowid,
-});
+typedef $$SubcategoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SubcategoriesTable,
+      Subcategory,
+      $$SubcategoriesTableFilterComposer,
+      $$SubcategoriesTableOrderingComposer,
+      $$SubcategoriesTableAnnotationComposer,
+      $$SubcategoriesTableCreateCompanionBuilder,
+      $$SubcategoriesTableUpdateCompanionBuilder,
+      (Subcategory, $$SubcategoriesTableReferences),
+      Subcategory,
+      PrefetchHooks Function({
+        bool categoryKey,
+        bool itemsRefs,
+        bool entriesRefs,
+      })
+    >;
+typedef $$ItemsTableCreateCompanionBuilder =
+    ItemsCompanion Function({
+      required String id,
+      required String nameAr,
+      required String nameEn,
+      required String categoryKey,
+      Value<String?> subcategoryKey,
+      Value<int?> defaultAmountPiastres,
+      Value<String?> barcode,
+      Value<int> useCount,
+      Value<DateTime?> lastUsedAt,
+      Value<bool> archived,
+      Value<int> rowid,
+    });
+typedef $$ItemsTableUpdateCompanionBuilder =
+    ItemsCompanion Function({
+      Value<String> id,
+      Value<String> nameAr,
+      Value<String> nameEn,
+      Value<String> categoryKey,
+      Value<String?> subcategoryKey,
+      Value<int?> defaultAmountPiastres,
+      Value<String?> barcode,
+      Value<int> useCount,
+      Value<DateTime?> lastUsedAt,
+      Value<bool> archived,
+      Value<int> rowid,
+    });
 
 final class $$ItemsTableReferences
     extends BaseReferences<_$AppDatabase, $ItemsTable, Item> {
   $$ItemsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $CategoriesTable _categoryKeyTable(_$AppDatabase db) =>
-      db.categories.createAlias(
-          $_aliasNameGenerator(db.items.categoryKey, db.categories.key));
+      db.categories.createAlias('items__category_key__categories__key');
 
   $$CategoriesTableProcessedTableManager get categoryKey {
-    final manager = $$CategoriesTableTableManager($_db, $_db.categories)
-        .filter((f) => f.key($_item.categoryKey));
+    final $_column = $_itemColumn<String>('category_key')!;
+
+    final manager = $$CategoriesTableTableManager(
+      $_db,
+      $_db.categories,
+    ).filter((f) => f.key.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_categoryKeyTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 
-  static $SubcategoriesTable _subcategoryKeyTable(_$AppDatabase db) =>
-      db.subcategories.createAlias(
-          $_aliasNameGenerator(db.items.subcategoryKey, db.subcategories.key));
+  static $SubcategoriesTable _subcategoryKeyTable(_$AppDatabase db) => db
+      .subcategories
+      .createAlias('items__subcategory_key__subcategories__key');
 
   $$SubcategoriesTableProcessedTableManager? get subcategoryKey {
-    if ($_item.subcategoryKey == null) return null;
-    final manager = $$SubcategoriesTableTableManager($_db, $_db.subcategories)
-        .filter((f) => f.key($_item.subcategoryKey!));
+    final $_column = $_itemColumn<String>('subcategory_key');
+    if ($_column == null) return null;
+    final manager = $$SubcategoriesTableTableManager(
+      $_db,
+      $_db.subcategories,
+    ).filter((f) => f.key.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_subcategoryKeyTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 }
 
@@ -3136,67 +3757,88 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get nameAr => $composableBuilder(
-      column: $table.nameAr, builder: (column) => ColumnFilters(column));
+    column: $table.nameAr,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get nameEn => $composableBuilder(
-      column: $table.nameEn, builder: (column) => ColumnFilters(column));
+    column: $table.nameEn,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get defaultAmountPiastres => $composableBuilder(
-      column: $table.defaultAmountPiastres,
-      builder: (column) => ColumnFilters(column));
+    column: $table.defaultAmountPiastres,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get barcode => $composableBuilder(
-      column: $table.barcode, builder: (column) => ColumnFilters(column));
+    column: $table.barcode,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get useCount => $composableBuilder(
-      column: $table.useCount, builder: (column) => ColumnFilters(column));
+    column: $table.useCount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get lastUsedAt => $composableBuilder(
-      column: $table.lastUsedAt, builder: (column) => ColumnFilters(column));
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get archived => $composableBuilder(
-      column: $table.archived, builder: (column) => ColumnFilters(column));
+    column: $table.archived,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$CategoriesTableFilterComposer get categoryKey {
     final $$CategoriesTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.categoryKey,
-        referencedTable: $db.categories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$CategoriesTableFilterComposer(
-              $db: $db,
-              $table: $db.categories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.categoryKey,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 
   $$SubcategoriesTableFilterComposer get subcategoryKey {
     final $$SubcategoriesTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.subcategoryKey,
-        referencedTable: $db.subcategories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$SubcategoriesTableFilterComposer(
-              $db: $db,
-              $table: $db.subcategories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.subcategoryKey,
+      referencedTable: $db.subcategories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubcategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.subcategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
@@ -3211,67 +3853,88 @@ class $$ItemsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get nameAr => $composableBuilder(
-      column: $table.nameAr, builder: (column) => ColumnOrderings(column));
+    column: $table.nameAr,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get nameEn => $composableBuilder(
-      column: $table.nameEn, builder: (column) => ColumnOrderings(column));
+    column: $table.nameEn,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get defaultAmountPiastres => $composableBuilder(
-      column: $table.defaultAmountPiastres,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.defaultAmountPiastres,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get barcode => $composableBuilder(
-      column: $table.barcode, builder: (column) => ColumnOrderings(column));
+    column: $table.barcode,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get useCount => $composableBuilder(
-      column: $table.useCount, builder: (column) => ColumnOrderings(column));
+    column: $table.useCount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get lastUsedAt => $composableBuilder(
-      column: $table.lastUsedAt, builder: (column) => ColumnOrderings(column));
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get archived => $composableBuilder(
-      column: $table.archived, builder: (column) => ColumnOrderings(column));
+    column: $table.archived,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$CategoriesTableOrderingComposer get categoryKey {
     final $$CategoriesTableOrderingComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.categoryKey,
-        referencedTable: $db.categories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$CategoriesTableOrderingComposer(
-              $db: $db,
-              $table: $db.categories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.categoryKey,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 
   $$SubcategoriesTableOrderingComposer get subcategoryKey {
     final $$SubcategoriesTableOrderingComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.subcategoryKey,
-        referencedTable: $db.subcategories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$SubcategoriesTableOrderingComposer(
-              $db: $db,
-              $table: $db.subcategories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.subcategoryKey,
+      referencedTable: $db.subcategories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubcategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.subcategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
@@ -3295,7 +3958,9 @@ class $$ItemsTableAnnotationComposer
       $composableBuilder(column: $table.nameEn, builder: (column) => column);
 
   GeneratedColumn<int> get defaultAmountPiastres => $composableBuilder(
-      column: $table.defaultAmountPiastres, builder: (column) => column);
+    column: $table.defaultAmountPiastres,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get barcode =>
       $composableBuilder(column: $table.barcode, builder: (column) => column);
@@ -3304,66 +3969,78 @@ class $$ItemsTableAnnotationComposer
       $composableBuilder(column: $table.useCount, builder: (column) => column);
 
   GeneratedColumn<DateTime> get lastUsedAt => $composableBuilder(
-      column: $table.lastUsedAt, builder: (column) => column);
+    column: $table.lastUsedAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get archived =>
       $composableBuilder(column: $table.archived, builder: (column) => column);
 
   $$CategoriesTableAnnotationComposer get categoryKey {
     final $$CategoriesTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.categoryKey,
-        referencedTable: $db.categories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$CategoriesTableAnnotationComposer(
-              $db: $db,
-              $table: $db.categories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.categoryKey,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 
   $$SubcategoriesTableAnnotationComposer get subcategoryKey {
     final $$SubcategoriesTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.subcategoryKey,
-        referencedTable: $db.subcategories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$SubcategoriesTableAnnotationComposer(
-              $db: $db,
-              $table: $db.subcategories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.subcategoryKey,
+      referencedTable: $db.subcategories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubcategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.subcategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
 
-class $$ItemsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $ItemsTable,
-    Item,
-    $$ItemsTableFilterComposer,
-    $$ItemsTableOrderingComposer,
-    $$ItemsTableAnnotationComposer,
-    $$ItemsTableCreateCompanionBuilder,
-    $$ItemsTableUpdateCompanionBuilder,
-    (Item, $$ItemsTableReferences),
-    Item,
-    PrefetchHooks Function({bool categoryKey, bool subcategoryKey})> {
+class $$ItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ItemsTable,
+          Item,
+          $$ItemsTableFilterComposer,
+          $$ItemsTableOrderingComposer,
+          $$ItemsTableAnnotationComposer,
+          $$ItemsTableCreateCompanionBuilder,
+          $$ItemsTableUpdateCompanionBuilder,
+          (Item, $$ItemsTableReferences),
+          Item,
+          PrefetchHooks Function({bool categoryKey, bool subcategoryKey})
+        > {
   $$ItemsTableTableManager(_$AppDatabase db, $ItemsTable table)
-      : super(TableManagerState(
+    : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -3372,187 +4049,211 @@ class $$ItemsTableTableManager extends RootTableManager<
               $$ItemsTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$ItemsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> nameAr = const Value.absent(),
-            Value<String> nameEn = const Value.absent(),
-            Value<String> categoryKey = const Value.absent(),
-            Value<String?> subcategoryKey = const Value.absent(),
-            Value<int?> defaultAmountPiastres = const Value.absent(),
-            Value<String?> barcode = const Value.absent(),
-            Value<int> useCount = const Value.absent(),
-            Value<DateTime?> lastUsedAt = const Value.absent(),
-            Value<bool> archived = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              ItemsCompanion(
-            id: id,
-            nameAr: nameAr,
-            nameEn: nameEn,
-            categoryKey: categoryKey,
-            subcategoryKey: subcategoryKey,
-            defaultAmountPiastres: defaultAmountPiastres,
-            barcode: barcode,
-            useCount: useCount,
-            lastUsedAt: lastUsedAt,
-            archived: archived,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String nameAr,
-            required String nameEn,
-            required String categoryKey,
-            Value<String?> subcategoryKey = const Value.absent(),
-            Value<int?> defaultAmountPiastres = const Value.absent(),
-            Value<String?> barcode = const Value.absent(),
-            Value<int> useCount = const Value.absent(),
-            Value<DateTime?> lastUsedAt = const Value.absent(),
-            Value<bool> archived = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              ItemsCompanion.insert(
-            id: id,
-            nameAr: nameAr,
-            nameEn: nameEn,
-            categoryKey: categoryKey,
-            subcategoryKey: subcategoryKey,
-            defaultAmountPiastres: defaultAmountPiastres,
-            barcode: barcode,
-            useCount: useCount,
-            lastUsedAt: lastUsedAt,
-            archived: archived,
-            rowid: rowid,
-          ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> nameAr = const Value.absent(),
+                Value<String> nameEn = const Value.absent(),
+                Value<String> categoryKey = const Value.absent(),
+                Value<String?> subcategoryKey = const Value.absent(),
+                Value<int?> defaultAmountPiastres = const Value.absent(),
+                Value<String?> barcode = const Value.absent(),
+                Value<int> useCount = const Value.absent(),
+                Value<DateTime?> lastUsedAt = const Value.absent(),
+                Value<bool> archived = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ItemsCompanion(
+                id: id,
+                nameAr: nameAr,
+                nameEn: nameEn,
+                categoryKey: categoryKey,
+                subcategoryKey: subcategoryKey,
+                defaultAmountPiastres: defaultAmountPiastres,
+                barcode: barcode,
+                useCount: useCount,
+                lastUsedAt: lastUsedAt,
+                archived: archived,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String nameAr,
+                required String nameEn,
+                required String categoryKey,
+                Value<String?> subcategoryKey = const Value.absent(),
+                Value<int?> defaultAmountPiastres = const Value.absent(),
+                Value<String?> barcode = const Value.absent(),
+                Value<int> useCount = const Value.absent(),
+                Value<DateTime?> lastUsedAt = const Value.absent(),
+                Value<bool> archived = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ItemsCompanion.insert(
+                id: id,
+                nameAr: nameAr,
+                nameEn: nameEn,
+                categoryKey: categoryKey,
+                subcategoryKey: subcategoryKey,
+                defaultAmountPiastres: defaultAmountPiastres,
+                barcode: barcode,
+                useCount: useCount,
+                lastUsedAt: lastUsedAt,
+                archived: archived,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) =>
-                  (e.readTable(table), $$ItemsTableReferences(db, table, e)))
+              .map(
+                (e) =>
+                    (e.readTable(table), $$ItemsTableReferences(db, table, e)),
+              )
               .toList(),
-          prefetchHooksCallback: (
-              {categoryKey = false, subcategoryKey = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins: <
-                  T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic>>(state) {
-                if (categoryKey) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.categoryKey,
-                    referencedTable:
-                        $$ItemsTableReferences._categoryKeyTable(db),
-                    referencedColumn:
-                        $$ItemsTableReferences._categoryKeyTable(db).key,
-                  ) as T;
-                }
-                if (subcategoryKey) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.subcategoryKey,
-                    referencedTable:
-                        $$ItemsTableReferences._subcategoryKeyTable(db),
-                    referencedColumn:
-                        $$ItemsTableReferences._subcategoryKeyTable(db).key,
-                  ) as T;
-                }
+          prefetchHooksCallback:
+              ({categoryKey = false, subcategoryKey = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (categoryKey) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.categoryKey,
+                                    referencedTable: $$ItemsTableReferences
+                                        ._categoryKeyTable(db),
+                                    referencedColumn: $$ItemsTableReferences
+                                        ._categoryKeyTable(db)
+                                        .key,
+                                  )
+                                  as T;
+                        }
+                        if (subcategoryKey) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.subcategoryKey,
+                                    referencedTable: $$ItemsTableReferences
+                                        ._subcategoryKeyTable(db),
+                                    referencedColumn: $$ItemsTableReferences
+                                        ._subcategoryKeyTable(db)
+                                        .key,
+                                  )
+                                  as T;
+                        }
 
-                return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
               },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
-        ));
+        ),
+      );
 }
 
-typedef $$ItemsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $ItemsTable,
-    Item,
-    $$ItemsTableFilterComposer,
-    $$ItemsTableOrderingComposer,
-    $$ItemsTableAnnotationComposer,
-    $$ItemsTableCreateCompanionBuilder,
-    $$ItemsTableUpdateCompanionBuilder,
-    (Item, $$ItemsTableReferences),
-    Item,
-    PrefetchHooks Function({bool categoryKey, bool subcategoryKey})>;
-typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
-  required String id,
-  required String date,
-  required int amountPiastres,
-  required String categoryKey,
-  Value<String?> subcategoryKey,
-  Value<String?> itemId,
-  Value<String> description,
-  Value<String> paymentMethod,
-  Value<String?> photoPath,
-  Value<String> source,
-  Value<String?> note,
-  required DateTime createdAt,
-  required DateTime updatedAt,
-  Value<DateTime?> deletedAt,
-  Value<int> rowid,
-});
-typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
-  Value<String> id,
-  Value<String> date,
-  Value<int> amountPiastres,
-  Value<String> categoryKey,
-  Value<String?> subcategoryKey,
-  Value<String?> itemId,
-  Value<String> description,
-  Value<String> paymentMethod,
-  Value<String?> photoPath,
-  Value<String> source,
-  Value<String?> note,
-  Value<DateTime> createdAt,
-  Value<DateTime> updatedAt,
-  Value<DateTime?> deletedAt,
-  Value<int> rowid,
-});
+typedef $$ItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ItemsTable,
+      Item,
+      $$ItemsTableFilterComposer,
+      $$ItemsTableOrderingComposer,
+      $$ItemsTableAnnotationComposer,
+      $$ItemsTableCreateCompanionBuilder,
+      $$ItemsTableUpdateCompanionBuilder,
+      (Item, $$ItemsTableReferences),
+      Item,
+      PrefetchHooks Function({bool categoryKey, bool subcategoryKey})
+    >;
+typedef $$EntriesTableCreateCompanionBuilder =
+    EntriesCompanion Function({
+      required String id,
+      required String date,
+      required int amountPiastres,
+      required String categoryKey,
+      Value<String?> subcategoryKey,
+      Value<String?> itemId,
+      Value<String> description,
+      Value<String> paymentMethod,
+      Value<String?> photoPath,
+      Value<String> source,
+      Value<String?> note,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$EntriesTableUpdateCompanionBuilder =
+    EntriesCompanion Function({
+      Value<String> id,
+      Value<String> date,
+      Value<int> amountPiastres,
+      Value<String> categoryKey,
+      Value<String?> subcategoryKey,
+      Value<String?> itemId,
+      Value<String> description,
+      Value<String> paymentMethod,
+      Value<String?> photoPath,
+      Value<String> source,
+      Value<String?> note,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
 
 final class $$EntriesTableReferences
     extends BaseReferences<_$AppDatabase, $EntriesTable, Entry> {
   $$EntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $CategoriesTable _categoryKeyTable(_$AppDatabase db) =>
-      db.categories.createAlias(
-          $_aliasNameGenerator(db.entries.categoryKey, db.categories.key));
+      db.categories.createAlias('entries__category_key__categories__key');
 
   $$CategoriesTableProcessedTableManager get categoryKey {
-    final manager = $$CategoriesTableTableManager($_db, $_db.categories)
-        .filter((f) => f.key($_item.categoryKey));
+    final $_column = $_itemColumn<String>('category_key')!;
+
+    final manager = $$CategoriesTableTableManager(
+      $_db,
+      $_db.categories,
+    ).filter((f) => f.key.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_categoryKeyTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 
-  static $SubcategoriesTable _subcategoryKeyTable(_$AppDatabase db) =>
-      db.subcategories.createAlias($_aliasNameGenerator(
-          db.entries.subcategoryKey, db.subcategories.key));
+  static $SubcategoriesTable _subcategoryKeyTable(_$AppDatabase db) => db
+      .subcategories
+      .createAlias('entries__subcategory_key__subcategories__key');
 
   $$SubcategoriesTableProcessedTableManager? get subcategoryKey {
-    if ($_item.subcategoryKey == null) return null;
-    final manager = $$SubcategoriesTableTableManager($_db, $_db.subcategories)
-        .filter((f) => f.key($_item.subcategoryKey!));
+    final $_column = $_itemColumn<String>('subcategory_key');
+    if ($_column == null) return null;
+    final manager = $$SubcategoriesTableTableManager(
+      $_db,
+      $_db.subcategories,
+    ).filter((f) => f.key.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_subcategoryKeyTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 }
 
@@ -3566,79 +4267,108 @@ class $$EntriesTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get date => $composableBuilder(
-      column: $table.date, builder: (column) => ColumnFilters(column));
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get amountPiastres => $composableBuilder(
-      column: $table.amountPiastres,
-      builder: (column) => ColumnFilters(column));
+    column: $table.amountPiastres,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get itemId => $composableBuilder(
-      column: $table.itemId, builder: (column) => ColumnFilters(column));
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get description => $composableBuilder(
-      column: $table.description, builder: (column) => ColumnFilters(column));
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get paymentMethod => $composableBuilder(
-      column: $table.paymentMethod, builder: (column) => ColumnFilters(column));
+    column: $table.paymentMethod,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get photoPath => $composableBuilder(
-      column: $table.photoPath, builder: (column) => ColumnFilters(column));
+    column: $table.photoPath,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get source => $composableBuilder(
-      column: $table.source, builder: (column) => ColumnFilters(column));
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get note => $composableBuilder(
-      column: $table.note, builder: (column) => ColumnFilters(column));
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get deletedAt => $composableBuilder(
-      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$CategoriesTableFilterComposer get categoryKey {
     final $$CategoriesTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.categoryKey,
-        referencedTable: $db.categories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$CategoriesTableFilterComposer(
-              $db: $db,
-              $table: $db.categories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.categoryKey,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 
   $$SubcategoriesTableFilterComposer get subcategoryKey {
     final $$SubcategoriesTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.subcategoryKey,
-        referencedTable: $db.subcategories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$SubcategoriesTableFilterComposer(
-              $db: $db,
-              $table: $db.subcategories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.subcategoryKey,
+      referencedTable: $db.subcategories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubcategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.subcategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
@@ -3653,80 +4383,108 @@ class $$EntriesTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get date => $composableBuilder(
-      column: $table.date, builder: (column) => ColumnOrderings(column));
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get amountPiastres => $composableBuilder(
-      column: $table.amountPiastres,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.amountPiastres,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get itemId => $composableBuilder(
-      column: $table.itemId, builder: (column) => ColumnOrderings(column));
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get description => $composableBuilder(
-      column: $table.description, builder: (column) => ColumnOrderings(column));
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get paymentMethod => $composableBuilder(
-      column: $table.paymentMethod,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.paymentMethod,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get photoPath => $composableBuilder(
-      column: $table.photoPath, builder: (column) => ColumnOrderings(column));
+    column: $table.photoPath,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get source => $composableBuilder(
-      column: $table.source, builder: (column) => ColumnOrderings(column));
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get note => $composableBuilder(
-      column: $table.note, builder: (column) => ColumnOrderings(column));
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
-      column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$CategoriesTableOrderingComposer get categoryKey {
     final $$CategoriesTableOrderingComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.categoryKey,
-        referencedTable: $db.categories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$CategoriesTableOrderingComposer(
-              $db: $db,
-              $table: $db.categories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.categoryKey,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 
   $$SubcategoriesTableOrderingComposer get subcategoryKey {
     final $$SubcategoriesTableOrderingComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.subcategoryKey,
-        referencedTable: $db.subcategories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$SubcategoriesTableOrderingComposer(
-              $db: $db,
-              $table: $db.subcategories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.subcategoryKey,
+      referencedTable: $db.subcategories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubcategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.subcategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
@@ -3747,16 +4505,22 @@ class $$EntriesTableAnnotationComposer
       $composableBuilder(column: $table.date, builder: (column) => column);
 
   GeneratedColumn<int> get amountPiastres => $composableBuilder(
-      column: $table.amountPiastres, builder: (column) => column);
+    column: $table.amountPiastres,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get itemId =>
       $composableBuilder(column: $table.itemId, builder: (column) => column);
 
   GeneratedColumn<String> get description => $composableBuilder(
-      column: $table.description, builder: (column) => column);
+    column: $table.description,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get paymentMethod => $composableBuilder(
-      column: $table.paymentMethod, builder: (column) => column);
+    column: $table.paymentMethod,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get photoPath =>
       $composableBuilder(column: $table.photoPath, builder: (column) => column);
@@ -3778,59 +4542,69 @@ class $$EntriesTableAnnotationComposer
 
   $$CategoriesTableAnnotationComposer get categoryKey {
     final $$CategoriesTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.categoryKey,
-        referencedTable: $db.categories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$CategoriesTableAnnotationComposer(
-              $db: $db,
-              $table: $db.categories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.categoryKey,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 
   $$SubcategoriesTableAnnotationComposer get subcategoryKey {
     final $$SubcategoriesTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.subcategoryKey,
-        referencedTable: $db.subcategories,
-        getReferencedColumn: (t) => t.key,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$SubcategoriesTableAnnotationComposer(
-              $db: $db,
-              $table: $db.subcategories,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.subcategoryKey,
+      referencedTable: $db.subcategories,
+      getReferencedColumn: (t) => t.key,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubcategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.subcategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
 
-class $$EntriesTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $EntriesTable,
-    Entry,
-    $$EntriesTableFilterComposer,
-    $$EntriesTableOrderingComposer,
-    $$EntriesTableAnnotationComposer,
-    $$EntriesTableCreateCompanionBuilder,
-    $$EntriesTableUpdateCompanionBuilder,
-    (Entry, $$EntriesTableReferences),
-    Entry,
-    PrefetchHooks Function({bool categoryKey, bool subcategoryKey})> {
+class $$EntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EntriesTable,
+          Entry,
+          $$EntriesTableFilterComposer,
+          $$EntriesTableOrderingComposer,
+          $$EntriesTableAnnotationComposer,
+          $$EntriesTableCreateCompanionBuilder,
+          $$EntriesTableUpdateCompanionBuilder,
+          (Entry, $$EntriesTableReferences),
+          Entry,
+          PrefetchHooks Function({bool categoryKey, bool subcategoryKey})
+        > {
   $$EntriesTableTableManager(_$AppDatabase db, $EntriesTable table)
-      : super(TableManagerState(
+    : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -3839,157 +4613,173 @@ class $$EntriesTableTableManager extends RootTableManager<
               $$EntriesTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$EntriesTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> date = const Value.absent(),
-            Value<int> amountPiastres = const Value.absent(),
-            Value<String> categoryKey = const Value.absent(),
-            Value<String?> subcategoryKey = const Value.absent(),
-            Value<String?> itemId = const Value.absent(),
-            Value<String> description = const Value.absent(),
-            Value<String> paymentMethod = const Value.absent(),
-            Value<String?> photoPath = const Value.absent(),
-            Value<String> source = const Value.absent(),
-            Value<String?> note = const Value.absent(),
-            Value<DateTime> createdAt = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
-            Value<DateTime?> deletedAt = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              EntriesCompanion(
-            id: id,
-            date: date,
-            amountPiastres: amountPiastres,
-            categoryKey: categoryKey,
-            subcategoryKey: subcategoryKey,
-            itemId: itemId,
-            description: description,
-            paymentMethod: paymentMethod,
-            photoPath: photoPath,
-            source: source,
-            note: note,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            deletedAt: deletedAt,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String date,
-            required int amountPiastres,
-            required String categoryKey,
-            Value<String?> subcategoryKey = const Value.absent(),
-            Value<String?> itemId = const Value.absent(),
-            Value<String> description = const Value.absent(),
-            Value<String> paymentMethod = const Value.absent(),
-            Value<String?> photoPath = const Value.absent(),
-            Value<String> source = const Value.absent(),
-            Value<String?> note = const Value.absent(),
-            required DateTime createdAt,
-            required DateTime updatedAt,
-            Value<DateTime?> deletedAt = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              EntriesCompanion.insert(
-            id: id,
-            date: date,
-            amountPiastres: amountPiastres,
-            categoryKey: categoryKey,
-            subcategoryKey: subcategoryKey,
-            itemId: itemId,
-            description: description,
-            paymentMethod: paymentMethod,
-            photoPath: photoPath,
-            source: source,
-            note: note,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            deletedAt: deletedAt,
-            rowid: rowid,
-          ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> date = const Value.absent(),
+                Value<int> amountPiastres = const Value.absent(),
+                Value<String> categoryKey = const Value.absent(),
+                Value<String?> subcategoryKey = const Value.absent(),
+                Value<String?> itemId = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<String> paymentMethod = const Value.absent(),
+                Value<String?> photoPath = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EntriesCompanion(
+                id: id,
+                date: date,
+                amountPiastres: amountPiastres,
+                categoryKey: categoryKey,
+                subcategoryKey: subcategoryKey,
+                itemId: itemId,
+                description: description,
+                paymentMethod: paymentMethod,
+                photoPath: photoPath,
+                source: source,
+                note: note,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String date,
+                required int amountPiastres,
+                required String categoryKey,
+                Value<String?> subcategoryKey = const Value.absent(),
+                Value<String?> itemId = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<String> paymentMethod = const Value.absent(),
+                Value<String?> photoPath = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EntriesCompanion.insert(
+                id: id,
+                date: date,
+                amountPiastres: amountPiastres,
+                categoryKey: categoryKey,
+                subcategoryKey: subcategoryKey,
+                itemId: itemId,
+                description: description,
+                paymentMethod: paymentMethod,
+                photoPath: photoPath,
+                source: source,
+                note: note,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) =>
-                  (e.readTable(table), $$EntriesTableReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$EntriesTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: (
-              {categoryKey = false, subcategoryKey = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins: <
-                  T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic>>(state) {
-                if (categoryKey) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.categoryKey,
-                    referencedTable:
-                        $$EntriesTableReferences._categoryKeyTable(db),
-                    referencedColumn:
-                        $$EntriesTableReferences._categoryKeyTable(db).key,
-                  ) as T;
-                }
-                if (subcategoryKey) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.subcategoryKey,
-                    referencedTable:
-                        $$EntriesTableReferences._subcategoryKeyTable(db),
-                    referencedColumn:
-                        $$EntriesTableReferences._subcategoryKeyTable(db).key,
-                  ) as T;
-                }
+          prefetchHooksCallback:
+              ({categoryKey = false, subcategoryKey = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (categoryKey) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.categoryKey,
+                                    referencedTable: $$EntriesTableReferences
+                                        ._categoryKeyTable(db),
+                                    referencedColumn: $$EntriesTableReferences
+                                        ._categoryKeyTable(db)
+                                        .key,
+                                  )
+                                  as T;
+                        }
+                        if (subcategoryKey) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.subcategoryKey,
+                                    referencedTable: $$EntriesTableReferences
+                                        ._subcategoryKeyTable(db),
+                                    referencedColumn: $$EntriesTableReferences
+                                        ._subcategoryKeyTable(db)
+                                        .key,
+                                  )
+                                  as T;
+                        }
 
-                return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
               },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
-        ));
+        ),
+      );
 }
 
-typedef $$EntriesTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $EntriesTable,
-    Entry,
-    $$EntriesTableFilterComposer,
-    $$EntriesTableOrderingComposer,
-    $$EntriesTableAnnotationComposer,
-    $$EntriesTableCreateCompanionBuilder,
-    $$EntriesTableUpdateCompanionBuilder,
-    (Entry, $$EntriesTableReferences),
-    Entry,
-    PrefetchHooks Function({bool categoryKey, bool subcategoryKey})>;
-typedef $$SalaryPeriodsTableCreateCompanionBuilder = SalaryPeriodsCompanion
-    Function({
-  required String id,
-  required String datePaid,
-  required int amountPiastres,
-  Value<String?> evidencePhotoPath,
-  Value<String?> note,
-  Value<int> rowid,
-});
-typedef $$SalaryPeriodsTableUpdateCompanionBuilder = SalaryPeriodsCompanion
-    Function({
-  Value<String> id,
-  Value<String> datePaid,
-  Value<int> amountPiastres,
-  Value<String?> evidencePhotoPath,
-  Value<String?> note,
-  Value<int> rowid,
-});
+typedef $$EntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EntriesTable,
+      Entry,
+      $$EntriesTableFilterComposer,
+      $$EntriesTableOrderingComposer,
+      $$EntriesTableAnnotationComposer,
+      $$EntriesTableCreateCompanionBuilder,
+      $$EntriesTableUpdateCompanionBuilder,
+      (Entry, $$EntriesTableReferences),
+      Entry,
+      PrefetchHooks Function({bool categoryKey, bool subcategoryKey})
+    >;
+typedef $$SalaryPeriodsTableCreateCompanionBuilder =
+    SalaryPeriodsCompanion Function({
+      required String id,
+      required String datePaid,
+      required int amountPiastres,
+      Value<String?> evidencePhotoPath,
+      Value<String?> note,
+      Value<int> rowid,
+    });
+typedef $$SalaryPeriodsTableUpdateCompanionBuilder =
+    SalaryPeriodsCompanion Function({
+      Value<String> id,
+      Value<String> datePaid,
+      Value<int> amountPiastres,
+      Value<String?> evidencePhotoPath,
+      Value<String?> note,
+      Value<int> rowid,
+    });
 
 class $$SalaryPeriodsTableFilterComposer
     extends Composer<_$AppDatabase, $SalaryPeriodsTable> {
@@ -4001,21 +4791,29 @@ class $$SalaryPeriodsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get datePaid => $composableBuilder(
-      column: $table.datePaid, builder: (column) => ColumnFilters(column));
+    column: $table.datePaid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get amountPiastres => $composableBuilder(
-      column: $table.amountPiastres,
-      builder: (column) => ColumnFilters(column));
+    column: $table.amountPiastres,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get evidencePhotoPath => $composableBuilder(
-      column: $table.evidencePhotoPath,
-      builder: (column) => ColumnFilters(column));
+    column: $table.evidencePhotoPath,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get note => $composableBuilder(
-      column: $table.note, builder: (column) => ColumnFilters(column));
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SalaryPeriodsTableOrderingComposer
@@ -4028,21 +4826,29 @@ class $$SalaryPeriodsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get datePaid => $composableBuilder(
-      column: $table.datePaid, builder: (column) => ColumnOrderings(column));
+    column: $table.datePaid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get amountPiastres => $composableBuilder(
-      column: $table.amountPiastres,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.amountPiastres,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get evidencePhotoPath => $composableBuilder(
-      column: $table.evidencePhotoPath,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.evidencePhotoPath,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get note => $composableBuilder(
-      column: $table.note, builder: (column) => ColumnOrderings(column));
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SalaryPeriodsTableAnnotationComposer
@@ -4061,32 +4867,40 @@ class $$SalaryPeriodsTableAnnotationComposer
       $composableBuilder(column: $table.datePaid, builder: (column) => column);
 
   GeneratedColumn<int> get amountPiastres => $composableBuilder(
-      column: $table.amountPiastres, builder: (column) => column);
+    column: $table.amountPiastres,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get evidencePhotoPath => $composableBuilder(
-      column: $table.evidencePhotoPath, builder: (column) => column);
+    column: $table.evidencePhotoPath,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
 }
 
-class $$SalaryPeriodsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $SalaryPeriodsTable,
-    SalaryPeriod,
-    $$SalaryPeriodsTableFilterComposer,
-    $$SalaryPeriodsTableOrderingComposer,
-    $$SalaryPeriodsTableAnnotationComposer,
-    $$SalaryPeriodsTableCreateCompanionBuilder,
-    $$SalaryPeriodsTableUpdateCompanionBuilder,
-    (
-      SalaryPeriod,
-      BaseReferences<_$AppDatabase, $SalaryPeriodsTable, SalaryPeriod>
-    ),
-    SalaryPeriod,
-    PrefetchHooks Function()> {
+class $$SalaryPeriodsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SalaryPeriodsTable,
+          SalaryPeriod,
+          $$SalaryPeriodsTableFilterComposer,
+          $$SalaryPeriodsTableOrderingComposer,
+          $$SalaryPeriodsTableAnnotationComposer,
+          $$SalaryPeriodsTableCreateCompanionBuilder,
+          $$SalaryPeriodsTableUpdateCompanionBuilder,
+          (
+            SalaryPeriod,
+            BaseReferences<_$AppDatabase, $SalaryPeriodsTable, SalaryPeriod>,
+          ),
+          SalaryPeriod,
+          PrefetchHooks Function()
+        > {
   $$SalaryPeriodsTableTableManager(_$AppDatabase db, $SalaryPeriodsTable table)
-      : super(TableManagerState(
+    : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -4095,60 +4909,63 @@ class $$SalaryPeriodsTableTableManager extends RootTableManager<
               $$SalaryPeriodsTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$SalaryPeriodsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> datePaid = const Value.absent(),
-            Value<int> amountPiastres = const Value.absent(),
-            Value<String?> evidencePhotoPath = const Value.absent(),
-            Value<String?> note = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              SalaryPeriodsCompanion(
-            id: id,
-            datePaid: datePaid,
-            amountPiastres: amountPiastres,
-            evidencePhotoPath: evidencePhotoPath,
-            note: note,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String datePaid,
-            required int amountPiastres,
-            Value<String?> evidencePhotoPath = const Value.absent(),
-            Value<String?> note = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              SalaryPeriodsCompanion.insert(
-            id: id,
-            datePaid: datePaid,
-            amountPiastres: amountPiastres,
-            evidencePhotoPath: evidencePhotoPath,
-            note: note,
-            rowid: rowid,
-          ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> datePaid = const Value.absent(),
+                Value<int> amountPiastres = const Value.absent(),
+                Value<String?> evidencePhotoPath = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SalaryPeriodsCompanion(
+                id: id,
+                datePaid: datePaid,
+                amountPiastres: amountPiastres,
+                evidencePhotoPath: evidencePhotoPath,
+                note: note,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String datePaid,
+                required int amountPiastres,
+                Value<String?> evidencePhotoPath = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SalaryPeriodsCompanion.insert(
+                id: id,
+                datePaid: datePaid,
+                amountPiastres: amountPiastres,
+                evidencePhotoPath: evidencePhotoPath,
+                note: note,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ));
+        ),
+      );
 }
 
-typedef $$SalaryPeriodsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $SalaryPeriodsTable,
-    SalaryPeriod,
-    $$SalaryPeriodsTableFilterComposer,
-    $$SalaryPeriodsTableOrderingComposer,
-    $$SalaryPeriodsTableAnnotationComposer,
-    $$SalaryPeriodsTableCreateCompanionBuilder,
-    $$SalaryPeriodsTableUpdateCompanionBuilder,
-    (
+typedef $$SalaryPeriodsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SalaryPeriodsTable,
       SalaryPeriod,
-      BaseReferences<_$AppDatabase, $SalaryPeriodsTable, SalaryPeriod>
-    ),
-    SalaryPeriod,
-    PrefetchHooks Function()>;
+      $$SalaryPeriodsTableFilterComposer,
+      $$SalaryPeriodsTableOrderingComposer,
+      $$SalaryPeriodsTableAnnotationComposer,
+      $$SalaryPeriodsTableCreateCompanionBuilder,
+      $$SalaryPeriodsTableUpdateCompanionBuilder,
+      (
+        SalaryPeriod,
+        BaseReferences<_$AppDatabase, $SalaryPeriodsTable, SalaryPeriod>,
+      ),
+      SalaryPeriod,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;

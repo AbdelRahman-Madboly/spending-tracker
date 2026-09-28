@@ -194,7 +194,7 @@ class _NewItemDialogState extends State<NewItemDialog> {
             const SizedBox(height: AppSpacing.sm),
             DropdownButtonFormField<String>(
               key: const Key('new-item-category'),
-              value: _categoryKey,
+              initialValue: _categoryKey,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'الفئة'),
               items: [
@@ -223,7 +223,7 @@ class _NewItemDialogState extends State<NewItemDialog> {
               const SizedBox(height: AppSpacing.sm),
               DropdownButtonFormField<String?>(
                 key: const Key('new-item-subcategory'),
-                value: _subcategoryKey,
+                initialValue: _subcategoryKey,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'الفئة الفرعية'),
                 items: [

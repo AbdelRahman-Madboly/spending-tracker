@@ -241,7 +241,7 @@ class _SubcategoryDialogState extends State<_SubcategoryDialog> {
             const SizedBox(height: AppSpacing.sm),
             DropdownButtonFormField<String>(
               key: const Key('subcategory-dialog-category'),
-              value: _categoryKey,
+              initialValue: _categoryKey,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'القسم'),
               items: [

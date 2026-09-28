@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.5.4
+  sdk: ^3.12.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -32,26 +32,38 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  flutter_bloc: ^8.1.6
+  flutter_bloc: ^9.1.1
   equatable: ^2.0.5
-  get_it: ^7.7.0
-  fl_chart: ^0.69.0
-  intl: ^0.19.0
-  drift: ^2.20.0
-  sqlite3_flutter_libs: ^0.5.24
-  path_provider: ^2.1.4
+  get_it: ^9.3.0
+  fl_chart: ^1.2.0
+  intl: ^0.20.2
+  # drift and drift_dev must be the exact same version: a newer drift with an
+  # older drift_dev breaks the generated migration test helpers.
+  drift: 2.34.0
+  # sqlite3 3.x bundles its own native library through build hooks, replacing
+  # the end-of-life sqlite3_flutter_libs.
+  sqlite3: ^3.0.0
+  path_provider: ^2.1.5
   path: ^1.9.0
-  image_picker: ^1.1.2
-  permission_handler: ^11.3.1
-  mobile_scanner: ^5.2.3
+  image_picker: ^1.2.3
+  permission_handler: ^13.0.2
+  mobile_scanner: ^7.4.2
+  speech_to_text: ^7.5.0
+  record: ^7.1.1
+  just_audio: ^0.10.6
+  google_mlkit_text_recognition: ^0.17.1
+  flutter_secure_storage: ^11.2.0
+  http: ^1.6.0
+  material_symbols_icons: ^4.2960.0
+  quick_actions: ^1.1.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
-  drift_dev: ^2.20.0
-  build_runner: ^2.4.12
-  sqlite3: ^2.4.0
+  flutter_lints: ^6.0.0
+  drift_dev: 2.34.0
+  # 2.16 does not resolve: Flutter 3.44 pins meta 1.18.0.
+  build_runner: ^2.6.0
   flutter_launcher_icons: ^0.14.1
 
 # For information on the generic Dart part of this file, see the
@@ -63,6 +75,8 @@ flutter:
   assets:
     - assets/fonts/
     - assets/seed/
+    - assets/import/
+    - assets/import/evidence/
   fonts:
     - family: IBMPlexSansArabic
       fonts:

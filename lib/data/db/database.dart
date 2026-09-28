@@ -6,7 +6,6 @@ import 'package:drift/native.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
 import 'tables.dart';
 
@@ -246,7 +245,6 @@ Future<void> _seedSubcategories(AppDatabase db) async {
 
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
-    await applyWorkaroundToOpenSqlite3OnOldAndroidVersions();
     final directory = await getApplicationDocumentsDirectory();
     final file = File(p.join(directory.path, 'spending.sqlite'));
     // A background isolate buys nothing here: this is a small, single-user

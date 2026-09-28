@@ -71,8 +71,8 @@ class StatisticsScreen extends StatelessWidget {
               for (final row in rows)
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: colorForCategory(row.key).withOpacity(
-                      0.15,
+                    backgroundColor: colorForCategory(row.key).withValues(
+                      alpha: 0.15,
                     ),
                     child: Icon(
                       iconForName(labelsByKey[row.key]?.iconName ?? ''),

@@ -365,7 +365,7 @@ class _AddSheetState extends State<AddSheet> {
                           color: AppColors.surface,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: AppColors.accent.withOpacity(0.4),
+                            color: AppColors.accent.withValues(alpha: 0.4),
                             width: 2,
                           ),
                         ),

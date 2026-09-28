@@ -38,7 +38,7 @@ class SpendingBarChart extends StatelessWidget {
             BarChartData(
               maxY: maxYPiastres.toDouble(),
               alignment: BarChartAlignment.spaceAround,
-              barTouchData: BarTouchData(enabled: false),
+              barTouchData: const BarTouchData(enabled: false),
               gridData: const FlGridData(show: false),
               borderData: FlBorderData(show: false),
               titlesData: FlTitlesData(

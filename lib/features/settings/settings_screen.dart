@@ -406,7 +406,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: OutlinedButton.styleFrom(
                             backgroundColor: _showArchivedItems
                                 ? null
-                                : AppColors.accent.withOpacity(0.1),
+                                : AppColors.accent.withValues(alpha: 0.1),
                           ),
                           child: const Text('النشطة'),
                         ),
@@ -419,7 +419,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               setState(() => _showArchivedItems = true),
                           style: OutlinedButton.styleFrom(
                             backgroundColor: _showArchivedItems
-                                ? AppColors.accent.withOpacity(0.1)
+                                ? AppColors.accent.withValues(alpha: 0.1)
                                 : null,
                           ),
                           child: const Text('المؤرشفة'),
@@ -572,7 +572,7 @@ class _SectionHeader extends StatelessWidget {
               child: Text(title, style: AppText.title),
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );
