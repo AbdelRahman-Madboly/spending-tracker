@@ -6,3 +6,4 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 __pycache__/
+graphify-out/
