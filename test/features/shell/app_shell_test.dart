@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';
@@ -183,5 +184,50 @@ void main() {
     final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
     // Position 3: the FAB's gap sits at 2.
     expect(bar.selectedIndex, 3);
+  });
+
+  testWidgets(
+    "عرض الكل opens السجل on today again after stepping away from it",
+    (tester) async {
+      await _pump(tester);
+      final seeAll = find.byKey(const Key('today-see-all'));
+      await tester.ensureVisible(seeAll);
+      await tester.tap(seeAll);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('day-previous')));
+      await tester.pumpAndSettle();
+      expect(find.text('أمس'), findsOneWidget);
+
+      await tester.tap(_destination('الرئيسية'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(seeAll);
+      await tester.tap(seeAll);
+      await tester.pumpAndSettle();
+      expect(find.byType(TransactionsScreen), findsOneWidget);
+      expect(find.text('اليوم'), findsOneWidget);
+    },
+  );
+
+  testWidgets('screen readers hear four tabs, not the FAB gap', (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester);
+    expect(find.bySemanticsLabel(RegExp(r'Tab \d of 5')), findsNothing);
+    final labels = ['الرئيسية', 'السجل', 'الإحصائيات', 'الإعدادات'];
+    for (var i = 0; i < labels.length; i++) {
+      expect(
+        find.bySemanticsLabel('${labels[i]}\nTab ${i + 1} of 4'),
+        findsOneWidget,
+      );
+    }
+
+    // The relabelled tabs still switch tabs when activated.
+    final transactions = tester.getSemantics(
+      find.bySemanticsLabel('السجل\nTab 2 of 4'),
+    );
+    expect(
+      transactions.getSemanticsData().hasAction(SemanticsAction.tap),
+      isTrue,
+    );
+    handle.dispose();
   });
 }

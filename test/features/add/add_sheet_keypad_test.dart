@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/barcode_scan_service.dart';
@@ -37,10 +39,23 @@ class _Scanner implements BarcodeScanService {
   }
 }
 
+/// A fixture whose stored settings arrive only when [release] is called,
+/// to race the user against the last payment method loading.
+class _SlowSettings extends FixtureSpendingRepository {
+  final _gate = Completer<void>();
+  void release() => _gate.complete();
+
+  @override
+  Future<String?> setting(String key) async {
+    await _gate.future;
+    return super.setting(key);
+  }
+}
+
 Future<void> _pump(
   WidgetTester tester, {
   FixtureSpendingRepository? repository,
-  ValueChanged<DraftEntry>? onSubmit,
+  FutureOr<void> Function(DraftEntry)? onSubmit,
   AddSheetAction? initialAction,
   PhotoCaptureService? photos,
   BarcodeScanService? scanner,
@@ -285,4 +300,61 @@ void main() {
       expect(tester.getSize(chip).height, greaterThanOrEqualTo(48));
     },
   );
+
+  testWidgets('a quick double tap on حفظ saves once', (tester) async {
+    final pending = Completer<void>();
+    var submits = 0;
+    await _pump(
+      tester,
+      onSubmit: (_) {
+        submits++;
+        return pending.future;
+      },
+    );
+    await tester.tap(find.byKey(const Key('recent-i1')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(_save);
+    await tester.pump();
+    expect(_saveEnabled(tester), isFalse);
+    await tester.tap(_save, warnIfMissed: false);
+    await tester.pump();
+    expect(submits, 1);
+
+    pending.complete();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a failed save says so and lets the user try again', (
+    tester,
+  ) async {
+    await _pump(tester, onSubmit: (_) async => throw StateError('disk full'));
+    await tester.tap(find.byKey(const Key('recent-i1')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(_save);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('save-failed')), findsOneWidget);
+    expect(_saveEnabled(tester), isTrue);
+  });
+
+  testWidgets('a payment method picked before the stored one loads is kept', (
+    tester,
+  ) async {
+    final repository = _SlowSettings();
+    await repository.setSetting(lastPaymentMethodSettingKey, 'InstaPay');
+    DraftEntry? saved;
+    await _pump(tester, repository: repository, onSubmit: (d) => saved = d);
+
+    await _tapChip(tester, 'payment-Card');
+    await tester.pumpAndSettle();
+    repository.release();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('recent-i1')));
+    await tester.pumpAndSettle();
+    await tester.tap(_save);
+    await tester.pumpAndSettle();
+    expect(saved!.paymentMethod, 'Card');
+  });
 }

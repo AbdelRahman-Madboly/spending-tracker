@@ -61,6 +61,17 @@ void main() {
     );
   });
 
+  testWidgets('chip icons stay on the 16/20/24 icon scale (spec §7.2)',
+      (tester) async {
+    await pumpStrip(tester, selectedKey: 'Food', onSelected: (_) {});
+    final sizes = tester
+        .widgetList<Icon>(find.descendant(
+            of: find.byType(CategoryStrip), matching: find.byType(Icon)))
+        .map((icon) => icon.size)
+        .toSet();
+    expect(sizes, everyElement(isIn([16.0, 20.0, 24.0])));
+  });
+
   testWidgets('tapping a category chip selects that category key',
       (tester) async {
     String? selected;

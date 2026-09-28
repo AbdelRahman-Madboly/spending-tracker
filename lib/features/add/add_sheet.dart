@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -45,7 +46,11 @@ String keypadText(int piastres) {
 /// one used. Saving needs an amount above zero and a category.
 class AddSheet extends StatefulWidget {
   final SpendingRepository repository;
-  final ValueChanged<DraftEntry> onSubmit;
+
+  /// Saves the entry. حفظ stays disabled until it completes, so a quick
+  /// double tap cannot save the same spend twice; if it throws, the sheet
+  /// stays open and says the save failed.
+  final FutureOr<void> Function(DraftEntry) onSubmit;
 
   /// Defaults to the real image_picker/permission_handler-backed
   /// implementation; overridable so widget tests can inject a fake — the
@@ -88,6 +93,13 @@ class _AddSheetState extends State<AddSheet> {
   EntrySource _source = EntrySource.manual;
   String _paymentMethod = 'Cash';
 
+  /// True once the user taps a payment chip. The last used method loads
+  /// asynchronously and must not overwrite a choice already made.
+  bool _paymentTouched = false;
+
+  /// True while [widget.onSubmit] runs; حفظ is disabled meanwhile.
+  bool _saving = false;
+
   List<QuickPickItem> _recent = const [];
   List<QuickPickItem> _items = const [];
   List<CategoryView> _categories = const [];
@@ -113,7 +125,7 @@ class _AddSheetState extends State<AddSheet> {
   /// orphaned file under documents/photos/ forever. See [_cleanupAbandonedPhotos].
   final Set<String> _sessionPhotoPaths = {};
 
-  /// Set right before [widget.onSubmit] is called — tells
+  /// Set once [widget.onSubmit] has completed without throwing — tells
   /// [_cleanupAbandonedPhotos] that the sheet's current [_photoPath] (if
   /// any) was actually persisted and must be kept.
   bool _saved = false;
@@ -143,7 +155,9 @@ class _AddSheetState extends State<AddSheet> {
       if (mounted) setState(() => _recent = items);
     });
     widget.repository.setting(lastPaymentMethodSettingKey).then((method) {
-      if (mounted && method != null) setState(() => _paymentMethod = method);
+      if (mounted && method != null && !_paymentTouched) {
+        setState(() => _paymentMethod = method);
+      }
     });
     _loadItems();
     final action = widget.initialAction;
@@ -470,12 +484,9 @@ class _AddSheetState extends State<AddSheet> {
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(52),
                 ),
-                onPressed: draft == null
+                onPressed: draft == null || _saving
                     ? null
-                    : () {
-                        _saved = true;
-                        widget.onSubmit(draft);
-                      },
+                    : () => _submit(draft),
                 child: const Text('حفظ'),
               ),
             ),
@@ -483,6 +494,27 @@ class _AddSheetState extends State<AddSheet> {
         ),
       ),
     );
+  }
+
+  Future<void> _submit(DraftEntry draft) async {
+    setState(() => _saving = true);
+    try {
+      await widget.onSubmit(draft);
+      // Only now is the attached photo part of a saved entry; before, a
+      // failed save would have kept an orphaned file.
+      _saved = true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            key: Key('save-failed'),
+            content: Text('ما اتحفظش المصروف. جرّب تاني.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   String? _colorKeyOf(String? categoryKey) {
@@ -788,7 +820,10 @@ class _AddSheetState extends State<AddSheet> {
               label: label,
               icon: AppIcons.payment,
               selected: _paymentMethod == method,
-              onTap: () => setState(() => _paymentMethod = method),
+              onTap: () => setState(() {
+                _paymentTouched = true;
+                _paymentMethod = method;
+              }),
             ),
         ],
       ),

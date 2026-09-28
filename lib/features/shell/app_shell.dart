@@ -51,6 +51,10 @@ class _AppShellState extends State<AppShell>
   /// The day السجل should show, set when the dashboard sends the user there.
   DateTime? _transactionsDay;
 
+  /// Counts the dashboard's requests, so السجل jumps to the day on every
+  /// one, even when it is the same day as last time.
+  int _transactionsRequest = 0;
+
   late final AnimationController _fade = AnimationController(
     vsync: this,
     duration: AppMotion.sheet,
@@ -78,7 +82,10 @@ class _AppShellState extends State<AppShell>
   }
 
   void _openTransactions(DateTime day) {
-    setState(() => _transactionsDay = day);
+    setState(() {
+      _transactionsDay = day;
+      _transactionsRequest++;
+    });
     _select(AppTab.transactions);
   }
 
@@ -125,10 +132,37 @@ class _AppShellState extends State<AppShell>
       repository: widget.repository,
       clock: widget.clock,
       initialDay: _transactionsDay,
+      dayRequest: _transactionsRequest,
     ),
     AppTab.statistics => StatisticsScreen(repository: widget.repository),
     AppTab.settings => SettingsScreen(repository: widget.repository),
   };
+
+  /// A [NavigationDestination] with its screen-reader label rebuilt.
+  ///
+  /// NavigationBar counts the FAB's gap as a destination, so on its own it
+  /// announces "tab 4 of 5" for الإحصائيات. Its own semantics are dropped
+  /// here and replaced with the real position out of the four tabs, plus
+  /// the selected state and the tap that switches to the tab.
+  Widget _destination(AppTab tab, IconData icon, String label) {
+    final tabLabel = MaterialLocalizations.of(
+      context,
+    ).tabLabel(tabIndex: tab.index + 1, tabCount: AppTab.values.length);
+    return Semantics(
+      container: true,
+      selected: tab == _tab,
+      button: true,
+      label: '$label\n$tabLabel',
+      onTap: () => _select(tab),
+      child: ExcludeSemantics(
+        child: NavigationDestination(
+          icon: Icon(icon),
+          selectedIcon: Icon(icon, fill: 1),
+          label: label,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -175,29 +209,14 @@ class _AppShellState extends State<AppShell>
         onDestinationSelected: (slot) {
           if (slot != _fabSlot) _select(_tabAt(slot));
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(AppIcons.navHome),
-            selectedIcon: Icon(AppIcons.navHome, fill: 1),
-            label: 'الرئيسية',
-          ),
-          NavigationDestination(
-            icon: Icon(AppIcons.navTransactions),
-            selectedIcon: Icon(AppIcons.navTransactions, fill: 1),
-            label: 'السجل',
-          ),
-          // The FAB's gap: an empty slot the FAB docks over.
-          SizedBox(width: 72),
-          NavigationDestination(
-            icon: Icon(AppIcons.navStats),
-            selectedIcon: Icon(AppIcons.navStats, fill: 1),
-            label: 'الإحصائيات',
-          ),
-          NavigationDestination(
-            icon: Icon(AppIcons.navSettings),
-            selectedIcon: Icon(AppIcons.navSettings, fill: 1),
-            label: 'الإعدادات',
-          ),
+        destinations: [
+          _destination(AppTab.home, AppIcons.navHome, 'الرئيسية'),
+          _destination(AppTab.transactions, AppIcons.navTransactions, 'السجل'),
+          // The FAB's gap: an empty slot the FAB docks over. It has no
+          // semantics of its own; see [_destination] for the tab count.
+          const SizedBox(width: 72),
+          _destination(AppTab.statistics, AppIcons.navStats, 'الإحصائيات'),
+          _destination(AppTab.settings, AppIcons.navSettings, 'الإعدادات'),
         ],
       ),
     );

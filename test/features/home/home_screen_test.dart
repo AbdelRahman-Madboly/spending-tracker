@@ -8,6 +8,7 @@ import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/features/home/home_screen.dart';
 import 'package:spending_tracker/features/home/widgets/capture_bar.dart';
+import 'package:spending_tracker/features/home/widgets/range_chart_section.dart';
 
 /// The fixture's frozen "today": its entries are dated 5 and 6 September.
 DateTime _fixtureToday() => DateTime(2026, 9, 6, 12);
@@ -294,6 +295,55 @@ void main() {
     final calls = await _pump(tester, FixtureSpendingRepository());
     await tester.tap(find.byType(BarChart));
     expect(calls.statistics, 1);
+  });
+
+  testWidgets('the trend keeps its chosen range when an entry is saved',
+      (tester) async {
+    final repository = FixtureSpendingRepository();
+    await _pump(tester, repository);
+    await tester.tap(find.text('يوم'));
+    await tester.pumpAndSettle();
+
+    await repository.saveEntry(const DraftEntry(
+      amountPiastres: 2500,
+      description: 'فول',
+      categoryKey: 'Food',
+      source: EntrySource.manual,
+    ));
+    await tester.pump();
+    // The previous chart stays on screen while the new totals load.
+    expect(find.byType(BarChart), findsOneWidget);
+    await tester.pumpAndSettle();
+
+    final control = tester.widget<SegmentedButton<ChartRange>>(
+        find.byKey(const Key('chart-range-control')));
+    expect(control.selected, {ChartRange.day});
+    expect(find.byType(BarChart), findsOneWidget);
+  });
+
+  testWidgets('today moves on at midnight with the app left open',
+      (tester) async {
+    var now = DateTime(2026, 9, 6, 23, 59);
+    await _pump(tester, FixtureSpendingRepository(), clock: () => now);
+    expect(find.text('مفيش مصاريف النهارده'), findsNothing);
+
+    now = DateTime(2026, 9, 7, 0, 1);
+    await tester.pump(const Duration(minutes: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('مفيش مصاريف النهارده'), findsOneWidget);
+  });
+
+  testWidgets('coming back to the app on a new day moves today on',
+      (tester) async {
+    var now = DateTime(2026, 9, 6, 12);
+    await _pump(tester, FixtureSpendingRepository(), clock: () => now);
+    expect(find.text('مفيش مصاريف النهارده'), findsNothing);
+
+    now = DateTime(2026, 9, 7, 9);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.text('مفيش مصاريف النهارده'), findsOneWidget);
   });
 
   test('no widget under lib/features/home hard-codes a 2026 date', () {

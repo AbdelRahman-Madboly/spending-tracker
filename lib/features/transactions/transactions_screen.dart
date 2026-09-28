@@ -42,11 +42,17 @@ class TransactionsScreen extends StatefulWidget {
   /// The day to open on; null opens on today.
   final DateTime? initialDay;
 
+  /// Bumped by the shell on every "show [initialDay]" request. The day
+  /// alone is not enough: asking for today twice, with the user having
+  /// stepped to yesterday in between, passes the same day both times.
+  final int dayRequest;
+
   const TransactionsScreen({
     super.key,
     required this.repository,
     this.clock = DateTime.now,
     this.initialDay,
+    this.dayRequest = 0,
   });
 
   @override
@@ -76,7 +82,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     super.didUpdateWidget(oldWidget);
     // The shell reuses this screen when the dashboard asks for another day.
     final day = widget.initialDay;
-    if (day != null && day != oldWidget.initialDay) _show(day);
+    if (day != null &&
+        (day != oldWidget.initialDay ||
+            widget.dayRequest != oldWidget.dayRequest)) {
+      _show(day);
+    }
   }
 
   void _show(DateTime day) {

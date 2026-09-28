@@ -126,7 +126,7 @@ class SelectableChip extends StatelessWidget {
                   children: [
                     Icon(
                       selected ? AppIcons.check : icon,
-                      size: 18,
+                      size: 16,
                       color: selected ? ink : palette.textSecondary,
                     ),
                     const SizedBox(width: AppSpacing.xs),

@@ -43,7 +43,18 @@ class RangeChartSection extends StatefulWidget {
   final SpendingRepository repository;
   final VoidCallback? onTap;
 
-  const RangeChartSection({super.key, required this.repository, this.onTap});
+  /// Bumped by the parent whenever the underlying data changes. A new
+  /// value refetches the totals but keeps the chosen range and the chart
+  /// already on screen, so saving an entry does not snap the view back to
+  /// شهر or blank it while the new totals load.
+  final int revision;
+
+  const RangeChartSection({
+    super.key,
+    required this.repository,
+    this.onTap,
+    this.revision = 0,
+  });
 
   @override
   State<RangeChartSection> createState() => _RangeChartSectionState();
@@ -80,6 +91,15 @@ class _RangeChartSectionState extends State<RangeChartSection> {
   final _loads = <ChartRange, Future<(List<ChartPoint>, List<int>)>>{};
 
   @override
+  void didUpdateWidget(RangeChartSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.revision != widget.revision ||
+        oldWidget.repository != widget.repository) {
+      _loads.clear();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SectionCard(
       title: 'الصرف',
@@ -111,6 +131,9 @@ class _RangeChartSectionState extends State<RangeChartSection> {
           FutureBuilder<(List<ChartPoint>, List<int>)>(
             // Keyed by range so switching ranges shows a fresh load rather
             // than momentarily reusing the previous range's stale data.
+            // Within one range a new future (a data change) keeps the old
+            // snapshot's data until it completes, so the chart never
+            // collapses to an empty box on a refresh.
             key: ValueKey(_range),
             future: _loads[_range] ??= _load(_range),
             builder: (context, snapshot) {

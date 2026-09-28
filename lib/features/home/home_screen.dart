@@ -63,7 +63,8 @@ typedef _Breakdown = ({
   Map<String, CategoryView> categories,
 });
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver {
   SpendingRepository get _repo => widget.repository;
 
   StreamSubscription<List<PeriodSummary>>? _periodsSub;
@@ -85,10 +86,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<MonthComparison?>? _comparison;
   Future<List<RecurringBillView>>? _bills;
 
+  /// Fires just after the next midnight, so النهارده moves on even when
+  /// the app sits open with no database change to trigger a reload.
+  Timer? _midnight;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _setToday();
+    _scheduleMidnight();
     // Every entry or salary change comes through here, so it doubles as
     // the refresh signal for everything else on the page.
     _periodsSub = _repo.watchPeriods().listen((periods) {
@@ -104,8 +111,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _midnight?.cancel();
     _periodsSub?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // A suspended app's timers do not fire on time, so coming back to the
+    // foreground checks the day as well.
+    if (state == AppLifecycleState.resumed) _checkDay();
+  }
+
+  void _scheduleMidnight() {
+    _midnight?.cancel();
+    final now = widget.clock();
+    final next = DateTime(now.year, now.month, now.day + 1);
+    _midnight =
+        Timer(next.difference(now) + const Duration(seconds: 1), _checkDay);
+  }
+
+  /// Reloads everything tied to today when the calendar day has changed.
+  void _checkDay() {
+    if (!mounted) return;
+    _scheduleMidnight();
+    final now = widget.clock();
+    if (DateTime(now.year, now.month, now.day) == _today) return;
+    // The trend's daily bars shift with the day too.
+    setState(() {
+      _revision++;
+      _reload();
+    });
   }
 
   void _setToday() {
@@ -283,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   key: const Key('trend-section'),
                   child: RangeChartSection(
-                    key: ValueKey('trend-$_revision'),
+                    revision: _revision,
                     repository: _repo,
                     onTap: _openStatistics,
                   ),
