@@ -6,6 +6,7 @@ import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';
 import 'package:spending_tracker/features/home/home_screen.dart';
 import 'package:spending_tracker/features/settings/settings_screen.dart';
+import 'package:spending_tracker/features/shell/app_shell.dart';
 import 'package:spending_tracker/features/statistics/statistics_screen.dart';
 
 /// Colours a widget has set explicitly on text, icons and boxes. Colours
@@ -44,12 +45,15 @@ Set<Color> _modeOnly(AppPalette mine, AppPalette other) {
     mine.primary,
     mine.positive,
     mine.negative,
+    // The hero is dark in both modes, so its text is white in both.
+    mine.onHero,
   };
   return theirs.difference(ours);
 }
 
 void main() {
   final screens = <String, Widget Function(FixtureSpendingRepository)>{
+    'shell': (r) => AppShell(repository: r),
     'home': (r) => HomeScreen(repository: r),
     'statistics': (r) => StatisticsScreen(repository: r),
     'settings': (r) => SettingsScreen(repository: r),

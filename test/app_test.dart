@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/app.dart';
 import 'package:spending_tracker/core/design/tokens.dart';
+import 'package:spending_tracker/features/shell/app_shell.dart';
 
 void main() {
   /// SpendingApp owns a real drift database. Unmount it inside the test
@@ -20,6 +21,8 @@ void main() {
     final context = tester.element(find.byType(Scaffold).first);
     expect(Directionality.of(context), TextDirection.rtl);
     expect(Localizations.localeOf(context).languageCode, 'ar');
+    // The app opens on the navigation shell, home tab first.
+    expect(find.byType(AppShell), findsOneWidget);
 
     await unmount(tester);
   });

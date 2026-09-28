@@ -122,6 +122,11 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   bool get isDark => brightness == Brightness.dark;
 
+  /// Primary text, icons and the today tick on the hero gradient. White in
+  /// both modes: the hero gradient is dark in both, so this is the one
+  /// colour that is the same whichever mode is on.
+  Color get onHero => const Color(0xFFFFFFFF);
+
   /// Elevation level 1 (cards). Light mode lifts cards with a soft
   /// two-layer shadow; dark mode has no shadows at all, because a shadow
   /// on a near-black page is invisible, and outlines cards with
