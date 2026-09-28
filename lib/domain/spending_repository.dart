@@ -1,11 +1,36 @@
 import 'models.dart';
 
 abstract class SpendingRepository {
+  /// The latest salary period, updating as entries and salaries change.
+  /// The same value as the first element of [watchPeriods].
   Stream<PeriodSummary> watchCurrentPeriod();
+
+  /// Every salary period, newest (the current one) first, each with its own
+  /// spend, updating as entries and salaries change. With no salary yet it
+  /// is one empty current period. Two salaries on the same day make one
+  /// period, the later-recorded one's.
+  Stream<List<PeriodSummary>> watchPeriods();
   Stream<List<EntryView>> watchEntriesForDay(DateTime day);
   Future<List<QuickPickItem>> topItems(int limit);
+  /// Saves one entry dated today and remembers its payment method under
+  /// [lastPaymentMethodSettingKey] for the next add.
   Future<void> saveEntry(DraftEntry draft);
+
+  /// Up to [limit] items for the add sheet's recent chips, ranked by
+  /// `useCount × exp(−days since last use / 30)` (spec §6.1), each with its
+  /// [QuickPickItem.lastAmountPiastres]. Never-used items fill any space
+  /// left, in catalogue order.
+  Future<List<QuickPickItem>> recentItems(int limit);
   Future<Map<String, int>> spendByCategoryForPeriod();
+
+  /// Spend per category for the days [start] to [end], both inclusive, or
+  /// from [start] on when [end] is null. Soft-deleted entries excluded.
+  Future<Map<String, int>> spendByCategoryBetween(
+      DateTime start, DateTime? end);
+
+  /// Total spent from [start] to [end], both days inclusive, soft-deleted
+  /// entries excluded.
+  Future<int> spentBetween(DateTime start, DateTime end);
   Future<List<CategoryView>> categories();
 
   /// Non-archived subcategories under [categoryKey], the second level of
@@ -202,11 +227,17 @@ abstract class SpendingRepository {
   // ---- v3: captures, attachments, aliases, settings, recurring bills ----
 
   /// Saves a whole capture atomically: the capture group, one entry per
-  /// line, and the draft's attachments linked to the group. Either all of
+  /// line, and the draft's attachments linked to the group. A draft
+  /// ([CaptureDraft.isDraft]) with lines throws [ArgumentError]. Either all of
   /// it is written or, if anything fails (an unknown category, an import
   /// identity already present), none of it is and the error is rethrown.
   /// Returns the new capture group's id.
   Future<String> saveCapture(CaptureDraft draft);
+
+  /// Draft captures (not reviewed yet), newest first, with their
+  /// attachments, updating as captures are saved or reviewed. The
+  /// dashboard's "needs review" section.
+  Stream<List<CaptureGroupView>> watchDraftCaptures();
 
   /// The capture group with its entries (soft-deleted ones excluded) and
   /// its own attachments, or null if there is no such group.

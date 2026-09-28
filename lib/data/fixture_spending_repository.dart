@@ -322,7 +322,34 @@ class FixtureSpendingRepository implements SpendingRepository {
         salaryPiastres: _salary,
         spentPiastres: _spent,
         daysRemaining: 28,
+        lengthDays: 30,
+        start: DateTime(2026, 9, 4),
+        end: DateTime(2026, 10, 3),
       );
+
+  /// The period before the current one, so the dashboard's period switcher
+  /// has somewhere to go. Every fixture entry falls in the current period,
+  /// so its spend is whatever was added with a date before 4 September.
+  PeriodSummary _previousSummary() {
+    final start = DateTime(2026, 8, 4);
+    final end = DateTime(2026, 9, 3);
+    return PeriodSummary(
+      salaryPiastres: _defaultSalary,
+      spentPiastres: _spentInRange(start, end),
+      daysRemaining: 0,
+      lengthDays: 31,
+      start: start,
+      end: end,
+      isCurrent: false,
+    );
+  }
+
+  @override
+  Stream<List<PeriodSummary>> watchPeriods() async* {
+    List<PeriodSummary> all() => [_summary(), _previousSummary()];
+    yield all();
+    yield* _controller.stream.map((_) => all());
+  }
 
   @override
   Future<void> updateSalary(int amountPiastres) async {
@@ -368,6 +395,43 @@ class FixtureSpendingRepository implements SpendingRepository {
         .toList();
     yield forDay();
     yield* _controller.stream.map((_) => forDay());
+  }
+
+  /// Uses per item id, and the amount of each item's latest entry: the
+  /// fixture's stand-in for `items.useCount` and the entries table, for
+  /// [recentItems].
+  final _useCounts = <String, int>{};
+  final _lastAmounts = <String, int>{};
+
+  void _recordUse(String? itemId, int amountPiastres) {
+    if (itemId == null) return;
+    _useCounts[itemId] = (_useCounts[itemId] ?? 0) + 1;
+    _lastAmounts[itemId] = amountPiastres;
+  }
+
+  /// Ranked by use count alone: the fixture has no clock to decay by.
+  /// Ties keep catalogue order.
+  @override
+  Future<List<QuickPickItem>> recentItems(int limit) async {
+    final live = _items.where((i) => !_archivedItemIds.contains(i.id)).indexed
+        .toList()
+      ..sort((a, b) {
+        final byUse =
+            (_useCounts[b.$2.id] ?? 0).compareTo(_useCounts[a.$2.id] ?? 0);
+        return byUse != 0 ? byUse : a.$1.compareTo(b.$1);
+      });
+    return [
+      for (final (_, i) in live.take(limit))
+        QuickPickItem(
+          id: i.id,
+          nameAr: i.nameAr,
+          categoryKey: i.categoryKey,
+          subcategoryKey: i.subcategoryKey,
+          defaultAmountPiastres: i.defaultAmountPiastres,
+          barcode: i.barcode,
+          lastAmountPiastres: _lastAmounts[i.id],
+        ),
+    ];
   }
 
   @override
@@ -639,6 +703,8 @@ class FixtureSpendingRepository implements SpendingRepository {
         createdAt: DateTime.now(),
       ));
     }
+    _recordUse(draft.itemId, draft.amountPiastres ?? 0);
+    _settings[lastPaymentMethodSettingKey] = draft.paymentMethod ?? 'Cash';
     _controller.add(null);
   }
 
@@ -650,6 +716,23 @@ class FixtureSpendingRepository implements SpendingRepository {
     }
     return map;
   }
+
+  @override
+  Future<Map<String, int>> spendByCategoryBetween(
+      DateTime start, DateTime? end) async {
+    final map = <String, int>{};
+    for (final e in _entries) {
+      if (e.date.isBefore(start) || (end != null && e.date.isAfter(end))) {
+        continue;
+      }
+      map[e.categoryKey] = (map[e.categoryKey] ?? 0) + e.amountPiastres;
+    }
+    return map;
+  }
+
+  @override
+  Future<int> spentBetween(DateTime start, DateTime end) async =>
+      _spentInRange(start, end);
 
   @override
   Future<int> spentInMonth(int year, int month) async {
@@ -735,6 +818,9 @@ class FixtureSpendingRepository implements SpendingRepository {
 
   @override
   Future<String> saveCapture(CaptureDraft draft) async {
+    if (draft.isDraft && draft.lines.isNotEmpty) {
+      throw ArgumentError('a draft capture must not carry lines');
+    }
     // Validate everything first, then write: the fixture's stand-in for the
     // drift repository's single transaction, so a bad line saves nothing.
     final known = await knownExternalIds();
@@ -775,6 +861,7 @@ class FixtureSpendingRepository implements SpendingRepository {
       );
       records.add(record);
       _records[record.id] = record;
+      _recordUse(line.itemId, line.amountPiastres);
       _entries.add(EntryView(
         id: record.id,
         displayName: line.description,
@@ -822,6 +909,29 @@ class FixtureSpendingRepository implements SpendingRepository {
         durationMs: a.durationMs,
         createdAt: now,
       );
+
+  @override
+  Stream<List<CaptureGroupView>> watchDraftCaptures() async* {
+    List<CaptureGroupView> drafts() => [
+          for (final g in _groups.values.toList().reversed)
+            if (g.status == CaptureStatus.draft)
+              CaptureGroupView(
+                id: g.id,
+                kind: g.kind,
+                status: g.status,
+                rawText: g.rawText,
+                cleanText: g.cleanText,
+                parsedBy: g.parsedBy,
+                date: g.date,
+                entries: const [],
+                attachments: _attachments
+                    .where((a) => a.captureGroupId == g.id)
+                    .toList(),
+              ),
+        ];
+    yield drafts();
+    yield* _controller.stream.map((_) => drafts());
+  }
 
   @override
   Future<CaptureGroupView?> captureGroup(String id) async {

@@ -79,28 +79,70 @@ enum AttachmentKind {
       values.firstWhere((k) => k.name == name, orElse: () => file);
 }
 
+/// One salary period: the salary it started with, what was spent in it, and
+/// where today sits inside it.
 class PeriodSummary extends Equatable {
   final int salaryPiastres;
   final int spentPiastres;
   final int daysRemaining;
 
+  /// The period's expected length in days: the gap to the next salary for a
+  /// past period, the usual gap between salaries for the current one.
+  final int lengthDays;
+
+  /// The day the salary was paid. Null when no salary is recorded yet.
+  final DateTime? start;
+
+  /// The period's last day, inclusive. For the current period this is a
+  /// projection (start + [lengthDays] − 1), since the next salary has not
+  /// come yet.
+  final DateTime? end;
+
+  /// False for every period before the latest salary. A past period is
+  /// read-only on the dashboard and shows its final result.
+  final bool isCurrent;
+
   const PeriodSummary({
     required this.salaryPiastres,
     required this.spentPiastres,
     required this.daysRemaining,
+    this.lengthDays = 30,
+    this.start,
+    this.end,
+    this.isCurrent = true,
   });
 
   int get leftPiastres => salaryPiastres - spentPiastres;
 
-  /// Null when nothing is left. A negative daily allowance is noise; the red
-  /// `left` figure already carries the message.
+  /// Null when nothing is left, and for a past period. A negative daily
+  /// allowance is noise; the red `left` figure already carries the message.
   int? get safeDailyPiastres {
-    if (leftPiastres <= 0 || daysRemaining <= 0) return null;
+    if (!isCurrent || leftPiastres <= 0 || daysRemaining <= 0) return null;
     return leftPiastres ~/ daysRemaining;
   }
 
+  int get daysElapsed => lengthDays - daysRemaining;
+
+  /// Where "today" sits in the period, 0..1: the budget bar's today tick.
+  /// A late salary (days remaining below zero) pins it at the end.
+  double get elapsedFraction =>
+      lengthDays <= 0 ? 1 : (daysElapsed / lengthDays).clamp(0.0, 1.0);
+
+  /// Whole percent of the salary spent, rounded down, or null when there
+  /// is no salary to measure against. Can pass 100 when overspent.
+  int? get spentPercent =>
+      salaryPiastres <= 0 ? null : spentPiastres * 100 ~/ salaryPiastres;
+
   @override
-  List<Object?> get props => [salaryPiastres, spentPiastres, daysRemaining];
+  List<Object?> get props => [
+        salaryPiastres,
+        spentPiastres,
+        daysRemaining,
+        lengthDays,
+        start,
+        end,
+        isCurrent,
+      ];
 }
 
 class EntryView extends Equatable {
@@ -178,6 +220,10 @@ class QuickPickItem extends Equatable {
   /// item via `SpendingRepository.itemByBarcode`.
   final String? barcode;
 
+  /// What the item cost the last time it was logged, when it has been
+  /// logged. Only `SpendingRepository.recentItems` fills it in.
+  final int? lastAmountPiastres;
+
   const QuickPickItem({
     required this.id,
     required this.nameAr,
@@ -185,7 +231,14 @@ class QuickPickItem extends Equatable {
     this.defaultAmountPiastres,
     this.subcategoryKey,
     this.barcode,
+    this.lastAmountPiastres,
   });
+
+  /// The amount a tap on this item fills in: the last price paid, else the
+  /// catalogue's default (spec §6.1: prices drift, the last one is the best
+  /// guess for the next).
+  int? get suggestedAmountPiastres =>
+      lastAmountPiastres ?? defaultAmountPiastres;
 
   @override
   List<Object?> get props => [
@@ -195,6 +248,7 @@ class QuickPickItem extends Equatable {
         categoryKey,
         subcategoryKey,
         barcode,
+        lastAmountPiastres,
       ];
 }
 
@@ -272,6 +326,10 @@ class DraftEntry extends Equatable {
         source
       ];
 }
+
+/// The `app_settings` key holding the payment method of the last saved
+/// entry, which the add sheet preselects (spec §6.1).
+const lastPaymentMethodSettingKey = 'last_payment_method';
 
 /// True for a settings key that names a secret (an API key, token, secret
 /// or password). `app_settings` refuses these: secrets live in secure
@@ -385,6 +443,12 @@ class CaptureDraft extends Equatable {
   final List<CaptureLine> lines;
   final List<DraftAttachment> attachments;
 
+  /// Keep the capture for review later ("بعدين") instead of saving it. A
+  /// draft stores its raw text and attachments only: it must carry no
+  /// lines, because a line is an entry and an entry counts toward every
+  /// total before anyone has checked it. Review re-reads the raw text.
+  final bool isDraft;
+
   const CaptureDraft({
     required this.kind,
     required this.date,
@@ -394,11 +458,16 @@ class CaptureDraft extends Equatable {
     this.cleanText,
     this.parsedBy,
     this.attachments = const [],
+    this.isDraft = false,
   });
 
-  /// A capture with lines is `saved`; one without is kept as a `note`.
-  CaptureStatus get status =>
-      lines.isEmpty ? CaptureStatus.note : CaptureStatus.saved;
+  /// A draft is `draft`; otherwise a capture with lines is `saved` and one
+  /// without is kept as a `note`.
+  CaptureStatus get status => isDraft
+      ? CaptureStatus.draft
+      : lines.isEmpty
+          ? CaptureStatus.note
+          : CaptureStatus.saved;
 
   @override
   List<Object?> get props => [
@@ -410,6 +479,7 @@ class CaptureDraft extends Equatable {
         parsedBy,
         lines,
         attachments,
+        isDraft,
       ];
 }
 

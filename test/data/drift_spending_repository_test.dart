@@ -1008,4 +1008,79 @@ void main() {
       expect(['dup-1', 'dup-2'], contains(item!.id));
     });
   });
+
+  group('salary periods (dashboard)', () {
+    test('watchPeriods lists every period newest first with its own spend',
+        () async {
+      await seedSalary(id: 'aug', amount: 900000, datePaid: '2026-08-04');
+      await seedSalary(id: 'sep', amount: 800000, datePaid: '2026-09-04');
+      await seedEntry(id: 'e1', amount: 1000, date: '2026-08-10');
+      await seedEntry(id: 'e2', amount: 500, date: '2026-09-03');
+      await seedEntry(id: 'e3', amount: 2000, date: '2026-09-10');
+      await seedEntry(
+          id: 'e4',
+          amount: 9900,
+          date: '2026-09-11',
+          deletedAt: DateTime(2026, 9, 12));
+
+      final periods = await repo.watchPeriods().first;
+
+      expect(periods, hasLength(2));
+      final current = periods.first;
+      expect(current.isCurrent, isTrue);
+      expect(current.start, DateTime(2026, 9, 4));
+      expect(current.salaryPiastres, 800000);
+      expect(current.spentPiastres, 2000);
+      // One gap of 31 days: the projected end is 31 days on, inclusive.
+      expect(current.lengthDays, 31);
+      expect(current.end, DateTime(2026, 10, 4));
+
+      final past = periods.last;
+      expect(past.isCurrent, isFalse);
+      expect(past.start, DateTime(2026, 8, 4));
+      expect(past.end, DateTime(2026, 9, 3));
+      expect(past.lengthDays, 31);
+      expect(past.salaryPiastres, 900000);
+      expect(past.spentPiastres, 1500);
+      expect(past.daysRemaining, 0);
+    });
+
+    test('watchCurrentPeriod reports the same period as watchPeriods',
+        () async {
+      await seedSalary(id: 'sep', datePaid: '2026-09-04');
+      await seedEntry(id: 'e1', amount: 2000, date: '2026-09-10');
+
+      expect(await repo.watchCurrentPeriod().first,
+          (await repo.watchPeriods().first).first);
+    });
+
+    test('two salaries on the same day make one period, not an empty one',
+        () async {
+      await seedSalary(id: 'a', amount: 900000, datePaid: '2026-09-04');
+      await seedSalary(id: 'b', amount: 750000, datePaid: '2026-09-04');
+
+      final periods = await repo.watchPeriods().first;
+      expect(periods, hasLength(1));
+    });
+
+    test('no salary yet is one empty current period', () async {
+      final periods = await repo.watchPeriods().first;
+      expect(periods, hasLength(1));
+      expect(periods.single.start, isNull);
+      expect(periods.single.salaryPiastres, 0);
+    });
+
+    test('watchPeriods updates when an entry is saved', () async {
+      await seedSalary(datePaid: _fmt(DateTime.now()));
+      final stream = repo.watchPeriods();
+      final seen = <int>[];
+      final sub = stream.listen((p) => seen.add(p.first.spentPiastres));
+      await pumpEventQueue();
+      await repo.saveEntry(const DraftEntry(
+          amountPiastres: 700, categoryKey: 'Food', source: EntrySource.manual));
+      await pumpEventQueue();
+      await sub.cancel();
+      expect(seen.last, 700);
+    });
+  });
 }

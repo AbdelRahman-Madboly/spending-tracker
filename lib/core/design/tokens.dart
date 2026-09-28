@@ -278,3 +278,25 @@ abstract final class AppText {
     fontFeatures: _tabular,
   );
 }
+
+/// Motion tokens (spec §7.3). Exits run on [exit], entries on [enter].
+///
+/// Every animated widget reads its duration through [of], so turning on the
+/// system's "remove animations" setting drops all of them to zero at once.
+abstract final class AppMotion {
+  static const press = Duration(milliseconds: 120);
+  static const chip = Duration(milliseconds: 200);
+  static const sheet = Duration(milliseconds: 280);
+
+  /// The hero figure's count-up, and nothing else.
+  static const countUp = Duration(milliseconds: 400);
+
+  static const enter = Curves.easeOutCubic;
+  static const exit = Curves.easeInCubic;
+
+  /// [duration], or zero when the platform asks for no animations.
+  static Duration of(BuildContext context, Duration duration) =>
+      MediaQuery.maybeDisableAnimationsOf(context) ?? false
+          ? Duration.zero
+          : duration;
+}

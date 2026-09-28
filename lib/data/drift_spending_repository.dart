@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show exp;
 
 import 'package:drift/drift.dart';
 
@@ -31,47 +32,92 @@ class DriftSpendingRepository implements SpendingRepository {
   }
 
   @override
-  Stream<PeriodSummary> watchCurrentPeriod() {
-    final periodsStream = (_db.select(_db.salaryPeriods)
-          ..orderBy([(t) => OrderingTerm.desc(t.datePaid)]))
-        .watch();
+  Stream<PeriodSummary> watchCurrentPeriod() =>
+      watchPeriods().map((periods) => periods.first);
+
+  @override
+  Stream<List<PeriodSummary>> watchPeriods() {
+    final periodsStream = _db.select(_db.salaryPeriods).watch();
     // asyncExpand switches to a fresh `entries` stream whenever the salary
     // periods change, but otherwise keeps forwarding entry-table updates
     // straight through — so this reacts to both tables without a second
     // stream-combining dependency.
     return periodsStream.asyncExpand((periods) {
       return _db.select(_db.entries).watch().map((allEntries) {
-        return _summaryFor(periods, allEntries);
+        return _periodsFor(periods, allEntries);
       });
     });
   }
 
-  PeriodSummary _summaryFor(List<SalaryPeriod> periods, List<Entry> entries) {
-    if (periods.isEmpty) {
-      return const PeriodSummary(
-        salaryPiastres: 0,
-        spentPiastres: 0,
-        daysRemaining: 0,
-      );
+  /// Whole calendar days from [from] to [to] (`YYYY-MM-DD` strings),
+  /// counted in UTC so a daylight-saving change never shaves a day off.
+  static int _daysBetween(String from, String to) {
+    DateTime utc(String s) {
+      final d = DateTime.parse(s);
+      return DateTime.utc(d.year, d.month, d.day);
     }
-    final sorted = [...periods]
-      ..sort((a, b) => b.datePaid.compareTo(a.datePaid));
-    final current = sorted.first;
-    final periodLengthDays = _periodLengthDays(sorted);
-    final elapsed =
-        DateTime.now().difference(DateTime.parse(current.datePaid)).inDays;
-    final daysRemaining = periodLengthDays - elapsed;
 
-    final spent = entries
+    return utc(to).difference(utc(from)).inDays;
+  }
+
+  List<PeriodSummary> _periodsFor(
+      List<SalaryPeriod> periods, List<Entry> entries) {
+    if (periods.isEmpty) {
+      return const [
+        PeriodSummary(salaryPiastres: 0, spentPiastres: 0, daysRemaining: 0),
+      ];
+    }
+    // Newest first; on the same day the later-recorded row (ids are
+    // time-based) wins and the other is dropped, so a same-day correction
+    // never leaves a zero-day period behind.
+    final sorted = [...periods]
+      ..sort((a, b) {
+        final byDate = b.datePaid.compareTo(a.datePaid);
+        return byDate != 0 ? byDate : b.id.compareTo(a.id);
+      });
+    final distinct = <SalaryPeriod>[];
+    for (final p in sorted) {
+      if (distinct.isEmpty || distinct.last.datePaid != p.datePaid) {
+        distinct.add(p);
+      }
+    }
+    final live = entries.where((e) => e.deletedAt == null).toList();
+    int spentFrom(String start, String? endExclusive) => live
         .where((e) =>
-            e.deletedAt == null && e.date.compareTo(current.datePaid) >= 0)
+            e.date.compareTo(start) >= 0 &&
+            (endExclusive == null || e.date.compareTo(endExclusive) < 0))
         .fold(0, (sum, e) => sum + e.amountPiastres);
 
-    return PeriodSummary(
-      salaryPiastres: current.amountPiastres,
-      spentPiastres: spent,
-      daysRemaining: daysRemaining,
-    );
+    final result = <PeriodSummary>[];
+    for (var i = 0; i < distinct.length; i++) {
+      final period = distinct[i];
+      final start = DateTime.parse(period.datePaid);
+      if (i == 0) {
+        final length = _periodLengthDays(distinct);
+        final elapsed = DateTime.now().difference(start).inDays;
+        result.add(PeriodSummary(
+          salaryPiastres: period.amountPiastres,
+          spentPiastres: spentFrom(period.datePaid, null),
+          daysRemaining: length - elapsed,
+          lengthDays: length,
+          start: start,
+          end: DateTime(start.year, start.month, start.day + length - 1),
+        ));
+      } else {
+        final nextStart = distinct[i - 1].datePaid;
+        final next = DateTime.parse(nextStart);
+        result.add(PeriodSummary(
+          salaryPiastres: period.amountPiastres,
+          spentPiastres: spentFrom(period.datePaid, nextStart),
+          daysRemaining: 0,
+          lengthDays: _daysBetween(period.datePaid, nextStart),
+          start: start,
+          end: DateTime(next.year, next.month, next.day - 1),
+          isCurrent: false,
+        ));
+      }
+    }
+    return result;
   }
 
   /// Median gap (in days) between the last three salary payments, clamped
@@ -82,9 +128,7 @@ class DriftSpendingRepository implements SpendingRepository {
     final lastThree = sortedDesc.take(3).toList();
     final gaps = <int>[];
     for (var i = 0; i < lastThree.length - 1; i++) {
-      final later = DateTime.parse(lastThree[i].datePaid);
-      final earlier = DateTime.parse(lastThree[i + 1].datePaid);
-      gaps.add(later.difference(earlier).inDays);
+      gaps.add(_daysBetween(lastThree[i + 1].datePaid, lastThree[i].datePaid));
     }
     gaps.sort();
     final mid = gaps.length ~/ 2;
@@ -129,6 +173,57 @@ class DriftSpendingRepository implements SpendingRepository {
           ..where((t) => t.archived.equals(false)))
         .get();
     return _topScored(rows, limit);
+  }
+
+  @override
+  Future<List<QuickPickItem>> recentItems(int limit) async {
+    final rows = await (_db.select(_db.items)
+          ..where((t) => t.archived.equals(false))
+          ..orderBy([(t) => OrderingTerm.asc(t.rowId)]))
+        .get();
+    final now = DateTime.now();
+    double score(Item item) {
+      final lastUsedAt = item.lastUsedAt;
+      if (lastUsedAt == null) return 0;
+      final days = now.difference(lastUsedAt).inHours / 24;
+      return item.useCount * exp(-(days < 0 ? 0 : days) / 30);
+    }
+
+    // Index as the tie-break: List.sort is not stable, and never-used items
+    // (all scoring 0) should keep catalogue order.
+    final ranked = rows.indexed.toList()
+      ..sort((a, b) {
+        final byScore = score(b.$2).compareTo(score(a.$2));
+        return byScore != 0 ? byScore : a.$1.compareTo(b.$1);
+      });
+    final top = ranked.take(limit).map((r) => r.$2).toList();
+    if (top.isEmpty) return const [];
+
+    final lastEntries = await (_db.select(_db.entries)
+          ..where((t) =>
+              t.itemId.isIn(top.map((i) => i.id)) & t.deletedAt.isNull())
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.date),
+            (t) => OrderingTerm.desc(t.createdAt),
+            (t) => OrderingTerm.desc(t.rowId),
+          ]))
+        .get();
+    final lastAmount = <String, int>{};
+    for (final e in lastEntries) {
+      lastAmount.putIfAbsent(e.itemId!, () => e.amountPiastres);
+    }
+    return [
+      for (final i in top)
+        QuickPickItem(
+          id: i.id,
+          nameAr: i.nameAr,
+          categoryKey: i.categoryKey,
+          subcategoryKey: i.subcategoryKey,
+          defaultAmountPiastres: i.defaultAmountPiastres,
+          barcode: i.barcode,
+          lastAmountPiastres: lastAmount[i.id],
+        ),
+    ];
   }
 
   @override
@@ -305,6 +400,10 @@ class DriftSpendingRepository implements SpendingRepository {
         );
       }
       await _bumpItemUse(draft.itemId, now);
+      await _db.into(_db.appSettings).insertOnConflictUpdate(
+          AppSettingsCompanion.insert(
+              key: lastPaymentMethodSettingKey,
+              value: draft.paymentMethod ?? 'Cash'));
     });
   }
 
@@ -341,6 +440,31 @@ class DriftSpendingRepository implements SpendingRepository {
     }
     return map;
   }
+
+  @override
+  Future<Map<String, int>> spendByCategoryBetween(
+      DateTime start, DateTime? end) async {
+    final startStr = _formatDate(start);
+    final endStr = end == null ? null : _formatDate(end);
+    final rows = await (_db.select(_db.entries)
+          ..where((t) {
+            final from =
+                t.date.isBiggerOrEqualValue(startStr) & t.deletedAt.isNull();
+            return endStr == null
+                ? from
+                : from & t.date.isSmallerOrEqualValue(endStr);
+          }))
+        .get();
+    final map = <String, int>{};
+    for (final e in rows) {
+      map[e.categoryKey] = (map[e.categoryKey] ?? 0) + e.amountPiastres;
+    }
+    return map;
+  }
+
+  @override
+  Future<int> spentBetween(DateTime start, DateTime end) =>
+      _spentInRange(start, end);
 
   @override
   Future<int> spentInMonth(int year, int month) async {
@@ -711,6 +835,9 @@ class DriftSpendingRepository implements SpendingRepository {
 
   @override
   Future<String> saveCapture(CaptureDraft draft) async {
+    if (draft.isDraft && draft.lines.isNotEmpty) {
+      throw ArgumentError('a draft capture must not carry lines');
+    }
     final now = DateTime.now();
     final groupId = _newId();
     final date = _formatDate(draft.date);
@@ -758,6 +885,45 @@ class DriftSpendingRepository implements SpendingRepository {
       }
     });
     return groupId;
+  }
+
+  @override
+  Stream<List<CaptureGroupView>> watchDraftCaptures() {
+    final drafts = (_db.select(_db.captureGroups)
+          ..where((t) => t.status.equals(CaptureStatus.draft.name))
+          // createdAt is stored in whole seconds: rowid orders two drafts
+          // captured within the same second.
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.createdAt),
+            (t) => OrderingTerm.desc(t.rowId),
+          ]))
+        .watch();
+    return drafts.asyncMap((groups) async {
+      final ids = groups.map((g) => g.id).toList();
+      final attachments = ids.isEmpty
+          ? const <Attachment>[]
+          : await (_db.select(_db.attachments)
+                ..where((t) => t.captureGroupId.isIn(ids))
+                ..orderBy([(t) => OrderingTerm.asc(t.rowId)]))
+              .get();
+      return [
+        for (final g in groups)
+          CaptureGroupView(
+            id: g.id,
+            kind: CaptureKind.fromName(g.kind),
+            status: CaptureStatus.fromName(g.status),
+            rawText: g.rawText,
+            cleanText: g.cleanText,
+            parsedBy: g.parsedBy,
+            date: DateTime.parse(g.date),
+            entries: const [],
+            attachments: [
+              for (final a in attachments)
+                if (a.captureGroupId == g.id) _attachmentView(a),
+            ],
+          ),
+      ];
+    });
   }
 
   @override

@@ -403,5 +403,118 @@ void runV3RepositoryContract(
           (await repo.categories()).firstWhere((c) => c.key == 'cat-1').colorKey,
           'Drinks');
     });
+
+    // ---- dashboard and add sheet (B1) ----
+
+    test('a draft capture is kept with no entries and listed for review',
+        () async {
+      final spentBefore = await repo.spentBetween(
+          DateTime(2026, 9, 21), DateTime(2026, 9, 21));
+      final older = await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.voice,
+        date: DateTime(2026, 9, 21),
+        rawText: 'عيش ب ١٠',
+        lines: const [],
+        isDraft: true,
+        attachments: const [
+          DraftAttachment(
+              kind: AttachmentKind.voice, path: 'attachments/2026-09/a.m4a'),
+        ],
+      ));
+      final newer = await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.text,
+        date: DateTime(2026, 9, 21),
+        rawText: 'طماطم ٣٠',
+        lines: const [],
+        isDraft: true,
+      ));
+      await repo.saveCapture(twoLines());
+
+      final drafts = await repo.watchDraftCaptures().first;
+      expect(drafts.map((d) => d.id), [newer, older]);
+      expect(drafts.every((d) => d.status == CaptureStatus.draft), isTrue);
+      expect(drafts.last.rawText, 'عيش ب ١٠');
+      expect(drafts.last.attachments.single.kind, AttachmentKind.voice);
+      // Nothing unreviewed counts toward a total.
+      expect(
+          await repo.spentBetween(
+              DateTime(2026, 9, 21), DateTime(2026, 9, 21)),
+          spentBefore);
+    });
+
+    test('a draft may not carry lines: they would count before review',
+        () async {
+      await expectLater(
+        repo.saveCapture(CaptureDraft(
+          kind: CaptureKind.text,
+          date: DateTime(2026, 9, 21),
+          isDraft: true,
+          lines: const [
+            CaptureLine(
+                amountPiastres: 100, categoryKey: 'Food', description: 'x'),
+          ],
+        )),
+        throwsArgumentError,
+      );
+      expect(await repo.watchDraftCaptures().first, isEmpty);
+    });
+
+    test('spentBetween and spendByCategoryBetween count whole days inclusive',
+        () async {
+      final day = DateTime(2026, 9, 20);
+      final before = await repo.spentBetween(day, day);
+      final foodBefore =
+          (await repo.spendByCategoryBetween(day, day))['Food'] ?? 0;
+      final nextDays =
+          await repo.spentBetween(DateTime(2026, 9, 21), DateTime(2026, 9, 30));
+
+      await repo.saveCapture(twoLines());
+
+      expect(await repo.spentBetween(day, day), before + 4000);
+      expect((await repo.spendByCategoryBetween(day, day))['Food'],
+          foodBefore + 4000);
+      // An open end counts everything from the start on.
+      expect(
+          (await repo.spendByCategoryBetween(day, null))['Food'],
+          greaterThanOrEqualTo(foodBefore + 4000));
+      expect(
+          await repo.spentBetween(DateTime(2026, 9, 21), DateTime(2026, 9, 30)),
+          nextDays);
+    });
+
+    test('saveEntry remembers the payment method for the next add', () async {
+      expect(await repo.setting(lastPaymentMethodSettingKey), isNull);
+      final item = (await repo.topItems(1)).single;
+      await repo.saveEntry(DraftEntry(
+        amountPiastres: 500,
+        itemId: item.id,
+        description: item.nameAr,
+        categoryKey: item.categoryKey,
+        paymentMethod: 'InstaPay',
+        source: EntrySource.quickPick,
+      ));
+      expect(await repo.setting(lastPaymentMethodSettingKey), 'InstaPay');
+    });
+
+    test('recentItems puts the last used item first with its last price',
+        () async {
+      final items = await repo.topItems(2);
+      final used = items.last;
+      for (final amount in [1500, 1750]) {
+        await repo.saveEntry(DraftEntry(
+          amountPiastres: amount,
+          itemId: used.id,
+          description: used.nameAr,
+          categoryKey: used.categoryKey,
+          source: EntrySource.quickPick,
+        ));
+      }
+
+      final recent = await repo.recentItems(8);
+      expect(recent.length, lessThanOrEqualTo(8));
+      expect(recent.first.id, used.id);
+      expect(recent.first.lastAmountPiastres, 1750);
+      expect(recent.first.suggestedAmountPiastres, 1750);
+    });
   });
 }
