@@ -72,15 +72,18 @@ void main() {
     expect(find.byType(TransactionsScreen), findsOneWidget);
     expect(find.byType(HomeScreen), findsNothing); // offstage
 
-    // Step back a day, go elsewhere and come back: still on أمس.
-    await tester.tap(find.byKey(const Key('day-previous')));
+    // Search, go elsewhere and come back: the search is still there.
+    await tester.tap(find.byKey(const Key('transactions-search')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byKey(const Key('transactions-search-field')), 'لبن');
     await tester.pumpAndSettle();
     await tester.tap(_destination('الإحصائيات'));
     await tester.pumpAndSettle();
     expect(find.byType(StatisticsScreen), findsOneWidget);
     await tester.tap(_destination('السجل'));
     await tester.pumpAndSettle();
-    expect(find.text('أمس'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'لبن'), findsOneWidget);
 
     await tester.tap(_destination('الإعدادات'));
     await tester.pumpAndSettle();

@@ -25,10 +25,9 @@ String normalizeForSearch(String input) {
 /// in different fields so "طماطم كيلو" finds an entry named طماطم whose
 /// transcript says "اتنين كيلو".
 bool matchesSearch(String query, Iterable<String?> fields) {
-  final words = normalizeForSearch(query)
-      .split(' ')
-      .where((w) => w.isNotEmpty)
-      .toList();
+  final words = normalizeForSearch(
+    query,
+  ).split(' ').where((w) => w.isNotEmpty).toList();
   if (words.isEmpty) return true;
   final haystack = [
     for (final f in fields)

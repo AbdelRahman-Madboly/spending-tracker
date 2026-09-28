@@ -63,7 +63,9 @@ void main() {
 
     test('a date range keeps its first and last day', () {
       final filter = TransactionFilter(
-          from: DateTime(2026, 9, 10), to: DateTime(2026, 9, 12));
+        from: DateTime(2026, 9, 10),
+        to: DateTime(2026, 9, 12),
+      );
       expect(filter.matches(_t('a', date: DateTime(2026, 9, 10))), isTrue);
       expect(filter.matches(_t('a', date: DateTime(2026, 9, 12))), isTrue);
       expect(filter.matches(_t('a', date: DateTime(2026, 9, 9))), isFalse);
@@ -76,30 +78,40 @@ void main() {
         paymentMethods: {'InstaPay'},
       );
       expect(filter.matches(_t('a', payment: 'InstaPay')), isTrue);
-      expect(filter.matches(_t('a', category: 'Drinks', payment: 'InstaPay')),
-          isTrue);
-      expect(filter.matches(_t('a', category: 'Bills', payment: 'InstaPay')),
-          isFalse);
+      expect(
+        filter.matches(_t('a', category: 'Drinks', payment: 'InstaPay')),
+        isTrue,
+      );
+      expect(
+        filter.matches(_t('a', category: 'Bills', payment: 'InstaPay')),
+        isFalse,
+      );
       expect(filter.matches(_t('a')), isFalse);
     });
 
     test('has-attachment matches an entry with any of the chosen kinds', () {
-      const filter =
-          TransactionFilter(attachmentKinds: {AttachmentKind.voice});
+      const filter = TransactionFilter(attachmentKinds: {AttachmentKind.voice});
       expect(filter.matches(_t('a', kinds: {AttachmentKind.voice})), isTrue);
       expect(filter.matches(_t('a', kinds: {AttachmentKind.photo})), isFalse);
       expect(filter.matches(_t('a')), isFalse);
     });
 
     test('isSingleDay is true only for a one-day range', () {
-      expect(TransactionFilter.day(DateTime(2026, 9, 5, 18)).isSingleDay,
-          isTrue);
-      expect(TransactionFilter.day(DateTime(2026, 9, 5, 18)).from,
-          DateTime(2026, 9, 5));
       expect(
-          TransactionFilter(from: DateTime(2026, 9, 5), to: DateTime(2026, 9, 6))
-              .isSingleDay,
-          isFalse);
+        TransactionFilter.day(DateTime(2026, 9, 5, 18)).isSingleDay,
+        isTrue,
+      );
+      expect(
+        TransactionFilter.day(DateTime(2026, 9, 5, 18)).from,
+        DateTime(2026, 9, 5),
+      );
+      expect(
+        TransactionFilter(
+          from: DateTime(2026, 9, 5),
+          to: DateTime(2026, 9, 6),
+        ).isSingleDay,
+        isFalse,
+      );
     });
   });
 
@@ -110,8 +122,10 @@ void main() {
         _t('b', date: DateTime(2026, 9, 20), amount: 1000),
         _t('c', date: DateTime(2026, 9, 20), amount: 250),
       ]);
-      expect(days.map((d) => d.day),
-          [DateTime(2026, 9, 20), DateTime(2026, 9, 19)]);
+      expect(days.map((d) => d.day), [
+        DateTime(2026, 9, 20),
+        DateTime(2026, 9, 19),
+      ]);
       expect(days.first.totalPiastres, 1250);
       expect(days.last.totalPiastres, 500);
     });
@@ -122,8 +136,10 @@ void main() {
         _t('early', createdAt: day.add(const Duration(hours: 8))),
         _t('late', createdAt: day.add(const Duration(hours: 20))),
       ]).single.rows;
-      expect(rows.map((r) => (r as SingleTransactionRow).entry.id),
-          ['late', 'early']);
+      expect(rows.map((r) => (r as SingleTransactionRow).entry.id), [
+        'late',
+        'early',
+      ]);
     });
 
     test('lines sharing a capture group make one parent row', () {
@@ -131,8 +147,7 @@ void main() {
       final at = day.add(const Duration(hours: 10));
       final rows = groupTransactions([
         _t('solo', createdAt: day.add(const Duration(hours: 9))),
-        _t('g1', description: 'طماطم', amount: 3000, group: 'G',
-            createdAt: at),
+        _t('g1', description: 'طماطم', amount: 3000, group: 'G', createdAt: at),
         _t('g2', description: 'عيش', amount: 1000, group: 'G', createdAt: at),
         _t('g3', description: 'جبنة', amount: 500, group: 'G', createdAt: at),
       ]).single.rows;
@@ -156,6 +171,37 @@ void main() {
     test('names the first line and counts the rest', () {
       expect(captureGroupTitle(['طماطم', 'عيش']), 'طماطم و 1 أخرى');
       expect(captureGroupTitle(['طماطم']), 'طماطم');
+    });
+  });
+
+  group('formatClock', () {
+    test('is a 12-hour time with ص or م, in Latin digits', () {
+      expect(formatClock(DateTime(2026, 9, 20, 9, 5)), '9:05 ص');
+      expect(formatClock(DateTime(2026, 9, 20, 21, 30)), '9:30 م');
+      expect(formatClock(DateTime(2026, 9, 20, 0, 0)), '12:00 ص');
+      expect(formatClock(DateTime(2026, 9, 20, 12, 15)), '12:15 م');
+    });
+  });
+
+  group('formatFullDate', () {
+    test('is the weekday, day, month and year', () {
+      expect(formatFullDate(DateTime(2026, 9, 6)), 'الأحد 6 سبتمبر 2026');
+      expect(formatFullDate(DateTime(2026, 9, 21)), 'الإثنين 21 سبتمبر 2026');
+    });
+  });
+
+  group('addMonthsClamped', () {
+    test('keeps the day of month where the month has it', () {
+      expect(addMonthsClamped(DateTime(2026, 9, 6), 1), DateTime(2026, 10, 6));
+      expect(
+        addMonthsClamped(DateTime(2026, 12, 15), 1),
+        DateTime(2027, 1, 15),
+      );
+    });
+
+    test('falls back to the last day of a shorter month', () {
+      expect(addMonthsClamped(DateTime(2026, 1, 31), 1), DateTime(2026, 2, 28));
+      expect(addMonthsClamped(DateTime(2026, 3, 31), 1), DateTime(2026, 4, 30));
     });
   });
 }

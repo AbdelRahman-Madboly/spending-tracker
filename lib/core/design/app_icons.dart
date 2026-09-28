@@ -121,6 +121,20 @@ abstract final class AppIcons {
   static const backspace = Symbols.backspace_rounded;
   static const payment = Symbols.payments_rounded;
 
+  // السجل and the entry detail sheet.
+  static const search = Symbols.search_rounded;
+  static const delete = Symbols.delete_rounded;
+  static const edit = Symbols.edit_rounded;
+  static const calendar = Symbols.calendar_month_rounded;
+  static const duplicate = Symbols.content_copy_rounded;
+  static const repeat = Symbols.event_repeat_rounded;
+  static const attach = Symbols.attach_file_rounded;
+  static const play = Symbols.play_arrow_rounded;
+  static const pause = Symbols.pause_rounded;
+  static const checkCircle = Symbols.check_circle_rounded;
+  static const recategorize = Symbols.drive_file_move_rounded;
+  static const filter = Symbols.filter_list_rounded;
+
   /// Chevrons pointing toward the start and the end side. Both carry
   /// `matchTextDirection`, so "left" draws pointing right in the app's
   /// right-to-left layout, toward the start.

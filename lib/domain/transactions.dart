@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import 'dashboard.dart' show arabicMonthName;
 import 'models.dart';
 import 'search.dart';
 
@@ -76,15 +77,14 @@ class TransactionFilter extends Equatable {
     Set<String>? categoryKeys,
     Set<String>? paymentMethods,
     Set<AttachmentKind>? attachmentKinds,
-  }) =>
-      TransactionFilter(
-        query: query ?? this.query,
-        from: from,
-        to: to,
-        categoryKeys: categoryKeys ?? this.categoryKeys,
-        paymentMethods: paymentMethods ?? this.paymentMethods,
-        attachmentKinds: attachmentKinds ?? this.attachmentKinds,
-      );
+  }) => TransactionFilter(
+    query: query ?? this.query,
+    from: from,
+    to: to,
+    categoryKeys: categoryKeys ?? this.categoryKeys,
+    paymentMethods: paymentMethods ?? this.paymentMethods,
+    attachmentKinds: attachmentKinds ?? this.attachmentKinds,
+  );
 
   TransactionFilter withRange(DateTime? from, DateTime? to) =>
       TransactionFilter(
@@ -97,8 +97,51 @@ class TransactionFilter extends Equatable {
       );
 
   @override
-  List<Object?> get props =>
-      [query, from, to, categoryKeys, paymentMethods, attachmentKinds];
+  List<Object?> get props => [
+    query,
+    from,
+    to,
+    categoryKeys,
+    paymentMethods,
+    attachmentKinds,
+  ];
+}
+
+const _arabicWeekdays = [
+  'الإثنين',
+  'الثلاثاء',
+  'الأربعاء',
+  'الخميس',
+  'الجمعة',
+  'السبت',
+  'الأحد',
+];
+
+/// The Arabic name of a [DateTime.weekday] (1 is Monday).
+String arabicWeekdayName(int weekday) => _arabicWeekdays[weekday - 1];
+
+/// `الأحد 6 سبتمبر 2026`: the entry detail's date field.
+String formatFullDate(DateTime d) =>
+    '${arabicWeekdayName(d.weekday)} ${d.day} ${arabicMonthName(d.month)} ${d.year}';
+
+/// [date] moved [months] on, on the same day of the month, or the month's
+/// last day when it is shorter (31 January + 1 is 28 February): when a bill
+/// made from an entry falls due next.
+DateTime addMonthsClamped(DateTime date, int months) {
+  final firstOfTarget = DateTime(date.year, date.month + months);
+  final lastDay = DateTime(firstOfTarget.year, firstOfTarget.month + 1, 0).day;
+  return DateTime(
+    firstOfTarget.year,
+    firstOfTarget.month,
+    date.day > lastDay ? lastDay : date.day,
+  );
+}
+
+/// A row's time: 12-hour with ص or م, Latin digits, e.g. `9:05 م`.
+String formatClock(DateTime time) {
+  final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+  final minute = time.minute.toString().padLeft(2, '0');
+  return '$hour:$minute ${time.hour < 12 ? 'ص' : 'م'}';
 }
 
 /// One row of السجل: a single entry, or a capture group's parent row.
@@ -133,9 +176,8 @@ class CaptureGroupRow extends TransactionRow {
   String get title => captureGroupTitle([for (final l in lines) l.name]);
 
   @override
-  DateTime get newest => lines
-      .map((l) => l.createdAt)
-      .reduce((a, b) => a.isAfter(b) ? a : b);
+  DateTime get newest =>
+      lines.map((l) => l.createdAt).reduce((a, b) => a.isAfter(b) ? a : b);
 }
 
 /// The first line's name, plus "و N أخرى" for the rest.
@@ -152,13 +194,14 @@ class TransactionDay {
   const TransactionDay(this.day, this.rows);
 
   int get totalPiastres => rows.fold(
-      0,
-      (sum, r) =>
-          sum +
-          switch (r) {
-            SingleTransactionRow(:final entry) => entry.amountPiastres,
-            CaptureGroupRow() => r.totalPiastres,
-          });
+    0,
+    (sum, r) =>
+        sum +
+        switch (r) {
+          SingleTransactionRow(:final entry) => entry.amountPiastres,
+          CaptureGroupRow() => r.totalPiastres,
+        },
+  );
 }
 
 /// Groups [entries] by day, newest day first. Inside a day, rows run newest
@@ -177,9 +220,7 @@ List<TransactionDay> groupTransactions(Iterable<TransactionView> entries) {
     (byDay[day] ??= []).add((index++, e));
   }
   final days = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
-  return [
-    for (final day in days) TransactionDay(day, _rowsOf(byDay[day]!)),
-  ];
+  return [for (final day in days) TransactionDay(day, _rowsOf(byDay[day]!))];
 }
 
 List<TransactionRow> _rowsOf(List<(int, TransactionView)> indexed) {
