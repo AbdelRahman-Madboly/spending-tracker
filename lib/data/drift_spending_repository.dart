@@ -1164,4 +1164,164 @@ class DriftSpendingRepository implements SpendingRepository {
         .get();
     return {...entryIds, ...salaryIds};
   }
+
+  // ---- v3: السجل, entry detail, edit and delete ----
+
+  @override
+  Stream<List<TransactionView>> watchTransactions() {
+    // Same shape as [watchPeriods]: a fresh entries query whenever the
+    // attachments change, otherwise entry updates flow straight through,
+    // so a note added in the detail sheet shows in the row's glyphs.
+    return _db.select(_db.attachments).watch().asyncExpand((attachments) {
+      final byEntry = <String, List<Attachment>>{};
+      final byGroup = <String, List<Attachment>>{};
+      for (final a in attachments) {
+        if (a.entryId case final id?) (byEntry[id] ??= []).add(a);
+        if (a.captureGroupId case final id?) (byGroup[id] ??= []).add(a);
+      }
+      final query = _db.select(_db.entries).join([
+        leftOuterJoin(_db.categories,
+            _db.categories.key.equalsExp(_db.entries.categoryKey)),
+        leftOuterJoin(_db.subcategories,
+            _db.subcategories.key.equalsExp(_db.entries.subcategoryKey)),
+        leftOuterJoin(_db.items, _db.items.id.equalsExp(_db.entries.itemId)),
+      ])
+        ..where(_db.entries.deletedAt.isNull())
+        // Lines of one capture share createdAt; rowid keeps them in the
+        // order they were captured.
+        ..orderBy([
+          OrderingTerm.desc(_db.entries.date),
+          OrderingTerm.desc(_db.entries.createdAt),
+          OrderingTerm.asc(_db.entries.rowId),
+        ]);
+      return query.watch().map((rows) => [
+            for (final row in rows)
+              _transactionView(
+                row.readTable(_db.entries),
+                row.readTableOrNull(_db.categories),
+                row.readTableOrNull(_db.subcategories),
+                row.readTableOrNull(_db.items),
+                [
+                  ...?byEntry[row.readTable(_db.entries).id],
+                  ...?byGroup[row.readTable(_db.entries).captureGroupId],
+                ],
+              ),
+          ]);
+    });
+  }
+
+  static TransactionView _transactionView(
+    Entry e,
+    Category? category,
+    Subcategory? subcategory,
+    Item? item,
+    List<Attachment> attachments,
+  ) =>
+      TransactionView(
+        id: e.id,
+        date: DateTime.parse(e.date),
+        createdAt: e.createdAt,
+        amountPiastres: e.amountPiastres,
+        categoryKey: e.categoryKey,
+        categoryLabelAr: category?.labelAr ?? e.categoryKey,
+        subcategoryKey: e.subcategoryKey,
+        subcategoryLabelAr: subcategory?.labelAr,
+        description: e.description,
+        itemNameAr: item?.nameAr,
+        note: e.note,
+        paymentMethod: e.paymentMethod,
+        source: EntrySource.fromName(e.source),
+        captureGroupId: e.captureGroupId,
+        attachmentKinds: {
+          for (final a in attachments) AttachmentKind.fromName(a.kind),
+        },
+        attachmentText: [
+          for (final a in attachments) ...[?a.body, ?a.transcript],
+        ],
+      );
+
+  @override
+  Future<EntryRecord?> entry(String id) async {
+    final row = await (_db.select(_db.entries)
+          ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
+        .getSingleOrNull();
+    return row == null ? null : _entryRecord(row);
+  }
+
+  @override
+  Future<void> updateEntry(EntryRecord entry) async {
+    final written = await (_db.update(_db.entries)
+          ..where((t) => t.id.equals(entry.id) & t.deletedAt.isNull()))
+        .write(EntriesCompanion(
+      date: Value(_formatDate(entry.date)),
+      amountPiastres: Value(entry.amountPiastres),
+      categoryKey: Value(entry.categoryKey),
+      subcategoryKey: Value(entry.subcategoryKey),
+      itemId: Value(entry.itemId),
+      description: Value(entry.description),
+      paymentMethod: Value(entry.paymentMethod),
+      quantityMilli: Value(entry.quantityMilli),
+      unit: Value(entry.unit),
+      unitPricePiastres: Value(entry.unitPricePiastres),
+      reference: Value(entry.reference),
+      note: Value(entry.note),
+      updatedAt: Value(DateTime.now()),
+    ));
+    if (written == 0) throw StateError('no live entry ${entry.id}');
+  }
+
+  @override
+  Future<void> deleteEntries(Iterable<String> ids) async {
+    final now = DateTime.now();
+    await (_db.update(_db.entries)
+          ..where((t) => t.id.isIn(ids) & t.deletedAt.isNull()))
+        .write(EntriesCompanion(deletedAt: Value(now), updatedAt: Value(now)));
+  }
+
+  @override
+  Future<void> restoreEntries(Iterable<String> ids) async {
+    await (_db.update(_db.entries)..where((t) => t.id.isIn(ids))).write(
+        EntriesCompanion(
+            deletedAt: const Value(null), updatedAt: Value(DateTime.now())));
+  }
+
+  @override
+  Future<void> recategorizeEntries(
+      Iterable<String> ids, String categoryKey) async {
+    await (_db.update(_db.entries)
+          ..where((t) => t.id.isIn(ids) & t.deletedAt.isNull()))
+        .write(EntriesCompanion(
+      categoryKey: Value(categoryKey),
+      subcategoryKey: const Value(null),
+      updatedAt: Value(DateTime.now()),
+    ));
+  }
+
+  @override
+  Future<String> duplicateEntry(String id, DateTime date) async {
+    final source = await (_db.select(_db.entries)
+          ..where((t) => t.id.equals(id)))
+        .getSingle();
+    final now = DateTime.now();
+    final newId = _newId();
+    await _db.into(_db.entries).insert(EntriesCompanion.insert(
+          id: newId,
+          date: _formatDate(date),
+          amountPiastres: source.amountPiastres,
+          categoryKey: source.categoryKey,
+          subcategoryKey: Value(source.subcategoryKey),
+          itemId: Value(source.itemId),
+          description: Value(source.description),
+          paymentMethod: Value(source.paymentMethod),
+          source: Value(source.source),
+          note: Value(source.note),
+          quantityMilli: Value(source.quantityMilli),
+          unit: Value(source.unit),
+          unitPricePiastres: Value(source.unitPricePiastres),
+          createdAt: now,
+          updatedAt: now,
+        ));
+    await _bumpItemUse(source.itemId, now);
+    return newId;
+  }
 }

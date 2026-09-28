@@ -291,4 +291,38 @@ abstract class SpendingRepository {
   /// Every import identity already present on entries and salary periods,
   /// for the importer's duplicate check.
   Future<Set<String>> knownExternalIds();
+
+  // ---- v3: السجل, entry detail, edit and delete ----
+
+  /// Every live (not soft-deleted) entry with the labels a row shows and
+  /// the text search reads, updating as entries or attachments change.
+  /// Newest day first; within a day, newest first, and the lines of one
+  /// capture in the order they were captured.
+  Stream<List<TransactionView>> watchTransactions();
+
+  /// The live entry with every field, or null when there is none or it has
+  /// been deleted.
+  Future<EntryRecord?> entry(String id);
+
+  /// Writes the fields the entry editor changes (date, amount, category,
+  /// subcategory, item, description, payment method, quantity, unit, unit
+  /// price, reference, note) and stamps `updatedAt`. The source, capture
+  /// group and import identity are the entry's history and stay as saved.
+  Future<void> updateEntry(EntryRecord entry);
+
+  /// Soft-deletes [ids] (sets `deletedAt`): they drop out of every list and
+  /// total, but the rows stay so [restoreEntries] can undo it.
+  Future<void> deleteEntries(Iterable<String> ids);
+
+  /// Undoes [deleteEntries] for [ids].
+  Future<void> restoreEntries(Iterable<String> ids);
+
+  /// Files [ids] under [categoryKey] (the bulk category change). Their
+  /// subcategory is cleared, since a subcategory belongs to one category.
+  Future<void> recategorizeEntries(Iterable<String> ids, String categoryKey);
+
+  /// Copies the entry to [date] as a new, standalone entry (no capture
+  /// group, no import identity, no attachments) and returns its id: the
+  /// entry detail's "تكرار اليوم".
+  Future<String> duplicateEntry(String id, DateTime date);
 }

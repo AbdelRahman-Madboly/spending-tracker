@@ -167,6 +167,85 @@ class EntryView extends Equatable {
       [id, displayName, amountPiastres, categoryKey, date];
 }
 
+/// One live entry as السجل lists it (spec §4.3): the fields a row shows
+/// and every field search reads, including the text of its attachments.
+class TransactionView extends Equatable {
+  final String id;
+  final DateTime date;
+
+  /// When the row was written: the row's time, and the order of lines
+  /// inside a capture group.
+  final DateTime createdAt;
+  final int amountPiastres;
+  final String categoryKey;
+  final String categoryLabelAr;
+  final String? subcategoryKey;
+  final String? subcategoryLabelAr;
+  final String description;
+
+  /// The linked catalogue item's name, when the entry has one.
+  final String? itemNameAr;
+  final String? note;
+  final String paymentMethod;
+  final EntrySource source;
+  final String? captureGroupId;
+
+  /// The kinds of the entry's own attachments and its capture group's.
+  final Set<AttachmentKind> attachmentKinds;
+
+  /// Text-note bodies and voice transcripts of those attachments, for
+  /// search.
+  final List<String> attachmentText;
+
+  const TransactionView({
+    required this.id,
+    required this.date,
+    required this.createdAt,
+    required this.amountPiastres,
+    required this.categoryKey,
+    required this.categoryLabelAr,
+    required this.description,
+    required this.paymentMethod,
+    required this.source,
+    this.subcategoryKey,
+    this.subcategoryLabelAr,
+    this.itemNameAr,
+    this.note,
+    this.captureGroupId,
+    this.attachmentKinds = const {},
+    this.attachmentText = const [],
+  });
+
+  /// What the row is called: the description, else the item's name, else
+  /// the category, so no row is ever blank.
+  String get name {
+    if (description.isNotEmpty) return description;
+    final item = itemNameAr;
+    if (item != null && item.isNotEmpty) return item;
+    return categoryLabelAr;
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        date,
+        createdAt,
+        amountPiastres,
+        categoryKey,
+        categoryLabelAr,
+        subcategoryKey,
+        subcategoryLabelAr,
+        description,
+        itemNameAr,
+        note,
+        paymentMethod,
+        source,
+        captureGroupId,
+        attachmentKinds,
+        attachmentText,
+      ];
+}
+
 class CategoryView extends Equatable {
   final String key;
   final String labelAr;

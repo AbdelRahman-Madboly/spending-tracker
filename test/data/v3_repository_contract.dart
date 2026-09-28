@@ -516,5 +516,167 @@ void runV3RepositoryContract(
       expect(recent.first.lastAmountPiastres, 1750);
       expect(recent.first.suggestedAmountPiastres, 1750);
     });
+  
+    // ---- السجل and entry detail (B2) ----
+
+    Future<List<TransactionView>> transactionsOn(DateTime day) async =>
+        (await repo.watchTransactions().first)
+            .where((t) => t.date == day)
+            .toList();
+
+    test('watchTransactions lists live entries with labels and attachments',
+        () async {
+      final groupId = await repo.saveCapture(twoLines());
+      final lines = (await repo.captureGroup(groupId))!.entries;
+      await repo.addAttachment(
+        entryId: lines.last.id,
+        attachment:
+            const DraftAttachment(kind: AttachmentKind.text, text: 'مع أحمد'),
+      );
+
+      final day = await transactionsOn(DateTime(2026, 9, 20));
+
+      expect(day.map((t) => t.id), unorderedEquals(lines.map((l) => l.id)));
+      final tomato = day.firstWhere((t) => t.description == 'طماطم');
+      expect(tomato.amountPiastres, 3000);
+      expect(tomato.categoryKey, 'Food');
+      expect(tomato.categoryLabelAr, isNotEmpty);
+      expect(tomato.subcategoryKey, 'Groceries');
+      expect(tomato.subcategoryLabelAr, isNotEmpty);
+      expect(tomato.paymentMethod, 'InstaPay');
+      expect(tomato.captureGroupId, groupId);
+      expect(tomato.source, EntrySource.voice);
+      // The group's voice note belongs to every line.
+      expect(tomato.attachmentKinds, {AttachmentKind.voice});
+      expect(tomato.attachmentText, contains(startsWith('اتنين كيلو')));
+      final bread = day.firstWhere((t) => t.description == 'عيش');
+      expect(bread.attachmentKinds,
+          {AttachmentKind.voice, AttachmentKind.text});
+      expect(bread.attachmentText, contains('مع أحمد'));
+    });
+
+    test('watchTransactions names an item-only entry after its item',
+        () async {
+      final item = (await repo.topItems(1)).single;
+      await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.manual,
+        date: DateTime(2026, 9, 23),
+        lines: [
+          CaptureLine(
+              amountPiastres: 900,
+              categoryKey: item.categoryKey,
+              itemId: item.id),
+        ],
+      ));
+
+      final t = (await transactionsOn(DateTime(2026, 9, 23))).single;
+      expect(t.itemNameAr, item.nameAr);
+      expect(t.name, item.nameAr);
+    });
+
+    test('updateEntry rewrites the editable fields everywhere', () async {
+      final groupId = await repo.saveCapture(twoLines());
+      final original = (await repo.captureGroup(groupId))!.entries.first;
+
+      await repo.updateEntry(EntryRecord(
+        id: original.id,
+        date: DateTime(2026, 9, 19),
+        amountPiastres: 4250,
+        categoryKey: 'Drinks',
+        description: 'عصير',
+        paymentMethod: 'Cash',
+        source: original.source,
+        quantityMilli: 1500,
+        unit: 'liter',
+        note: 'من الكشك',
+      ));
+
+      final edited = await repo.entry(original.id);
+      expect(edited, isNotNull);
+      expect(edited!.date, DateTime(2026, 9, 19));
+      expect(edited.amountPiastres, 4250);
+      expect(edited.categoryKey, 'Drinks');
+      expect(edited.subcategoryKey, isNull);
+      expect(edited.description, 'عصير');
+      expect(edited.paymentMethod, 'Cash');
+      expect(edited.quantityMilli, 1500);
+      expect(edited.unit, 'liter');
+      expect(edited.note, 'من الكشك');
+      // Identity fields are not the editor's to change.
+      expect(edited.captureGroupId, groupId);
+      expect(edited.source, EntrySource.voice);
+
+      expect(await repo.spentBetween(DateTime(2026, 9, 19), DateTime(2026, 9, 19)),
+          4250);
+      final moved = await transactionsOn(DateTime(2026, 9, 19));
+      expect(moved.single.description, 'عصير');
+      expect(moved.single.categoryKey, 'Drinks');
+    });
+
+    test('deleteEntries hides entries until restoreEntries brings them back',
+        () async {
+      final groupId = await repo.saveCapture(twoLines());
+      final lines = (await repo.captureGroup(groupId))!.entries;
+      final day = DateTime(2026, 9, 20);
+      final spent = await repo.spentBetween(day, day);
+
+      await repo.deleteEntries([lines.first.id]);
+
+      expect(await repo.entry(lines.first.id), isNull);
+      expect((await transactionsOn(day)).map((t) => t.id), [lines.last.id]);
+      expect((await repo.watchEntriesForDay(day).first).map((e) => e.id),
+          isNot(contains(lines.first.id)));
+      expect(await repo.spentBetween(day, day),
+          spent - lines.first.amountPiastres);
+      expect((await repo.captureGroup(groupId))!.entries.map((e) => e.id),
+          [lines.last.id]);
+
+      await repo.restoreEntries([lines.first.id]);
+
+      expect(await repo.entry(lines.first.id), isNotNull);
+      expect(await repo.spentBetween(day, day), spent);
+      expect((await repo.captureGroup(groupId))!.entries.map((e) => e.id),
+          lines.map((l) => l.id));
+    });
+
+    test('recategorizeEntries moves entries and clears their subcategory',
+        () async {
+      final groupId = await repo.saveCapture(twoLines());
+      final ids = (await repo.captureGroup(groupId))!
+          .entries
+          .map((e) => e.id)
+          .toList();
+
+      await repo.recategorizeEntries(ids, 'Bills');
+
+      for (final id in ids) {
+        final e = (await repo.entry(id))!;
+        expect(e.categoryKey, 'Bills');
+        expect(e.subcategoryKey, isNull);
+      }
+    });
+
+    test('duplicateEntry copies an entry to another day on its own',
+        () async {
+      final groupId = await repo.saveCapture(twoLines(externalIdOfSecond: 'x-1'));
+      final bread = (await repo.captureGroup(groupId))!
+          .entries
+          .firstWhere((e) => e.description == 'عيش');
+
+      final copyId = await repo.duplicateEntry(bread.id, DateTime(2026, 9, 24));
+
+      final copy = (await repo.entry(copyId))!;
+      expect(copyId, isNot(bread.id));
+      expect(copy.date, DateTime(2026, 9, 24));
+      expect(copy.amountPiastres, bread.amountPiastres);
+      expect(copy.categoryKey, bread.categoryKey);
+      expect(copy.description, 'عيش');
+      expect(copy.paymentMethod, 'InstaPay');
+      // A copy is its own spend: no capture group, no import identity.
+      expect(copy.captureGroupId, isNull);
+      expect(copy.externalId, isNull);
+      expect(await repo.spentBetween(DateTime(2026, 9, 24), DateTime(2026, 9, 24)),
+          bread.amountPiastres);
+    });
   });
 }

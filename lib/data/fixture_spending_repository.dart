@@ -693,6 +693,18 @@ class FixtureSpendingRepository implements SpendingRepository {
       categoryLabelAr: categoryLabelAr,
       date: DateTime(2026, 9, _today),
     ));
+    _records[id] = EntryRecord(
+      id: id,
+      date: DateTime(2026, 9, _today),
+      amountPiastres: draft.amountPiastres ?? 0,
+      categoryKey: categoryKey,
+      subcategoryKey: draft.subcategoryKey,
+      itemId: draft.itemId,
+      description: draft.description ?? '',
+      paymentMethod: draft.paymentMethod ?? 'Cash',
+      source: draft.source,
+    );
+    _createdAt[id] = DateTime.now();
     final photoPath = draft.photoPath;
     if (photoPath != null) {
       _attachments.add(AttachmentView(
@@ -861,6 +873,7 @@ class FixtureSpendingRepository implements SpendingRepository {
       );
       records.add(record);
       _records[record.id] = record;
+      _createdAt[record.id] = now;
       _recordUse(line.itemId, line.amountPiastres);
       _entries.add(EntryView(
         id: record.id,
@@ -945,7 +958,12 @@ class FixtureSpendingRepository implements SpendingRepository {
       cleanText: group.cleanText,
       parsedBy: group.parsedBy,
       date: group.date,
-      entries: group.entries,
+      // From the live records, not the saved snapshot, so an edited or
+      // deleted line shows as it is now.
+      entries: [
+        for (final r in _records.values)
+          if (r.captureGroupId == id && !_deleted.contains(r.id)) r,
+      ],
       attachments:
           _attachments.where((a) => a.captureGroupId == id).toList(),
     );
@@ -1054,4 +1072,216 @@ class FixtureSpendingRepository implements SpendingRepository {
         for (final r in _records.values)
           if (r.externalId != null) r.externalId!,
       };
+
+  // ---- v3: السجل, entry detail, edit and delete ----
+
+  /// When each entry was written. The seeded entries have none and read as
+  /// noon on their day.
+  final _createdAt = <String, DateTime>{};
+
+  /// Soft-deleted entry ids. Their records stay in [_records] for
+  /// [restoreEntries]; their views leave [_entries], which every total
+  /// reads.
+  final _deleted = <String>{};
+
+  /// The full record behind an entry view. Seeded entries have no record
+  /// until first asked for, and get a plain cash, manual one.
+  EntryRecord _recordOf(EntryView v) => _records[v.id] ??= EntryRecord(
+        id: v.id,
+        date: v.date,
+        amountPiastres: v.amountPiastres,
+        categoryKey: v.categoryKey,
+        description: v.displayName,
+        paymentMethod: 'Cash',
+        source: EntrySource.manual,
+      );
+
+  EntryView _viewOf(EntryRecord r) {
+    final itemName = _items
+        .where((i) => i.id == r.itemId)
+        .map((i) => i.nameAr)
+        .firstOrNull;
+    return EntryView(
+      id: r.id,
+      displayName:
+          r.description.isNotEmpty ? r.description : (itemName ?? ''),
+      amountPiastres: r.amountPiastres,
+      categoryKey: r.categoryKey,
+      categoryLabelAr: _categories
+              .where((c) => c.key == r.categoryKey)
+              .map((c) => c.labelAr)
+              .firstOrNull ??
+          r.categoryKey,
+      date: r.date,
+    );
+  }
+
+  /// Replaces the live record (and its view) for [record.id].
+  void _replace(EntryRecord record) {
+    final index = _entries.indexWhere((e) => e.id == record.id);
+    if (index == -1) throw StateError('no live entry ${record.id}');
+    _records[record.id] = record;
+    _entries[index] = _viewOf(record);
+  }
+
+  List<TransactionView> _transactions() {
+    final indexed = [
+      for (final (i, v) in _entries.indexed)
+        (i, _transactionOf(_recordOf(v))),
+    ]..sort((a, b) {
+        final byDay = b.$2.date.compareTo(a.$2.date);
+        if (byDay != 0) return byDay;
+        final byTime = b.$2.createdAt.compareTo(a.$2.createdAt);
+        return byTime != 0 ? byTime : a.$1.compareTo(b.$1);
+      });
+    return [for (final (_, t) in indexed) t];
+  }
+
+  TransactionView _transactionOf(EntryRecord r) {
+    final groupId = r.captureGroupId;
+    final attachments = _attachments.where((a) =>
+        a.entryId == r.id || (groupId != null && a.captureGroupId == groupId));
+    return TransactionView(
+      id: r.id,
+      date: r.date,
+      createdAt: _createdAt[r.id] ??
+          DateTime(r.date.year, r.date.month, r.date.day, 12),
+      amountPiastres: r.amountPiastres,
+      categoryKey: r.categoryKey,
+      categoryLabelAr: _viewOf(r).categoryLabelAr,
+      subcategoryKey: r.subcategoryKey,
+      subcategoryLabelAr: _subcategories
+          .where((s) => s.key == r.subcategoryKey)
+          .map((s) => s.labelAr)
+          .firstOrNull,
+      description: r.description,
+      itemNameAr: _items
+          .where((i) => i.id == r.itemId)
+          .map((i) => i.nameAr)
+          .firstOrNull,
+      note: r.note,
+      paymentMethod: r.paymentMethod,
+      source: r.source,
+      captureGroupId: groupId,
+      attachmentKinds: {for (final a in attachments) a.kind},
+      attachmentText: [
+        for (final a in attachments) ...[?a.text, ?a.transcript],
+      ],
+    );
+  }
+
+  @override
+  Stream<List<TransactionView>> watchTransactions() async* {
+    yield _transactions();
+    yield* _controller.stream.map((_) => _transactions());
+  }
+
+  @override
+  Future<EntryRecord?> entry(String id) async {
+    final view = _entries.where((e) => e.id == id).firstOrNull;
+    return view == null ? null : _recordOf(view);
+  }
+
+  @override
+  Future<void> updateEntry(EntryRecord entry) async {
+    final current = await this.entry(entry.id);
+    if (current == null) throw StateError('no live entry ${entry.id}');
+    if (!_categories.any((c) => c.key == entry.categoryKey)) {
+      throw ArgumentError.value(entry.categoryKey, 'categoryKey');
+    }
+    _replace(EntryRecord(
+      id: current.id,
+      date: DateTime(entry.date.year, entry.date.month, entry.date.day),
+      amountPiastres: entry.amountPiastres,
+      categoryKey: entry.categoryKey,
+      subcategoryKey: entry.subcategoryKey,
+      itemId: entry.itemId,
+      description: entry.description,
+      paymentMethod: entry.paymentMethod,
+      source: current.source,
+      quantityMilli: entry.quantityMilli,
+      unit: entry.unit,
+      unitPricePiastres: entry.unitPricePiastres,
+      captureGroupId: current.captureGroupId,
+      externalId: current.externalId,
+      reference: entry.reference,
+      note: entry.note,
+    ));
+    _controller.add(null);
+  }
+
+  @override
+  Future<void> deleteEntries(Iterable<String> ids) async {
+    final remove = ids.toSet();
+    for (final view in _entries.where((e) => remove.contains(e.id))) {
+      _recordOf(view);
+      _deleted.add(view.id);
+    }
+    _entries.removeWhere((e) => remove.contains(e.id));
+    _controller.add(null);
+  }
+
+  @override
+  Future<void> restoreEntries(Iterable<String> ids) async {
+    for (final id in ids) {
+      final record = _records[id];
+      if (record == null || !_deleted.remove(id)) continue;
+      _entries.add(_viewOf(record));
+    }
+    _controller.add(null);
+  }
+
+  @override
+  Future<void> recategorizeEntries(
+      Iterable<String> ids, String categoryKey) async {
+    for (final id in ids) {
+      final current = await entry(id);
+      if (current == null) continue;
+      _replace(EntryRecord(
+        id: current.id,
+        date: current.date,
+        amountPiastres: current.amountPiastres,
+        categoryKey: categoryKey,
+        itemId: current.itemId,
+        description: current.description,
+        paymentMethod: current.paymentMethod,
+        source: current.source,
+        quantityMilli: current.quantityMilli,
+        unit: current.unit,
+        unitPricePiastres: current.unitPricePiastres,
+        captureGroupId: current.captureGroupId,
+        externalId: current.externalId,
+        reference: current.reference,
+        note: current.note,
+      ));
+    }
+    _controller.add(null);
+  }
+
+  @override
+  Future<String> duplicateEntry(String id, DateTime date) async {
+    final source = _records[id] ??
+        _recordOf(_entries.firstWhere((e) => e.id == id));
+    final copy = EntryRecord(
+      id: _newId(),
+      date: DateTime(date.year, date.month, date.day),
+      amountPiastres: source.amountPiastres,
+      categoryKey: source.categoryKey,
+      subcategoryKey: source.subcategoryKey,
+      itemId: source.itemId,
+      description: source.description,
+      paymentMethod: source.paymentMethod,
+      source: source.source,
+      quantityMilli: source.quantityMilli,
+      unit: source.unit,
+      unitPricePiastres: source.unitPricePiastres,
+      note: source.note,
+    );
+    _records[copy.id] = copy;
+    _createdAt[copy.id] = DateTime.now();
+    _entries.add(_viewOf(copy));
+    _recordUse(copy.itemId, copy.amountPiastres);
+    _controller.add(null);
+    return copy.id;
+  }
 }

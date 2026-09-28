@@ -5,8 +5,7 @@ import '../../../core/amount_expression.dart';
 import '../../../core/design/app_icons.dart';
 import '../../../core/design/tokens.dart';
 
-/// The key [AmountKeypad] reports for its backspace key.
-const keypadBackspace = 'backspace';
+export '../../../core/amount_expression.dart' show keypadBackspace;
 
 /// The add sheet's calculator keypad (spec §6.1): digits, a decimal point,
 /// backspace and the four operators in [keypadOperators].

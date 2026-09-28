@@ -257,42 +257,12 @@ class _AddSheetState extends State<AddSheet> {
     });
   }
 
-  /// One keypad key. Keeps [_expression] something the calculator can read:
-  /// no leading operator, one operator between operands (a second replaces
-  /// the first), one decimal point and at most two decimals per operand.
+  /// One keypad key; see [pressKeypadKey].
   void _press(String key) {
     setState(() {
-      var text = _expression;
-      if (key == keypadBackspace) {
-        _filled = false;
-        if (text.isNotEmpty) text = text.substring(0, text.length - 1);
-        _expression = text;
-        return;
-      }
-      if (keypadOperators.contains(key)) {
-        _filled = false;
-        if (text.endsWith('.')) text = text.substring(0, text.length - 1);
-        if (text.isEmpty) return;
-        if (keypadOperators.contains(text[text.length - 1])) {
-          text = text.substring(0, text.length - 1);
-        }
-        _expression = '$text$key';
-        return;
-      }
-      if (_filled) {
-        text = '';
-        _filled = false;
-      }
-      if (text.length >= 32) return;
-      final operand = text.split(RegExp('[${keypadOperators.join()}]')).last;
-      if (key == '.') {
-        if (operand.contains('.')) return;
-        _expression = operand.isEmpty ? '${text}0.' : '$text.';
-        return;
-      }
-      final dot = operand.indexOf('.');
-      if (dot >= 0 && operand.length - dot > 2) return;
-      _expression = '$text$key';
+      final next = pressKeypadKey(_expression, _filled, key);
+      _expression = next.expression;
+      _filled = next.filled;
     });
   }
 

@@ -55,4 +55,35 @@ void main() {
       expect(evaluateAmountExpression('1000000×2'), isNull);
     });
   });
+
+  group('pressKeypadKey', () {
+    String type(String keys, {String from = '', bool filled = false}) {
+      var state = (expression: from, filled: filled);
+      for (final key in keys.split(' ')) {
+        state = pressKeypadKey(state.expression, state.filled, key);
+      }
+      return state.expression;
+    }
+
+    test('types digits, one decimal point and two decimals at most', () {
+      expect(type('3 5 . 5 0 1'), '35.50');
+      expect(type('. 5'), '0.5');
+      expect(type('1 . .'), '1.');
+    });
+
+    test('a second operator replaces the first; none may lead', () {
+      expect(type('+'), '');
+      expect(type('2 × +'), '2+');
+    });
+
+    test('backspace drops the last character', () {
+      expect(type('3 5 $keypadBackspace'), '3');
+    });
+
+    test('a digit after a filled amount starts over, an operator builds on it',
+        () {
+      expect(type('7', from: '40', filled: true), '7');
+      expect(type('× 3', from: '40', filled: true), '40×3');
+    });
+  });
 }
