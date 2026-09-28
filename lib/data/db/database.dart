@@ -7,12 +7,23 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'pre_migration_backup.dart';
 import 'tables.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(
-    tables: [Categories, Items, Entries, SalaryPeriods, Subcategories])
+@DriftDatabase(tables: [
+  Categories,
+  Items,
+  Entries,
+  SalaryPeriods,
+  Subcategories,
+  CaptureGroups,
+  Attachments,
+  ItemAliases,
+  RecurringBills,
+  AppSettings,
+])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
@@ -36,8 +47,12 @@ class AppDatabase extends _$AppDatabase {
   static Future<String> _defaultSeedLoader() =>
       rootBundle.loadString('assets/seed/seed.json');
 
+  /// The schema this build writes. Also the target the pre-migration
+  /// backup compares the on-disk `user_version` against.
+  static const latestSchemaVersion = 3;
+
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => latestSchemaVersion;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,13 +81,30 @@ class AppDatabase extends _$AppDatabase {
         // so every row the user already has on their phone (his real
         // spending history) survives untouched; existing rows simply get
         // `subcategoryKey = NULL` until re-categorised.
+        //
+        // v2 -> v3 is additive in the same way (spec §5): new nullable
+        // columns, five new tables, indexes, and a backfill that only
+        // inserts rows or fills columns that did not exist before. No
+        // existing value is changed. The file itself was already copied to
+        // documents/backups before drift opened it (see
+        // [openDatabaseFileWithBackup]).
+        //
+        // Every step runs in one transaction. SQLite DDL is transactional,
+        // so a failure half-way leaves the file exactly on its old version
+        // instead of with some columns added, which would make the next
+        // attempt fail on "duplicate column".
         onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.createTable(subcategories);
-            await m.addColumn(items, items.subcategoryKey);
-            await m.addColumn(entries, entries.subcategoryKey);
-            await _seedSubcategories(this);
-          }
+          await transaction(() async {
+            if (from < 2) {
+              await m.createTable(subcategories);
+              await m.addColumn(items, items.subcategoryKey);
+              await m.addColumn(entries, entries.subcategoryKey);
+              await _seedSubcategories(this);
+            }
+            if (from < 3) {
+              await _migrateToV3(m);
+            }
+          });
         },
         // SQLite ignores foreign key constraints unless this pragma is set
         // on every connection — drift's `.references()` is otherwise only a
@@ -82,6 +114,52 @@ class AppDatabase extends _$AppDatabase {
           await customStatement('PRAGMA foreign_keys = ON');
         },
       );
+
+  Future<void> _migrateToV3(Migrator m) async {
+    // capture_groups first: entries.capture_group_id references it.
+    await m.createTable(captureGroups);
+    await m.addColumn(entries, entries.quantityMilli);
+    await m.addColumn(entries, entries.unit);
+    await m.addColumn(entries, entries.unitPricePiastres);
+    await m.addColumn(entries, entries.captureGroupId);
+    await m.addColumn(entries, entries.externalId);
+    await m.addColumn(entries, entries.reference);
+    await m.addColumn(categories, categories.colorKey);
+    await m.addColumn(salaryPeriods, salaryPeriods.externalId);
+    await m.createTable(attachments);
+    await m.createTable(itemAliases);
+    await m.createTable(recurringBills);
+    await m.createTable(appSettings);
+    for (final index in [
+      entriesDate,
+      entriesCaptureGroupId,
+      entriesDeletedAt,
+      entriesExternalId,
+      salaryPeriodsExternalId,
+      attachmentsEntryId,
+      attachmentsCaptureGroupId,
+    ]) {
+      await m.create(index);
+    }
+
+    // One photo attachment per pre-v3 photo. The id is derived from the
+    // entry id, so it is unique and stable, and the path is copied as-is
+    // (already relative to the documents directory).
+    await customStatement(
+      'INSERT INTO attachments (id, entry_id, kind, path, created_at) '
+      "SELECT 'photo-' || id, id, 'photo', photo_path, created_at "
+      'FROM entries WHERE photo_path IS NOT NULL',
+    );
+
+    // A category takes its own key as its colour when §7.2 has one for
+    // it; a category the user created gets the neutral `Other`.
+    final known = categoryColorKeys.map((k) => "'${k.replaceAll("'", "''")}'");
+    await customStatement(
+      'UPDATE categories SET color_key = CASE WHEN key IN '
+      '(${known.join(', ')}) THEN key ELSE \'Other\' END '
+      'WHERE color_key IS NULL',
+    );
+  }
 
   /// Inserts the parsed seed JSON's items, entries and salary periods, but
   /// only the first time — idempotent, a no-op whenever `entries` already
@@ -166,6 +244,25 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
+/// The colour keys of spec §7.2, one per category family plus `Other`.
+/// A category's `colorKey` is always one of these.
+const categoryColorKeys = [
+  'Drinks',
+  'Snacks',
+  'Food',
+  'Transport',
+  'Bills',
+  'Personal Care',
+  'Shopping',
+  'Family/Social',
+  'Gifts',
+  'Loans',
+  'Health',
+  'Education',
+  'Home',
+  'Other',
+];
+
 /// The ten fixed categories this app understands. Keys are English and are
 /// never shown to the user; labels are Arabic.
 const _seedCategoryRows = [
@@ -189,6 +286,7 @@ Future<void> _seedCategories(AppDatabase db) async {
             key: key,
             labelAr: labelAr,
             iconName: iconName,
+            colorKey: Value(key),
             sortOrder: Value(i),
           ),
         );
@@ -246,10 +344,35 @@ Future<void> _seedSubcategories(AppDatabase db) async {
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final directory = await getApplicationDocumentsDirectory();
-    final file = File(p.join(directory.path, 'spending.sqlite'));
+    return openDatabaseFileWithBackup(
+      dbFile: File(p.join(directory.path, 'spending.sqlite')),
+      backupsDir: Directory(p.join(directory.path, 'backups')),
+    );
+  });
+}
+
+/// Opens [dbFile], first copying it into [backupsDir] when it is on an
+/// older schema than [AppDatabase.latestSchemaVersion] (see
+/// [backupBeforeMigration]).
+///
+/// The copy runs inside the lazy opener, so it finishes before drift ever
+/// touches the file: drift only reads `user_version` and runs `onUpgrade`
+/// once this returns. If the copy cannot be verified the open fails and
+/// the file is left exactly as it was, rather than migrating real data
+/// with no way back.
+LazyDatabase openDatabaseFileWithBackup({
+  required File dbFile,
+  required Directory backupsDir,
+}) {
+  return LazyDatabase(() async {
+    await backupBeforeMigration(
+      dbFile: dbFile,
+      backupsDir: backupsDir,
+      targetVersion: AppDatabase.latestSchemaVersion,
+    );
     // A background isolate buys nothing here: this is a small, single-user
     // local file with modest query volume, and opening in the same isolate
     // avoids an extra isolate to tear down on every dispose.
-    return NativeDatabase(file);
+    return NativeDatabase(dbFile);
   });
 }
