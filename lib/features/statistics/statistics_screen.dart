@@ -1,12 +1,12 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/design/app_icons.dart';
+import '../../core/design/category_colors.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
-import '../add/widgets/category_strip.dart';
-import 'category_palette.dart';
 
 typedef _CategoryBreakdown = ({
   Map<String, int> byCategory,
@@ -26,8 +26,8 @@ class StatisticsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('الإحصائيات')),
       body: FutureBuilder<_CategoryBreakdown>(
         future: _load(),
@@ -43,6 +43,10 @@ class StatisticsScreen extends StatelessWidget {
           final rows = data.byCategory.entries.toList()
             ..sort((a, b) => b.value.compareTo(a.value));
           final total = rows.fold<int>(0, (sum, r) => sum + r.value);
+          // A category's colour belongs to its row (colorKey), so it is the
+          // same on every screen and in every period, whatever its rank.
+          Color inkOf(String key) =>
+              palette.categoryInk(labelsByKey[key]?.colorKey ?? '');
 
           return ListView(
             children: [
@@ -59,7 +63,7 @@ class StatisticsScreen extends StatelessWidget {
                           for (final row in rows)
                             PieChartSectionData(
                               value: row.value.toDouble(),
-                              color: colorForCategory(row.key),
+                              color: inkOf(row.key),
                               title: '',
                               radius: 48,
                             ),
@@ -71,12 +75,11 @@ class StatisticsScreen extends StatelessWidget {
               for (final row in rows)
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: colorForCategory(row.key).withValues(
-                      alpha: 0.15,
-                    ),
+                    backgroundColor: palette.categoryInkFill(
+                        labelsByKey[row.key]?.colorKey ?? ''),
                     child: Icon(
-                      iconForName(labelsByKey[row.key]?.iconName ?? ''),
-                      color: colorForCategory(row.key),
+                      iconFor(labelsByKey[row.key]?.iconName ?? ''),
+                      color: inkOf(row.key),
                     ),
                   ),
                   title: Text(

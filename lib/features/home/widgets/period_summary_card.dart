@@ -14,11 +14,13 @@ class PeriodSummaryCard extends StatelessWidget {
     final left = summary.leftPiastres;
     final overspent = left < 0;
     final safeDaily = summary.safeDailyPiastres;
+    final palette = context.palette;
+    final caption = AppText.caption.copyWith(color: palette.textSecondary);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      color: AppColors.surface,
+      color: palette.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -26,7 +28,7 @@ class PeriodSummaryCard extends StatelessWidget {
           // is nonsense, so the count floors at zero.
           Text(
             'باقي ${summary.daysRemaining < 0 ? 0 : summary.daysRemaining} يوم',
-            style: AppText.caption,
+            style: caption,
           ),
           const SizedBox(height: AppSpacing.md),
           // The hero figure is the largest thing on screen and nothing upstream
@@ -37,26 +39,26 @@ class PeriodSummaryCard extends StatelessWidget {
             child: Text(
               formatPiastres(left),
               maxLines: 1,
-              style: AppText.hero.copyWith(
-                color: overspent ? AppColors.negative : AppColors.textPrimary,
+              style: AppText.display.copyWith(
+                color: overspent ? palette.negative : palette.textPrimary,
               ),
             ),
           ),
-          const Text('الباقي', style: AppText.caption),
+          Text('الباقي', style: caption),
           const SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('صرفت ', style: AppText.caption),
+              Text('صرفت ', style: caption),
               Text(formatPiastres(summary.spentPiastres), style: AppText.body),
               Text('  من ${formatPiastres(summary.salaryPiastres)}',
-                  style: AppText.caption),
+                  style: caption),
             ],
           ),
           if (safeDaily != null) ...[
             const SizedBox(height: AppSpacing.sm),
             Text('تقدر تصرف ${formatPiastres(safeDaily)} في اليوم',
-                style: AppText.caption),
+                style: caption),
           ],
         ],
       ),

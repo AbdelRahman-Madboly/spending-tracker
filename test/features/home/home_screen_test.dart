@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/core/design/app_icons.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/features/home/home_screen.dart';
 import 'package:spending_tracker/features/home/widgets/month_comparison_card.dart';
@@ -90,7 +91,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.bar_chart), findsOneWidget);
+    expect(find.byIcon(AppIcons.stats), findsOneWidget);
     expect(find.byKey(const Key('settings-button')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('settings-button')));

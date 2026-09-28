@@ -66,7 +66,9 @@ class SpendingBarChart extends StatelessWidget {
                       return Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.xs),
                         child:
-                            Text(points[index].label, style: AppText.caption),
+                            Text(points[index].label,
+                                style: AppText.caption.copyWith(
+                                    color: context.palette.textSecondary)),
                       );
                     },
                   ),
@@ -79,7 +81,7 @@ class SpendingBarChart extends StatelessWidget {
                     barRods: [
                       BarChartRodData(
                         toY: points[i].totalPiastres.toDouble(),
-                        color: AppColors.accent,
+                        color: context.palette.primary,
                         width: 18,
                         borderRadius: BorderRadius.circular(4),
                       ),

@@ -8,9 +8,9 @@ import '../../../core/money.dart';
 ///
 /// The whole point of this card is that an overspend is visible the moment
 /// it happens rather than discovered weeks later, so the difference is
-/// never left to arithmetic: it is coloured [AppColors.negative] the
+/// never left to arithmetic: it is coloured [AppPalette.negative] the
 /// instant this month is spending more than last month did, and
-/// [AppColors.positive] when it is spending less.
+/// [AppPalette.positive] when it is spending less.
 class MonthComparisonCard extends StatelessWidget {
   final int thisMonthPiastres;
   final int lastMonthPiastres;
@@ -25,14 +25,15 @@ class MonthComparisonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final diff = thisMonthPiastres - lastMonthPiastres;
     final Color diffColor;
     if (diff > 0) {
-      diffColor = AppColors.negative;
+      diffColor = palette.negative;
     } else if (diff < 0) {
-      diffColor = AppColors.positive;
+      diffColor = palette.positive;
     } else {
-      diffColor = AppColors.textSecondary;
+      diffColor = palette.textSecondary;
     }
     // formatPiastres already prefixes a negative amount with "-"; a rise
     // needs its own "+" so an increase is never mistaken for a plain
@@ -42,7 +43,7 @@ class MonthComparisonCard extends StatelessWidget {
         diff > 0 ? '+${formatPiastres(diff)}' : formatPiastres(diff);
 
     return Material(
-      color: AppColors.surface,
+      color: palette.surface,
       child: InkWell(
         onTap: onTap,
         child: Container(
@@ -65,7 +66,7 @@ class MonthComparisonCard extends StatelessWidget {
                   Container(
                     width: 1,
                     height: 36,
-                    color: AppColors.background,
+                    color: palette.divider,
                   ),
                   Expanded(
                     child: _MonthColumn(
@@ -102,7 +103,9 @@ class _MonthColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label, style: AppText.caption),
+        Text(label,
+            style: AppText.caption
+                .copyWith(color: context.palette.textSecondary)),
         const SizedBox(height: AppSpacing.xs),
         Text(formatPiastres(amountPiastres), style: AppText.title),
       ],

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spending_tracker/app.dart';
+import 'package:spending_tracker/core/design/app_icons.dart';
+import 'package:spending_tracker/core/design/app_theme.dart';
+import 'package:spending_tracker/core/design/category_colors.dart';
+import 'package:spending_tracker/core/design/tokens.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/features/settings/settings_screen.dart';
 
@@ -64,8 +67,8 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.byIcon(Icons.local_drink), findsOneWidget);
-    expect(find.byIcon(Icons.groups), findsOneWidget);
+    expect(find.byIcon(iconFor('local_drink')), findsOneWidget);
+    expect(find.byIcon(iconFor('groups')), findsOneWidget);
 
     final categoryTiles = find.byWidgetPredicate(
       (w) =>
@@ -556,6 +559,207 @@ void main() {
       expect(find.text('بيبسي كانز'), findsOneWidget);
       expect((await repository.archivedItems()).map((i) => i.id),
           contains(old.id));
+    });
+  });
+
+  group('icon picker', () {
+    Future<void> openPickerForDrinks(WidgetTester tester) async {
+      await pumpSettings(tester, FixtureSpendingRepository());
+      await tester.tap(find.byKey(const Key('settings-category-Drinks')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('category-dialog-icon-button')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('offers every curated Rounded symbol', (tester) async {
+      await openPickerForDrinks(tester);
+
+      final grid = find.byKey(const Key('icon-picker-grid'));
+      for (final name in ['local_drink', 'redeem', 'medication', 'home']) {
+        await tester.scrollUntilVisible(
+            find.byKey(Key('icon-option-$name')), 48,
+            scrollable: find.descendant(
+                of: grid, matching: find.byType(Scrollable)));
+        expect(find.byKey(Key('icon-option-$name')), findsOneWidget);
+      }
+    });
+
+    testWidgets(
+        'marks the current icon filled on the primary container and leaves '
+        'the rest outlined', (tester) async {
+      await openPickerForDrinks(tester);
+
+      Icon glyphOf(String name) => tester.widget<Icon>(find.descendant(
+          of: find.byKey(Key('icon-option-$name')),
+          matching: find.byType(Icon)));
+      expect(glyphOf('local_drink').fill, 1);
+      expect(glyphOf('cookie').fill, 0);
+
+      final selected = tester.widget<Container>(find
+          .descendant(
+              of: find.byKey(const Key('icon-option-local_drink')),
+              matching: find.byType(Container))
+          .first);
+      expect((selected.decoration! as BoxDecoration).color,
+          AppPalette.light.primaryContainer);
+    });
+
+    testWidgets('previews the glyphs in the category\'s own ink',
+        (tester) async {
+      await openPickerForDrinks(tester);
+
+      final glyph = tester.widget<Icon>(find.descendant(
+          of: find.byKey(const Key('icon-option-cookie')),
+          matching: find.byType(Icon)));
+      expect(glyph.color, AppPalette.light.categoryInk('Drinks'));
+    });
+  });
+
+  group('category colour', () {
+    testWidgets(
+        'editing a category shows its current colour selected, and picking '
+        'another saves that colour key', (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('settings-category-Drinks')));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<Semantics>(find
+                .ancestor(
+                    of: find.byKey(const Key('color-option-Drinks')),
+                    matching: find.byType(Semantics))
+                .first)
+            .properties
+            .selected,
+        isTrue,
+      );
+
+      await tester.ensureVisible(find.byKey(const Key('color-option-Health')));
+      await tester.tap(find.byKey(const Key('color-option-Health')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('category-dialog-save')));
+      await tester.pumpAndSettle();
+
+      final updated = (await repository.categories())
+          .firstWhere((c) => c.key == 'Drinks');
+      expect(updated.colorKey, 'Health');
+      final glyph = tester.widget<Icon>(find.descendant(
+          of: find.byKey(const ValueKey('settings-category-Drinks')),
+          matching: find.byIcon(iconFor('local_drink'))));
+      expect(glyph.color, AppPalette.light.categoryInk('Health'));
+    });
+
+    testWidgets(
+        'a new category starts on Other and the category icon, and keeps a '
+        'picked colour', (tester) async {
+      final repository = FixtureSpendingRepository();
+      await pumpSettings(tester, repository);
+
+      await tester.tap(find.byKey(const Key('add-category')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const Key('category-dialog-name')), 'رياضة');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('category-dialog-save')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('add-category')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const Key('category-dialog-name')), 'دواء');
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('color-option-Health')));
+      await tester.tap(find.byKey(const Key('color-option-Health')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('category-dialog-save')));
+      await tester.pumpAndSettle();
+
+      final categories = await repository.categories();
+      final sport = categories.firstWhere((c) => c.labelAr == 'رياضة');
+      final medicine = categories.firstWhere((c) => c.labelAr == 'دواء');
+      expect(sport.colorKey, 'Other');
+      expect(sport.iconName, 'category');
+      expect(medicine.colorKey, 'Health');
+    });
+
+    testWidgets('every colour option clears the 48dp tap target',
+        (tester) async {
+      await pumpSettings(tester, FixtureSpendingRepository());
+      await tester.tap(find.byKey(const Key('add-category')));
+      await tester.pumpAndSettle();
+
+      for (final key in categoryInks.keys) {
+        final size = tester.getSize(find.byKey(Key('color-option-$key')));
+        expect(size.width, greaterThanOrEqualTo(48), reason: key);
+        expect(size.height, greaterThanOrEqualTo(48), reason: key);
+      }
+    });
+  });
+
+  group('appearance', () {
+    Future<ThemeModeController> pumpWithThemeMode(
+        WidgetTester tester, FixtureSpendingRepository repository) async {
+      tester.view.physicalSize = const Size(1080, 7200);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+
+      final controller = ThemeModeController(repository);
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(ThemeModeScope(
+        controller: controller,
+        child: ValueListenableBuilder<ThemeMode>(
+          valueListenable: controller,
+          builder: (context, mode, _) => MaterialApp(
+            theme: buildAppTheme(Brightness.light),
+            darkTheme: buildAppTheme(Brightness.dark),
+            themeMode: mode,
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: SettingsScreen(repository: repository),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      return controller;
+    }
+
+    testWidgets('offers system, light and dark with system selected first',
+        (tester) async {
+      await pumpWithThemeMode(tester, FixtureSpendingRepository());
+
+      final control = find.byKey(const Key('settings-theme-mode'));
+      await tester.ensureVisible(control);
+      expect(find.text('المظهر'), findsOneWidget);
+      final segmented =
+          tester.widget<SegmentedButton<ThemeMode>>(control);
+      expect(segmented.selected, {ThemeMode.system});
+      expect(segmented.segments.map((s) => s.value),
+          [ThemeMode.system, ThemeMode.light, ThemeMode.dark]);
+    });
+
+    testWidgets('choosing dark switches the app at once and remembers it',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      final controller = await pumpWithThemeMode(tester, repository);
+
+      await tester.ensureVisible(find.byKey(const Key('settings-theme-dark')));
+      await tester.tap(find.byKey(const Key('settings-theme-dark')));
+      await tester.pumpAndSettle();
+
+      expect(controller.value, ThemeMode.dark);
+      expect(await repository.setting(themeModeSettingKey), 'dark');
+      final context = tester.element(find.byType(SettingsScreen));
+      expect(context.palette, same(AppPalette.dark));
+    });
+
+    testWidgets('is hidden when there is no app theme mode to change',
+        (tester) async {
+      await pumpSettings(tester, FixtureSpendingRepository());
+      expect(find.byKey(const Key('settings-theme-mode')), findsNothing);
     });
   });
 }

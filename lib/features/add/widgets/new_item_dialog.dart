@@ -245,7 +245,8 @@ class _NewItemDialogState extends State<NewItemDialog> {
               Text(
                 'باركود: ${widget.initialBarcode}',
                 key: const Key('new-item-barcode'),
-                style: AppText.caption,
+                style: AppText.caption
+                    .copyWith(color: context.palette.textSecondary),
               ),
             ],
           ],

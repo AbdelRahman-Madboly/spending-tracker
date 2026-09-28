@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design/app_icons.dart';
+import '../../core/design/app_theme.dart';
+import '../../core/design/category_colors.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
-import '../add/widgets/category_strip.dart' show iconForName;
 import '../add/widgets/new_item_dialog.dart'
     show showEditItemDialog, showNewItemDialog;
 import 'widgets/category_dialogs.dart';
@@ -169,6 +171,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       key: _generateKey('cat'),
       labelAr: result.labelAr,
       iconName: result.iconName,
+      colorKey: result.colorKey,
     );
     await _load();
   }
@@ -178,12 +181,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       initialLabelAr: category.labelAr,
       initialIconName: category.iconName,
+      initialColorKey: category.colorKey,
     );
     if (result == null) return;
     await widget.repository.updateCategory(
       key: category.key,
       labelAr: result.labelAr,
       iconName: result.iconName,
+      colorKey: result.colorKey,
     );
     await _load();
   }
@@ -273,8 +278,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('الإعدادات')),
       body: !_loaded
           ? const Center(child: CircularProgressIndicator())
@@ -309,11 +314,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsetsDirectional.only(bottom: AppSpacing.sm),
+                Padding(
+                  padding:
+                      const EdgeInsetsDirectional.only(bottom: AppSpacing.sm),
                   child: Text(
                     'حفظ الراتب يسجل فترة راتب جديدة بتاريخ اليوم، ولا يغيّر سجل الرواتب السابقة.',
-                    style: AppText.caption,
+                    style: AppText.caption
+                        .copyWith(color: palette.textSecondary),
                   ),
                 ),
                 const Divider(height: AppSpacing.lg),
@@ -321,7 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'الأقسام',
                   trailing: IconButton(
                     key: const Key('add-category'),
-                    icon: const Icon(Icons.add_circle_outline),
+                    icon: const Icon(AppIcons.addCircle),
                     tooltip: 'إضافة قسم',
                     onPressed: _addCategory,
                   ),
@@ -329,8 +336,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 for (final category in _categories) ...[
                   ListTile(
                     key: ValueKey('settings-category-${category.key}'),
-                    leading: Icon(iconForName(category.iconName),
-                        color: AppColors.accent),
+                    leading: Icon(iconFor(category.iconName),
+                        color: palette.categoryInk(category.colorKey)),
                     title: Text(category.labelAr, style: AppText.body),
                     onTap: () => _editCategory(category),
                     trailing: Row(
@@ -338,7 +345,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         IconButton(
                           key: ValueKey('archive-category-${category.key}'),
-                          icon: const Icon(Icons.archive_outlined),
+                          icon: const Icon(AppIcons.archive),
                           tooltip: 'أرشفة',
                           onPressed: () => _archiveCategory(category),
                         ),
@@ -346,8 +353,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           key: ValueKey('expand-category-${category.key}'),
                           icon: Icon(
                             _expandedCategories.contains(category.key)
-                                ? Icons.expand_less
-                                : Icons.expand_more,
+                                ? AppIcons.expandLess
+                                : AppIcons.expandMore,
                           ),
                           tooltip: 'عرض الفئات الفرعية',
                           onPressed: () => _toggleExpanded(category.key),
@@ -366,16 +373,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ListTile(
                               key: ValueKey(
                                   'settings-subcategory-${subcategory.key}'),
-                              leading: Icon(
-                                  iconForName(subcategory.iconName),
-                                  color: AppColors.textSecondary),
+                              leading: Icon(iconFor(subcategory.iconName),
+                                  color: palette.textSecondary),
                               title: Text(subcategory.labelAr,
                                   style: AppText.body),
                               onTap: () => _editSubcategory(subcategory),
                               trailing: IconButton(
                                 key: ValueKey(
                                     'archive-subcategory-${subcategory.key}'),
-                                icon: const Icon(Icons.archive_outlined),
+                                icon: const Icon(AppIcons.archive),
                                 tooltip: 'أرشفة',
                                 onPressed: () =>
                                     _archiveSubcategory(subcategory),
@@ -386,7 +392,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: TextButton.icon(
                               key: ValueKey('add-subcategory-${category.key}'),
                               onPressed: () => _addSubcategory(category.key),
-                              icon: const Icon(Icons.add),
+                              icon: const Icon(AppIcons.add),
                               label: const Text('إضافة فئة فرعية'),
                             ),
                           ),
@@ -399,7 +405,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'المنتجات',
                   trailing: IconButton(
                     key: const Key('add-item'),
-                    icon: const Icon(Icons.add_circle_outline),
+                    icon: const Icon(AppIcons.addCircle),
                     tooltip: 'إضافة منتج',
                     onPressed: _addItem,
                   ),
@@ -417,7 +423,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: OutlinedButton.styleFrom(
                             backgroundColor: _showArchivedItems
                                 ? null
-                                : AppColors.accent.withValues(alpha: 0.1),
+                                : palette.primaryContainer,
                           ),
                           child: const Text('النشطة'),
                         ),
@@ -430,7 +436,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               setState(() => _showArchivedItems = true),
                           style: OutlinedButton.styleFrom(
                             backgroundColor: _showArchivedItems
-                                ? AppColors.accent.withValues(alpha: 0.1)
+                                ? palette.primaryContainer
                                 : null,
                           ),
                           child: const Text('المؤرشفة'),
@@ -470,7 +476,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           IconButton(
                             key: ValueKey('archive-item-${item.id}'),
-                            icon: const Icon(Icons.archive_outlined),
+                            icon: const Icon(AppIcons.archive),
                             tooltip: 'أرشفة',
                             onPressed: () => _archiveItem(item.id),
                           ),
@@ -496,7 +502,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       trailing: IconButton(
                         key: ValueKey('unarchive-item-${item.id}'),
-                        icon: const Icon(Icons.unarchive_outlined),
+                        icon: const Icon(AppIcons.unarchive),
                         tooltip: 'استعادة',
                         onPressed: () => _unarchiveItem(item.id),
                       ),
@@ -505,22 +511,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const _SectionHeader('الأقسام والفئات الفرعية المؤرشفة'),
                 if (_archivedCategories.isEmpty &&
                     _archivedSubcategories.isEmpty)
-                  const Padding(
-                    padding: EdgeInsetsDirectional.only(bottom: AppSpacing.sm),
+                  Padding(
+                    padding:
+                        const EdgeInsetsDirectional.only(bottom: AppSpacing.sm),
                     child: Text(
                       'لا يوجد أقسام أو فئات فرعية مؤرشفة.',
-                      style: AppText.caption,
+                      style: AppText.caption
+                          .copyWith(color: palette.textSecondary),
                     ),
                   ),
                 for (final category in _archivedCategories)
                   ListTile(
                     key: ValueKey('settings-archived-category-${category.key}'),
-                    leading: Icon(iconForName(category.iconName),
-                        color: AppColors.textSecondary),
+                    leading: Icon(iconFor(category.iconName),
+                        color: palette.textSecondary),
                     title: Text(category.labelAr, style: AppText.body),
                     trailing: IconButton(
                       key: ValueKey('unarchive-category-${category.key}'),
-                      icon: const Icon(Icons.unarchive_outlined),
+                      icon: const Icon(AppIcons.unarchive),
                       tooltip: 'استعادة',
                       onPressed: () => _unarchiveCategory(category.key),
                     ),
@@ -529,8 +537,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ListTile(
                     key: ValueKey(
                         'settings-archived-subcategory-${subcategory.key}'),
-                    leading: Icon(iconForName(subcategory.iconName),
-                        color: AppColors.textSecondary),
+                    leading: Icon(iconFor(subcategory.iconName),
+                        color: palette.textSecondary),
                     title: Text(subcategory.labelAr, style: AppText.body),
                     subtitle: Text(
                       [..._categories, ..._archivedCategories]
@@ -547,11 +555,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     trailing: IconButton(
                       key: ValueKey(
                           'unarchive-subcategory-${subcategory.key}'),
-                      icon: const Icon(Icons.unarchive_outlined),
+                      icon: const Icon(AppIcons.unarchive),
                       tooltip: 'استعادة',
                       onPressed: () => _unarchiveSubcategory(subcategory.key),
                     ),
                   ),
+                if (ThemeModeScope.maybeOf(context) case final themeMode?) ...[
+                  const Divider(height: AppSpacing.lg),
+                  const _SectionHeader('المظهر'),
+                  _ThemeModeSelector(controller: themeMode),
+                ],
                 const Divider(height: AppSpacing.lg),
                 const _SectionHeader('عن التطبيق'),
                 const ListTile(
@@ -585,6 +598,46 @@ class _SectionHeader extends StatelessWidget {
           ),
           ?trailing,
         ],
+      ),
+    );
+  }
+}
+
+/// System / light / dark. The choice applies the moment it is tapped and
+/// is remembered in `app_settings` by [ThemeModeController].
+class _ThemeModeSelector extends StatelessWidget {
+  final ThemeModeController controller;
+
+  const _ThemeModeSelector({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: SegmentedButton<ThemeMode>(
+        key: const Key('settings-theme-mode'),
+        showSelectedIcon: false,
+        style: SegmentedButton.styleFrom(minimumSize: const Size(0, 48)),
+        segments: const [
+          ButtonSegment(
+            value: ThemeMode.system,
+            icon: Icon(AppIcons.themeSystem, key: Key('settings-theme-system')),
+            label: Text('تلقائي'),
+          ),
+          ButtonSegment(
+            value: ThemeMode.light,
+            icon: Icon(AppIcons.themeLight, key: Key('settings-theme-light')),
+            label: Text('فاتح'),
+          ),
+          ButtonSegment(
+            value: ThemeMode.dark,
+            icon: Icon(AppIcons.themeDark, key: Key('settings-theme-dark')),
+            label: Text('داكن'),
+          ),
+        ],
+        selected: {controller.value},
+        onSelectionChanged: (selection) =>
+            controller.select(selection.single),
       ),
     );
   }

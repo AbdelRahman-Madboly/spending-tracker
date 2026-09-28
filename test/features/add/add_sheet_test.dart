@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spending_tracker/app.dart';
+import 'package:spending_tracker/core/design/app_theme.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';

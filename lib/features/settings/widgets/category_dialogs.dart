@@ -1,34 +1,44 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/design/app_icons.dart';
+import '../../../core/design/category_colors.dart';
 import '../../../core/design/tokens.dart';
 import '../../../domain/models.dart';
-import '../../add/widgets/category_strip.dart' show iconForName;
 import 'icon_picker_dialog.dart';
 
-/// The user's input for a category: its Arabic label and icon. The key is
-/// never part of this draft — it is generated once at creation and never
-/// changes afterwards, so there is nothing here for a rename to touch.
+/// The user's input for a category: its Arabic label, icon and colour
+/// (one of `categoryInks`' keys). The key is never part of this draft — it
+/// is generated once at creation and never changes afterwards, so there is
+/// nothing here for a rename to touch.
 class CategoryDraft {
   final String labelAr;
   final String iconName;
+  final String colorKey;
 
-  const CategoryDraft({required this.labelAr, required this.iconName});
+  const CategoryDraft({
+    required this.labelAr,
+    required this.iconName,
+    required this.colorKey,
+  });
 }
 
 /// Shows the add/edit category dialog. Pass [initialLabelAr]/
-/// [initialIconName] to pre-fill it for editing an existing category;
-/// leave them null for "add a new category". Returns the entered draft, or
-/// null if the user cancelled.
+/// [initialIconName]/[initialColorKey] to pre-fill it for editing an
+/// existing category; leave them null for "add a new category", which
+/// starts on the generic `category` icon and the `Other` colour. Returns
+/// the entered draft, or null if the user cancelled.
 Future<CategoryDraft?> showCategoryDialog({
   required BuildContext context,
   String? initialLabelAr,
   String? initialIconName,
+  String? initialColorKey,
 }) {
   return showDialog<CategoryDraft>(
     context: context,
     builder: (_) => _CategoryDialog(
       initialLabelAr: initialLabelAr,
       initialIconName: initialIconName,
+      initialColorKey: initialColorKey,
     ),
   );
 }
@@ -36,8 +46,13 @@ Future<CategoryDraft?> showCategoryDialog({
 class _CategoryDialog extends StatefulWidget {
   final String? initialLabelAr;
   final String? initialIconName;
+  final String? initialColorKey;
 
-  const _CategoryDialog({this.initialLabelAr, this.initialIconName});
+  const _CategoryDialog({
+    this.initialLabelAr,
+    this.initialIconName,
+    this.initialColorKey,
+  });
 
   bool get isEditing => initialLabelAr != null;
 
@@ -48,12 +63,19 @@ class _CategoryDialog extends StatefulWidget {
 class _CategoryDialogState extends State<_CategoryDialog> {
   final _nameController = TextEditingController();
   late String _iconName;
+  late String _colorKey;
 
   @override
   void initState() {
     super.initState();
     _nameController.text = widget.initialLabelAr ?? '';
-    _iconName = widget.initialIconName ?? 'category_outlined';
+    _iconName = widget.initialIconName ?? 'category';
+    // A key the palette doesn't know (none should exist, but a row is
+    // user data) shows as Other rather than leaving nothing selected.
+    final initialColor = widget.initialColorKey;
+    _colorKey = initialColor != null && categoryInks.containsKey(initialColor)
+        ? initialColor
+        : 'Other';
   }
 
   @override
@@ -68,6 +90,7 @@ class _CategoryDialogState extends State<_CategoryDialog> {
     final picked = await showIconPickerDialog(
       context: context,
       currentIconName: _iconName,
+      colorKey: _colorKey,
     );
     if (picked != null) setState(() => _iconName = picked);
   }
@@ -75,8 +98,11 @@ class _CategoryDialogState extends State<_CategoryDialog> {
   void _save() {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
-    Navigator.of(context)
-        .pop(CategoryDraft(labelAr: name, iconName: _iconName));
+    Navigator.of(context).pop(CategoryDraft(
+      labelAr: name,
+      iconName: _iconName,
+      colorKey: _colorKey,
+    ));
   }
 
   @override
@@ -101,9 +127,19 @@ class _CategoryDialogState extends State<_CategoryDialog> {
             child: OutlinedButton.icon(
               key: const Key('category-dialog-icon-button'),
               onPressed: _pickIcon,
-              icon: Icon(iconForName(_iconName)),
+              icon: Icon(iconFor(_iconName),
+                  color: context.palette.categoryInk(_colorKey)),
               label: const Text('تغيير الأيقونة'),
             ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text('اللون',
+              style: AppText.label
+                  .copyWith(color: context.palette.textSecondary)),
+          const SizedBox(height: AppSpacing.xs),
+          _ColorKeyPicker(
+            selected: _colorKey,
+            onSelected: (key) => setState(() => _colorKey = key),
           ),
         ],
       ),
@@ -191,7 +227,7 @@ class _SubcategoryDialogState extends State<_SubcategoryDialog> {
   void initState() {
     super.initState();
     _nameController.text = widget.initialLabelAr ?? '';
-    _iconName = widget.initialIconName ?? 'category_outlined';
+    _iconName = widget.initialIconName ?? 'category';
     _categoryKey = widget.initialCategoryKey;
   }
 
@@ -262,7 +298,7 @@ class _SubcategoryDialogState extends State<_SubcategoryDialog> {
               child: OutlinedButton.icon(
                 key: const Key('subcategory-dialog-icon-button'),
                 onPressed: _pickIcon,
-                icon: Icon(iconForName(_iconName)),
+                icon: Icon(iconFor(_iconName)),
                 label: const Text('تغيير الأيقونة'),
               ),
             ),
@@ -328,4 +364,56 @@ Future<bool?> showArchiveCascadeConfirmationDialog({
       ],
     ),
   );
+}
+
+/// The category colour choices of spec §7.2: one swatch per colour key,
+/// drawn in the current mode's ink. The selected one is filled and ringed,
+/// with a check, so the choice never rests on colour alone.
+class _ColorKeyPicker extends StatelessWidget {
+  final String selected;
+  final ValueChanged<String> onSelected;
+
+  const _ColorKeyPicker({required this.selected, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return Wrap(
+      children: [
+        for (final key in categoryInks.keys)
+          Semantics(
+            selected: key == selected,
+            button: true,
+            label: key,
+            child: InkWell(
+              key: Key('color-option-$key'),
+              customBorder: const CircleBorder(),
+              onTap: () => onSelected(key),
+              // 48dp tap target around a 32dp swatch.
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Center(
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: palette.categoryInk(key),
+                      border: key == selected
+                          ? Border.all(color: palette.textPrimary, width: 2)
+                          : null,
+                    ),
+                    child: key == selected
+                        ? Icon(AppIcons.check,
+                            size: 20, color: palette.surface)
+                        : null,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }

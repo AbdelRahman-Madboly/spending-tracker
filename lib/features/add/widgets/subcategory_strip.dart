@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/design/app_icons.dart';
 import '../../../core/design/tokens.dart';
 import '../../../domain/models.dart';
-import 'category_strip.dart' show SelectableChip, iconForName;
+import 'category_strip.dart' show SelectableChip;
 
 /// The second chip row: revealed only once a real category (not "الكل") is
 /// selected in the category strip above it. Mirrors that strip's shape
@@ -35,7 +36,7 @@ class SubcategoryStrip extends StatelessWidget {
             SelectableChip(
               key: const Key('subcategory-all'),
               label: 'الكل',
-              icon: Icons.apps,
+              icon: AppIcons.all,
               selected: selectedKey == null,
               onTap: () => onSelected(null),
             ),
@@ -43,7 +44,7 @@ class SubcategoryStrip extends StatelessWidget {
               SelectableChip(
                 key: Key('subcategory-${subcategory.key}'),
                 label: subcategory.labelAr,
-                icon: iconForName(subcategory.iconName),
+                icon: iconFor(subcategory.iconName),
                 selected: selectedKey == subcategory.key,
                 onTap: () => onSelected(subcategory.key),
               ),

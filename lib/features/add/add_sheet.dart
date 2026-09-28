@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../data/barcode_scan_service.dart';
@@ -267,6 +268,7 @@ class _AddSheetState extends State<AddSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final draft = _draft;
     return SafeArea(
       top: false,
@@ -322,12 +324,15 @@ class _AddSheetState extends State<AddSheet> {
                       InkWell(
                         onTap: () => _select(item),
                         child: Container(
+                          // surfaceAlt, not surface: the sheet itself is
+                          // surface, and a tile the same colour as its
+                          // ground only shows once it is selected.
                           decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(12),
+                            color: palette.surfaceAlt,
+                            borderRadius: BorderRadius.circular(AppRadii.sm),
                             border: Border.all(
                               color: _draft?.itemId == item.id
-                                  ? AppColors.accent
+                                  ? palette.primary
                                   : Colors.transparent,
                               width: 2,
                             ),
@@ -351,7 +356,8 @@ class _AddSheetState extends State<AddSheet> {
                                   Text(
                                       formatPiastres(
                                           item.defaultAmountPiastres!),
-                                      style: AppText.caption),
+                                      style: AppText.caption.copyWith(
+                                          color: palette.textSecondary)),
                               ],
                             ),
                           ),
@@ -362,18 +368,20 @@ class _AddSheetState extends State<AddSheet> {
                       onTap: _openNewItemDialog,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
+                          color: palette.surfaceAlt,
+                          borderRadius: BorderRadius.circular(AppRadii.sm),
                           border: Border.all(
-                            color: AppColors.accent.withValues(alpha: 0.4),
+                            color: palette.primary.withValues(alpha: 0.4),
                             width: 2,
                           ),
                         ),
-                        child: const Column(
+                        child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.add, color: AppColors.accent),
-                            Text('جديد', style: AppText.caption),
+                            Icon(AppIcons.add, color: palette.primary),
+                            Text('جديد',
+                                style: AppText.caption.copyWith(
+                                    color: palette.textSecondary)),
                           ],
                         ),
                       ),
@@ -390,30 +398,29 @@ class _AddSheetState extends State<AddSheet> {
                       onPressed: _captureFromCamera,
                       constraints:
                           const BoxConstraints(minWidth: 48, minHeight: 48),
-                      icon: const Icon(Icons.photo_camera_outlined,
-                          color: AppColors.textSecondary),
+                      icon: Icon(AppIcons.camera,
+                          color: palette.textSecondary),
                     ),
                     IconButton(
                       key: const Key('barcode-button'),
                       onPressed: _scanBarcode,
                       constraints:
                           const BoxConstraints(minWidth: 48, minHeight: 48),
-                      icon: const Icon(Icons.qr_code_scanner,
-                          color: AppColors.textSecondary),
+                      icon: Icon(AppIcons.barcode,
+                          color: palette.textSecondary),
                     ),
                     // Voice and manual-keyboard entry are separate tasks —
                     // these two stay inert placeholders here.
-                    const Icon(Icons.mic_none, color: AppColors.textSecondary),
+                    Icon(AppIcons.mic, color: palette.textSecondary),
                     IconButton(
                       key: const Key('gallery-button'),
                       onPressed: _pickFromGallery,
                       constraints:
                           const BoxConstraints(minWidth: 48, minHeight: 48),
-                      icon: const Icon(Icons.image_outlined,
-                          color: AppColors.textSecondary),
+                      icon: Icon(AppIcons.gallery,
+                          color: palette.textSecondary),
                     ),
-                    const Icon(Icons.keyboard_alt_outlined,
-                        color: AppColors.textSecondary),
+                    Icon(AppIcons.keyboard, color: palette.textSecondary),
                   ],
                 ),
                 if (_photoFile != null) ...[
@@ -433,9 +440,9 @@ class _AddSheetState extends State<AddSheet> {
                               Container(
                             width: 64,
                             height: 64,
-                            color: AppColors.surface,
-                            child: const Icon(Icons.broken_image_outlined,
-                                color: AppColors.textSecondary),
+                            color: palette.surfaceAlt,
+                            child: Icon(AppIcons.brokenImage,
+                                color: palette.textSecondary),
                           ),
                         ),
                       ),
@@ -444,7 +451,7 @@ class _AddSheetState extends State<AddSheet> {
                         onPressed: _removePhoto,
                         constraints:
                             const BoxConstraints(minWidth: 48, minHeight: 48),
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(AppIcons.close),
                       ),
                     ],
                   ),

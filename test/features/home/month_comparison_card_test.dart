@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/core/design/app_theme.dart';
 import 'package:spending_tracker/core/design/tokens.dart';
 import 'package:spending_tracker/features/home/widgets/month_comparison_card.dart';
 
@@ -31,7 +32,7 @@ void main() {
     )));
 
     final diff = tester.widget<Text>(find.text('+1,000'));
-    expect(diff.style?.color, AppColors.negative);
+    expect(diff.style?.color, AppPalette.light.negative);
   });
 
   testWidgets(
@@ -43,7 +44,7 @@ void main() {
     )));
 
     final diff = tester.widget<Text>(find.text('-1,000'));
-    expect(diff.style?.color, AppColors.positive);
+    expect(diff.style?.color, AppPalette.light.positive);
   });
 
   testWidgets('equal months render the difference in a neutral colour',
@@ -54,7 +55,29 @@ void main() {
     )));
 
     final diff = tester.widget<Text>(find.text('0'));
-    expect(diff.style?.color, AppColors.textSecondary);
+    expect(diff.style?.color, AppPalette.light.textSecondary);
+  });
+
+  testWidgets('in dark mode the difference takes the dark palette colour',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: buildAppTheme(Brightness.dark),
+      home: const Scaffold(
+        body: MonthComparisonCard(
+          thisMonthPiastres: 500000,
+          lastMonthPiastres: 400000,
+        ),
+      ),
+    ));
+
+    final diff = tester.widget<Text>(find.text('+1,000'));
+    expect(diff.style?.color, AppPalette.dark.negative);
+    final card = tester.widget<Material>(find
+        .descendant(
+            of: find.byType(MonthComparisonCard),
+            matching: find.byType(Material))
+        .first);
+    expect(card.color, AppPalette.dark.surface);
   });
 
   testWidgets('tapping the card invokes onTap', (tester) async {

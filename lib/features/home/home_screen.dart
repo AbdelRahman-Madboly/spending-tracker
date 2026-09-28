@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design/app_icons.dart';
+import '../../core/design/category_colors.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../add/add_sheet.dart';
-import '../add/widgets/category_strip.dart' show iconForName;
 import '../settings/settings_screen.dart';
 import '../statistics/statistics_screen.dart';
 import 'widgets/month_comparison_card.dart';
@@ -32,13 +33,10 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.bar_chart),
+            icon: const Icon(AppIcons.stats),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => StatisticsScreen(repository: repository),
@@ -47,7 +45,7 @@ class HomeScreen extends StatelessWidget {
           ),
           IconButton(
             key: const Key('settings-button'),
-            icon: const Icon(Icons.settings_outlined),
+            icon: const Icon(AppIcons.settings),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => SettingsScreen(repository: repository),
@@ -134,9 +132,9 @@ class HomeScreen extends StatelessWidget {
                         for (final row in rows)
                           ListTile(
                             leading: Icon(
-                              iconForName(
-                                  labelsByKey[row.key]?.iconName ?? ''),
-                              color: AppColors.accent,
+                              iconFor(labelsByKey[row.key]?.iconName ?? ''),
+                              color: context.palette.categoryInk(
+                                  labelsByKey[row.key]?.colorKey ?? ''),
                             ),
                             title: Text(
                               labelsByKey[row.key]?.labelAr ?? row.key,
@@ -166,12 +164,9 @@ class HomeScreen extends StatelessWidget {
             },
           ),
         ),
-        // No explicit backgroundColor/foregroundColor here: the app theme's
-        // ColorScheme (see buildAppTheme in app.dart) leaves
-        // primaryContainer/onPrimaryContainer unset, so Flutter's default
-        // FAB style falls back to colorScheme.primary/onPrimary — which are
-        // AppColors.accent/white, the exact values this used to hard-code.
-        icon: const Icon(Icons.add),
+        // No explicit colours here: the theme's floatingActionButtonTheme
+        // (see buildAppTheme) paints it primary/onPrimary in both modes.
+        icon: const Icon(AppIcons.add),
         label: const Text('إضافة'),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
