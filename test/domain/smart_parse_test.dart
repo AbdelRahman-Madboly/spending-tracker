@@ -185,6 +185,31 @@ void main() {
       expect(line.confidence, ParseConfidence.low);
     });
 
+    test('a unit price with no total gives total = unit x quantity', () {
+      final line = readSmartResult(
+          response({
+            'cleanText': 'انودي 2 الواحدة ب 15',
+            'lines': [
+              {
+                'name': 'انودي',
+                'quantity': '2.5',
+                'unit': 'kg',
+                'amount': '',
+                'unitPrice': '15',
+                'categoryKey': 'Food',
+              },
+            ],
+          }),
+          catalogue,
+          day: day)!
+          .lines
+          .single;
+      expect(line.amountPiastres, 3750);
+      expect(line.unitPricePiastres, 1500);
+      expect(line.flags, isNot(contains(ParseFlag.noAmount)));
+      expect(line.confidence, ParseConfidence.medium);
+    });
+
     test('a date dates every line; a future or malformed one is ignored', () {
       Map<String, Object?> dated(String date) => {
             'date': date,

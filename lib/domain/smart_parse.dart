@@ -232,12 +232,18 @@ SmartResult? readSmartResult(String answer, SmartCatalogue catalogue,
     final quantityMilli =
         quantity.trim().isEmpty ? 1000 : parseQuantityMilli(quantity);
     if (quantityMilli == null) return null;
-    final amountPiastres =
+    final statedAmount =
         amount.trim().isEmpty ? null : parsePiastres(amount);
-    if (amount.trim().isNotEmpty && amountPiastres == null) return null;
+    if (amount.trim().isNotEmpty && statedAmount == null) return null;
     final unitPricePiastres = unitPrice is String && unitPrice.trim().isNotEmpty
         ? parsePiastres(unitPrice)
         : null;
+    // A unit price with no total gives total = unit x quantity, as the
+    // local parser does (spec §6.5), in integer piastres and milli-units.
+    final fromUnitPrice = statedAmount == null && unitPricePiastres != null;
+    final amountPiastres = fromUnitPrice
+        ? unitPricePiastres * quantityMilli ~/ 1000
+        : statedAmount;
 
     final item = catalogue.items
         .where((i) => i.id == raw['itemId'])

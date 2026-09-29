@@ -132,14 +132,18 @@ Future<ReviewOutcome> showReviewSheet(
         playbackFactory: playbackFactory,
         smartImprover: smartImprover,
         readAttachment: readAttachment,
-        onCleanText: (text) => latest.cleanText = text,
+        onCleanText: (text) => latest
+          ..cleanText = text
+          ..editedSinceRewrite = false,
         onChanged: (lines, date) {
           latest.lines = lines;
           latest.date = date;
         },
         onAttachmentsChanged: (attachments) => latest.attachments = attachments,
         onTyped: (text) => latest.typed = text,
-        onEdited: () => latest.edited = true,
+        onEdited: () => latest
+          ..edited = true
+          ..editedSinceRewrite = latest.cleanText != null,
       ),
     ),
   );
@@ -175,6 +179,10 @@ class _ReviewSnapshot {
   /// The smart rewrite the user accepted with اعتمد, if any.
   String? cleanText;
 
+  /// Whether the lines were changed after [cleanText] was accepted, so the
+  /// rewrite no longer says what they do.
+  bool editedSinceRewrite = false;
+
   /// Whether the user changed the lines themselves (an edit, a removal, a
   /// line added) rather than only the date or payment method.
   bool edited = false;
@@ -192,6 +200,14 @@ class _ReviewSnapshot {
 ///
 /// A barcode capture keeps its codes (see [barcodeDraftText]): a product
 /// not named yet has no text, and without its code it would be lost.
+///
+/// An accepted smart rewrite is kept as the draft's clean text, which the
+/// draft is read from when reviewed again. When the draft's text is
+/// written from lines changed after the rewrite was accepted, the rewrite
+/// is dropped: it would bring back the lines as they were before the edit.
+///
+/// A draft opened from Needs review is left as it was, a rewrite accepted
+/// in it included: only saving it keeps that rewrite.
 Future<void> _keepAsDraft(SpendingRepository repository,
     ReviewRequest request, _ReviewSnapshot latest) async {
   if (request.draftId != null) return;
@@ -203,24 +219,26 @@ Future<void> _keepAsDraft(SpendingRepository repository,
         for (final (i, p) in (request.lines ?? const <ParsedLine>[]).indexed)
           ReviewLine.fromParsed(p, id: 'k$i'),
       ];
+  final fromLines = raw.trim().isEmpty && typed.isEmpty && !linesAsRead;
   final text = raw.trim().isNotEmpty
       ? raw
       : typed.isNotEmpty
           ? typed
-          : linesAsRead
+          : !fromLines
               ? ''
               : request.kind == CaptureKind.barcode
                   ? barcodeDraftText(lines)
                   : reviewDraftText(lines);
+  final rewrite = fromLines && latest.editedSinceRewrite
+      ? null
+      : latest.cleanText;
   if (text.trim().isEmpty && latest.attachments.isEmpty) return;
   final day = latest.date ?? ArabicLineParser.captureDay(request.capturedAt);
   await repository.saveCapture(CaptureDraft(
     kind: request.kind,
     date: day,
     rawText: text.isEmpty ? null : text,
-    // An accepted smart rewrite is kept beside the raw text, and the draft
-    // is read from it when it is reviewed again.
-    cleanText: latest.cleanText ?? request.cleanText,
+    cleanText: rewrite ?? request.cleanText,
     parsedBy: latest.cleanText != null ? 'gemini' : request.parsedBy,
     lines: const [],
     attachments: _withTypedTranscript(latest.attachments, typed),
@@ -816,9 +834,11 @@ class _ReviewSheetState extends State<ReviewSheet> {
         _date = result.date!;
       }
     });
-    widget.onCleanText?.call(result.cleanText);
+    // The new lines are an edit of the capture's lines, and the rewrite
+    // matches them: it is reported last, so it does not count as stale.
     _report();
     widget.onEdited?.call();
+    widget.onCleanText?.call(result.cleanText);
   }
 
   Future<void> _pickDate() async {

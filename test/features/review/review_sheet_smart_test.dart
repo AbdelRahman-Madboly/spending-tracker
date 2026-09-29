@@ -342,6 +342,50 @@ void main() {
     expect(draft.parsedBy, 'gemini');
   });
 
+  testWidgets('a photo capture edited after اعتمد keeps the edit in its '
+      'draft, not the stale rewrite', (tester) async {
+    final photo = ReviewRequest(
+      kind: CaptureKind.photo,
+      capturedAt: _now(),
+      attachments: const [
+        DraftAttachment(
+            kind: AttachmentKind.photo, path: 'attachments/2026-09/a.jpg'),
+      ],
+    );
+    await open(tester, photo);
+    await tap(tester, find.byKey(smartButton));
+    await tap(tester, find.byKey(const Key('smart-accept')));
+    expect(total(tester), '40');
+    await tester.enterText(find.byKey(const Key('line-amount')).first, '55');
+    await tester.pumpAndSettle();
+    expect(total(tester), '65');
+    await tap(tester, find.byKey(const Key('review-later')));
+
+    final draft = (await repo.watchDraftCaptures().first).single;
+    await open(tester, ReviewRequest.fromDraft(draft));
+    expect(total(tester), '65');
+  });
+
+  testWidgets('a photo capture closed right after اعتمد keeps the rewrite',
+      (tester) async {
+    await open(
+        tester,
+        ReviewRequest(
+          kind: CaptureKind.photo,
+          capturedAt: _now(),
+          attachments: const [
+            DraftAttachment(
+                kind: AttachmentKind.photo, path: 'attachments/2026-09/a.jpg'),
+          ],
+        ));
+    await tap(tester, find.byKey(smartButton));
+    await tap(tester, find.byKey(const Key('smart-accept')));
+    await tap(tester, find.byKey(const Key('review-later')));
+    final draft = (await repo.watchDraftCaptures().first).single;
+    expect(draft.cleanText, 'طماطم 2 كيلو ب 30\nعيش ب 10');
+    expect(draft.parsedBy, 'gemini');
+  });
+
   testWidgets('a barcode capture has no smart button', (tester) async {
     await open(
         tester,
