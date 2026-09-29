@@ -160,6 +160,10 @@ abstract final class AppIcons {
   static const mic = Symbols.mic_rounded;
   static const camera = Symbols.photo_camera_rounded;
   static const barcode = Symbols.barcode_scanner_rounded;
+
+  /// The scanner's torch, off and on.
+  static const torchOff = Symbols.flashlight_off_rounded;
+  static const torchOn = Symbols.flashlight_on_rounded;
   static const textNote = Symbols.edit_note_rounded;
   static const gallery = Symbols.image_rounded;
   static const voiceNote = Symbols.graphic_eq_rounded;

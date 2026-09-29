@@ -474,6 +474,13 @@ class CaptureLine extends Equatable {
   /// learns it as an alias, so the same words match the item next time.
   final String? aliasToLearn;
 
+  /// The barcode this line was scanned from (spec §6.3). Saving teaches it:
+  /// a line with no item creates the item that holds the code from then on
+  /// (the item already holding it, if one does), and a line linked to an
+  /// item with no code of its own gives that item the code. A code already
+  /// on another live item never moves.
+  final String? barcode;
+
   const CaptureLine({
     required this.amountPiastres,
     required this.categoryKey,
@@ -487,6 +494,7 @@ class CaptureLine extends Equatable {
     this.reference,
     this.note,
     this.aliasToLearn,
+    this.barcode,
   });
 
   @override
@@ -503,6 +511,7 @@ class CaptureLine extends Equatable {
         reference,
         note,
         aliasToLearn,
+        barcode,
       ];
 }
 

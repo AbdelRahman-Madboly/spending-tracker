@@ -1,16 +1,21 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:spending_tracker/data/barcode_scan_service.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
+import 'package:spending_tracker/data/net/network_gate.dart';
 import 'package:spending_tracker/data/photo_capture_service.dart';
 import 'package:spending_tracker/data/text_recognition_service.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';
 import 'package:spending_tracker/features/capture/capture_launcher.dart';
 import 'package:spending_tracker/features/home/widgets/capture_bar.dart';
 import 'package:spending_tracker/domain/models.dart';
+import 'package:spending_tracker/domain/online_features.dart';
 
 import '../transactions/attachment_strip_test.dart' show FakeVoicePlayback;
 import 'voice_fakes.dart';
@@ -42,10 +47,19 @@ class _Recognizer implements TextRecognitionService {
 
 class _Scanner implements BarcodeScanService {
   int calls = 0;
+
+  /// What the next continuous scan returns.
+  List<String> many = const [];
   @override
   Future<String?> scan(BuildContext context) async {
     calls++;
     return null;
+  }
+
+  @override
+  Future<List<String>> scanMany(BuildContext context) async {
+    calls++;
+    return many;
   }
 }
 
@@ -67,11 +81,13 @@ void main() {
     PhotoCaptureResult? photo,
     Object? photoError,
     String photoText = '',
+    List<String> scanned = const [],
+    NetworkGate? networkGate,
   }) async {
     photos = _Photos()..error = photoError;
     if (photo != null) photos.next = photo;
     final recognizer = _Recognizer()..text = photoText;
-    scanner = _Scanner();
+    scanner = _Scanner()..many = scanned;
     recorder = voiceRecorder ?? FakeVoiceRecorder();
     speech = speechRecognition ?? FakeSpeechRecognition();
     repo = repository ?? FixtureSpendingRepository();
@@ -92,6 +108,7 @@ void main() {
                   photoCaptureService: photos,
                   textRecognition: recognizer,
                   barcodeScanService: scanner,
+                  networkGate: networkGate,
                   voiceRecorderFactory: () => recorder,
                   speechRecognition: speech,
                   playbackFactory: FakeVoicePlayback.new,
@@ -108,14 +125,6 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('barcode opens the add sheet straight into the scanner', (
-    tester,
-  ) async {
-    await run(tester, CaptureAction.barcode);
-    expect(find.byType(AddSheet), findsOneWidget);
-    expect(scanner.calls, 1);
-  });
-
   Future<void> tap(WidgetTester tester, Finder finder) async {
     await tester.ensureVisible(finder);
     await tester.pumpAndSettle();
@@ -127,6 +136,152 @@ void main() {
       (await repo.watchTransactions().first)
           .where((t) => t.captureGroupId != null)
           .toList();
+
+  group('barcode', () {
+    Finder inLine(int i, Finder f) =>
+        find.descendant(of: find.byKey(Key('review-line-l$i')), matching: f);
+
+    testWidgets('scanned products go to review and save as a barcode capture',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      final known = await repository.createItem(
+          nameAr: 'بيبسي كانز',
+          categoryKey: 'Drinks',
+          defaultAmountPiastres: 1500,
+          barcode: '6221');
+      await run(tester, CaptureAction.barcode,
+          repository: repository, scanned: ['6221', '9999', '6221']);
+      expect(find.byType(AddSheet), findsNothing);
+      expect(scanner.calls, 1);
+      expect(find.byKey(const Key('review-sheet')), findsOneWidget);
+
+      // The known can, twice, at its price.
+      expect(
+          tester
+              .widget<TextField>(inLine(0, find.byKey(const Key('line-name'))))
+              .controller!
+              .text,
+          'بيبسي كانز');
+      expect(
+          tester
+              .widget<TextField>(
+                  inLine(0, find.byKey(const Key('line-amount'))))
+              .controller!
+              .text,
+          '30');
+      expect(inLine(1, find.byKey(const Key('line-barcode'))), findsOneWidget);
+      expect(inLine(1, find.text('9999')), findsOneWidget);
+
+      // The unknown product is named once, priced and filed.
+      expect(inLine(1, find.byKey(const Key('line-name-warning'))),
+          findsOneWidget);
+      await tester.enterText(
+          inLine(1, find.byKey(const Key('line-amount'))), '25');
+      await tap(tester, inLine(1, find.byKey(const Key('category-Food'))));
+      await tester.pumpAndSettle();
+      expect(find.text('اكتب اسم المنتج'), findsOneWidget);
+      expect(find.text('كمّل الاسم والمبلغ والفئة في السطور المعلّمة أو امسحها'),
+          findsOneWidget);
+      expect(
+          tester.widget<FilledButton>(find.byKey(const Key('review-save')))
+              .enabled,
+          isFalse);
+      await tester.enterText(
+          inLine(1, find.byKey(const Key('line-name'))), 'عصير جهينة');
+      await tester.pumpAndSettle();
+      await tap(tester, find.byKey(const Key('review-save')));
+
+      final entries = await saved();
+      expect(entries, hasLength(2));
+      expect(entries.every((t) => t.source == EntrySource.barcode), isTrue);
+      final group = (await repo.captureGroup(entries.first.captureGroupId!))!;
+      expect(group.kind, CaptureKind.barcode);
+      expect(group.entries.first.itemId, known.id);
+      // The next scan of the new code knows it.
+      final learned = (await repo.itemByBarcode('9999'))!;
+      expect(learned.nameAr, 'عصير جهينة');
+      expect(learned.suggestedAmountPiastres, 2500);
+    });
+
+    testWidgets('backing out of the scanner with nothing scanned opens nothing',
+        (tester) async {
+      await run(tester, CaptureAction.barcode);
+      expect(scanner.calls, 1);
+      expect(find.byKey(const Key('review-sheet')), findsNothing);
+      expect(find.byType(AddSheet), findsNothing);
+    });
+
+    testWidgets('with product lookup on, an unknown code takes its name '
+        'from Open Food Facts', (tester) async {
+      final repository = FixtureSpendingRepository();
+      await repository.setSetting(onlineFeaturesSettingKey, 'true');
+      await repository.setSetting(
+          OnlineFeature.productLookup.settingKey, 'true');
+      final gate = NetworkGate(repository,
+          clientFactory: () => MockClient((request) async => http.Response.bytes(
+              utf8.encode(jsonEncode({
+                'status': 'success',
+                'product': {'product_name_ar': 'عصير جهينة مانجو'},
+              })),
+              200)));
+      await tester.runAsync(() async {
+        await run(tester, CaptureAction.barcode,
+            repository: repository, scanned: ['6223001360612'],
+            networkGate: gate);
+        // The lookup runs on real async I/O; let it land.
+        for (var i = 0; i < 20; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          await tester.pump();
+        }
+      });
+      await tester.pumpAndSettle();
+      expect(
+          tester
+              .widget<TextField>(inLine(0, find.byKey(const Key('line-name'))))
+              .controller!
+              .text,
+          'عصير جهينة مانجو');
+    });
+  });
+
+  group('the network rule (spec §9.2)', () {
+    for (final action in CaptureAction.values) {
+      testWidgets('with every switch off, ${action.name} never builds an '
+          'HTTP client', (tester) async {
+        final repository = FixtureSpendingRepository();
+        var built = 0;
+        final gate = NetworkGate(repository, clientFactory: () {
+          built++;
+          throw StateError('no client may be built');
+        });
+        await run(tester, action,
+            repository: repository,
+            networkGate: gate,
+            scanned: ['6223001360612'],
+            photo: const PhotoCaptureResult(
+                PhotoCaptureOutcome.attached, 'attachments/2026-09/p.jpg'),
+            photoText: 'InstaPay 150 EGP');
+        await tester.pumpAndSettle();
+        expect(built, 0);
+      });
+    }
+
+    testWidgets('the master switch alone does not let the barcode lookup out',
+        (tester) async {
+      final repository = FixtureSpendingRepository();
+      await repository.setSetting(onlineFeaturesSettingKey, 'true');
+      await repository.setSetting(OnlineFeature.gemini.settingKey, 'true');
+      var built = 0;
+      final gate = NetworkGate(repository, clientFactory: () {
+        built++;
+        throw StateError('no client may be built');
+      });
+      await run(tester, CaptureAction.barcode,
+          repository: repository, networkGate: gate, scanned: ['6223001360612']);
+      expect(find.byKey(const Key('review-sheet')), findsOneWidget);
+      expect(built, 0);
+    });
+  });
 
   group('camera', () {
     testWidgets('takes a photo and reviews what it reads as a photo capture',

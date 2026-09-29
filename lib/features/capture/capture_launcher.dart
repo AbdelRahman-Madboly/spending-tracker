@@ -3,13 +3,17 @@ import 'package:flutter/services.dart';
 
 import '../../core/design/tokens.dart';
 import '../../data/barcode_scan_service.dart';
+import '../../data/net/network_gate.dart';
+import '../../data/net/product_lookup.dart';
 import '../../data/photo_capture_service.dart';
 import '../../data/document_picker_service.dart';
 import '../../data/speech_recognition_service.dart';
 import '../../data/text_recognition_service.dart';
 import '../../data/voice_playback.dart';
 import '../../data/voice_recorder.dart';
+import '../../domain/barcode_scan.dart';
 import '../../domain/models.dart';
+import '../../domain/online_features.dart';
 import '../../domain/parsing/line_parser.dart';
 import '../../domain/spending_repository.dart';
 import '../add/add_sheet.dart';
@@ -24,9 +28,7 @@ import 'voice_capture_sheet.dart';
 /// streams then slide the new row in.
 ///
 /// [initialAction] starts the camera, gallery or scanner as soon as the
-/// sheet is up: how the capture bar's barcode button reaches the scan the
-/// sheet already has, until the barcode flow of its own (spec §6.3). The
-/// services are injectable for widget tests.
+/// sheet is up. The services are injectable for widget tests.
 Future<void> openAddSheet(
   BuildContext context,
   SpendingRepository repository, {
@@ -57,8 +59,8 @@ Future<void> openAddSheet(
 
 /// Runs one capture bar action. Camera takes a photo and reads it (spec
 /// §6.2), voice records and transcribes (spec §6.4) and text takes a typed
-/// note (spec §6.5); all three end in the review sheet. Barcode still opens
-/// the add sheet straight into the scanner. The platform services are
+/// note (spec §6.5) and barcode scans products (spec §6.3); all four end
+/// in the review sheet. The platform services and the [networkGate] are
 /// injectable for widget tests.
 Future<void> launchCapture(
   BuildContext context,
@@ -68,6 +70,7 @@ Future<void> launchCapture(
   TextRecognitionService? textRecognition,
   DocumentPickerService? documentPicker,
   BarcodeScanService? barcodeScanService,
+  NetworkGate? networkGate,
   VoiceRecorder Function()? voiceRecorderFactory,
   SpeechRecognitionService? speechRecognition,
   VoicePlayback Function()? playbackFactory,
@@ -85,12 +88,14 @@ Future<void> launchCapture(
         clock: clock,
       );
     case CaptureAction.barcode:
-      await openAddSheet(
+      await captureBarcode(
         context,
         repository,
-        initialAction: AddSheetAction.barcode,
+        scanner: barcodeScanService,
+        networkGate: networkGate,
         photoCaptureService: photoCaptureService,
-        barcodeScanService: barcodeScanService,
+        playbackFactory: playbackFactory,
+        clock: clock,
       );
     case CaptureAction.voice:
       await captureVoice(
@@ -166,6 +171,56 @@ Future<void> capturePhoto(
     photoCaptureService: photos,
     textRecognition: textRecognition,
     documentPicker: documentPicker,
+    playbackFactory: playbackFactory,
+  );
+}
+
+/// Scans products one after another (spec §6.3) and reviews them: a code
+/// the app knows is its item at its last price, and any other is a product
+/// to name, which learns the code when saved. With the barcode lookup
+/// switched on, an unknown code is first looked up on Open Food Facts
+/// through [networkGate] for its name.
+Future<void> captureBarcode(
+  BuildContext context,
+  SpendingRepository repository, {
+  BarcodeScanService? scanner,
+  NetworkGate? networkGate,
+  PhotoCaptureService? photoCaptureService,
+  VoicePlayback Function()? playbackFactory,
+  DateTime Function() clock = DateTime.now,
+}) async {
+  final capturedAt = clock();
+  final codes =
+      await (scanner ?? MobileScannerBarcodeScanService()).scanMany(context);
+  if (codes.isEmpty || !context.mounted) return;
+  final ProductLookup? lookup =
+      await isOnlineFeatureOn(repository, OnlineFeature.productLookup)
+          ? OpenFoodFactsLookup(
+              networkGate ?? NetworkGate(repository), repository,
+              clock: clock)
+          : null;
+  if (lookup != null && context.mounted) {
+    _say(context, 'بدوّر على أسماء المنتجات…',
+        const Key('barcode-looking-up'));
+  }
+  final lines = await barcodeLines(
+    codes,
+    repository: repository,
+    day: ArabicLineParser.captureDay(capturedAt),
+    nameFor: lookup?.nameFor,
+  );
+  if (!context.mounted) return;
+  ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+  await showReviewSheet(
+    context,
+    repository: repository,
+    request: ReviewRequest(
+      kind: CaptureKind.barcode,
+      capturedAt: capturedAt,
+      lines: lines,
+    ),
+    clock: clock,
+    photoCaptureService: photoCaptureService,
     playbackFactory: playbackFactory,
   );
 }

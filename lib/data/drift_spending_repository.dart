@@ -353,6 +353,16 @@ class DriftSpendingRepository implements SpendingRepository {
           ..limit(1))
         .getSingleOrNull();
     if (row == null) return null;
+    // A scan adds the item at the price it was last bought at (spec §6.3).
+    final last = await (_db.select(_db.entries)
+          ..where((t) => t.itemId.equals(row.id) & t.deletedAt.isNull())
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.date),
+            (t) => OrderingTerm.desc(t.createdAt),
+            (t) => OrderingTerm.desc(t.rowId),
+          ])
+          ..limit(1))
+        .getSingleOrNull();
     return QuickPickItem(
       id: row.id,
       nameAr: row.nameAr,
@@ -360,6 +370,7 @@ class DriftSpendingRepository implements SpendingRepository {
       subcategoryKey: row.subcategoryKey,
       defaultAmountPiastres: row.defaultAmountPiastres,
       barcode: row.barcode,
+      lastAmountPiastres: last?.amountPiastres,
     );
   }
 
@@ -902,13 +913,14 @@ class DriftSpendingRepository implements SpendingRepository {
         }
       }
       for (final line in draft.lines) {
+        final itemId = await _learnBarcode(line);
         await _db.into(_db.entries).insert(EntriesCompanion.insert(
               id: _newId(),
               date: date,
               amountPiastres: line.amountPiastres,
               categoryKey: line.categoryKey,
               subcategoryKey: Value(line.subcategoryKey),
-              itemId: Value(line.itemId),
+              itemId: Value(itemId),
               description: Value(line.description),
               paymentMethod: Value(draft.paymentMethod),
               source: Value(draft.kind.entrySource.name),
@@ -922,10 +934,9 @@ class DriftSpendingRepository implements SpendingRepository {
               createdAt: now,
               updatedAt: now,
             ));
-        await _bumpItemUse(line.itemId, now,
+        await _bumpItemUse(itemId, now,
             unitPricePiastres: capturedUnitPrice(line));
         final alias = line.aliasToLearn;
-        final itemId = line.itemId;
         if (alias != null && itemId != null && normalizeArabic(alias).isNotEmpty) {
           await learnAlias(alias, itemId);
         }
@@ -941,6 +952,36 @@ class DriftSpendingRepository implements SpendingRepository {
       }
     });
     return groupId;
+  }
+
+  /// The item a line saves under once its barcode is learned (see
+  /// [CaptureLine.barcode]). Runs inside [saveCapture]'s transaction, so an
+  /// item created here goes if the capture fails.
+  Future<String?> _learnBarcode(CaptureLine line) async {
+    final barcode = line.barcode;
+    final linked = line.itemId;
+    if (barcode == null || barcode.isEmpty) return linked;
+    final holder = await itemByBarcode(barcode);
+    if (linked != null) {
+      if (holder == null) {
+        // Only an item with no code of its own: one row, one barcode.
+        await (_db.update(_db.items)
+              ..where((t) => t.id.equals(linked) & t.barcode.isNull()))
+            .write(ItemsCompanion(barcode: Value(barcode)));
+      }
+      return linked;
+    }
+    if (holder != null) return holder.id;
+    final name = line.description.trim();
+    if (name.isEmpty) return null;
+    final item = await createItem(
+      nameAr: name,
+      categoryKey: line.categoryKey,
+      subcategoryKey: line.subcategoryKey,
+      defaultAmountPiastres: capturedUnitPrice(line),
+      barcode: barcode,
+    );
+    return item.id;
   }
 
   @override

@@ -11,7 +11,10 @@ enum ReviewField { name, quantity, amount, category }
 
 /// Why a review line cannot be saved yet (spec §6.7: "a line with no amount
 /// or no category blocks saving until it is fixed or removed").
-enum ReviewProblem { missingAmount, missingCategory }
+///
+/// A scanned product the app does not know yet also needs a name: saving
+/// creates the item that learns its barcode, and an item needs a name.
+enum ReviewProblem { missingAmount, missingCategory, missingName }
 
 /// One line of the review sheet as it stands: what the parser read, then
 /// whatever the user changed. Immutable; each edit returns a new line.
@@ -50,6 +53,11 @@ class ReviewLine extends Equatable {
   /// second copy of the same transfer refusable.
   final String? reference;
 
+  /// The barcode the line was scanned from (spec §6.3). Not editable, and
+  /// kept through every edit: saving teaches it to the line's item, or to
+  /// the item it creates.
+  final String? barcode;
+
   const ReviewLine({
     required this.id,
     required this.name,
@@ -64,6 +72,7 @@ class ReviewLine extends Equatable {
     this.unitPricePiastres,
     this.uncertain = const {},
     this.reference,
+    this.barcode,
   });
 
   /// The line as the parser read it. Its flags say which fields to check:
@@ -83,8 +92,11 @@ class ReviewLine extends Equatable {
       amountPiastres: parsed.amountPiastres,
       unitPricePiastres: parsed.unitPricePiastres,
       reference: parsed.reference,
+      barcode: parsed.barcode,
       uncertain: {
-        if (flags.contains(ParseFlag.fuzzyMatch)) ReviewField.name,
+        if (flags.contains(ParseFlag.fuzzyMatch) ||
+            _unknownProduct(parsed.barcode, parsed.itemId))
+          ReviewField.name,
         if (flags.contains(ParseFlag.ambiguousAmount)) ReviewField.quantity,
         if (flags.contains(ParseFlag.noAmount) ||
             flags.contains(ParseFlag.ambiguousAmount))
@@ -101,7 +113,14 @@ class ReviewLine extends Equatable {
   Set<ReviewProblem> get problems => {
         if ((amountPiastres ?? 0) <= 0) ReviewProblem.missingAmount,
         if (categoryKey == null) ReviewProblem.missingCategory,
+        if (_unknownProduct(barcode, itemId) && name.trim().isEmpty)
+          ReviewProblem.missingName,
       };
+
+  /// A scanned code no item holds yet: its name is typed or looked up, so
+  /// it is always worth a look.
+  static bool _unknownProduct(String? barcode, String? itemId) =>
+      barcode != null && itemId == null;
 
   bool get isReady => problems.isEmpty;
 
@@ -139,6 +158,7 @@ class ReviewLine extends Equatable {
             : unitPricePiastres as int?,
         uncertain: uncertain ?? this.uncertain,
         reference: reference,
+        barcode: barcode,
       );
 
   Set<ReviewField> _settled(ReviewField field) =>
@@ -209,6 +229,7 @@ class ReviewLine extends Equatable {
         unitPricePiastres: unitPricePiastres,
         uncertain: uncertain,
         reference: reference,
+        barcode: barcode,
       );
 
   /// Links [item]: the line takes its name, category and subcategory, and
@@ -243,6 +264,7 @@ class ReviewLine extends Equatable {
       unit: unit,
       unitPricePiastres: unitPricePiastres,
       reference: reference,
+      barcode: barcode,
       aliasToLearn:
           linkedInReview && itemId != null && captured.isNotEmpty ? captured : null,
     );
@@ -266,6 +288,7 @@ class ReviewLine extends Equatable {
         unitPricePiastres,
         uncertain,
         reference,
+        barcode,
       ];
 }
 

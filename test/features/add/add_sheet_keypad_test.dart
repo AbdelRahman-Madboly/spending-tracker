@@ -37,6 +37,9 @@ class _Scanner implements BarcodeScanService {
     calls++;
     return null;
   }
+
+  @override
+  Future<List<String>> scanMany(BuildContext context) async => const [];
 }
 
 /// A fixture whose stored settings arrive only when [release] is called,

@@ -669,12 +669,54 @@ class FixtureSpendingRepository implements SpendingRepository {
 
   @override
   Future<QuickPickItem?> itemByBarcode(String barcode) async {
-    for (final item in _items) {
-      if (item.barcode == barcode && !_archivedItemIds.contains(item.id)) {
-        return item;
+    for (final i in _items) {
+      if (i.barcode == barcode && !_archivedItemIds.contains(i.id)) {
+        return QuickPickItem(
+          id: i.id,
+          nameAr: i.nameAr,
+          categoryKey: i.categoryKey,
+          subcategoryKey: i.subcategoryKey,
+          defaultAmountPiastres: i.defaultAmountPiastres,
+          barcode: i.barcode,
+          lastAmountPiastres: _lastAmounts[i.id],
+        );
       }
     }
     return null;
+  }
+
+  /// Mirrors the drift repository's barcode learning in [saveCapture].
+  Future<String?> _learnBarcode(CaptureLine line) async {
+    final barcode = line.barcode;
+    final linked = line.itemId;
+    if (barcode == null || barcode.isEmpty) return linked;
+    final holder = await itemByBarcode(barcode);
+    if (linked != null) {
+      final index = _items.indexWhere((i) => i.id == linked);
+      if (holder == null && index != -1 && _items[index].barcode == null) {
+        final i = _items[index];
+        _items[index] = QuickPickItem(
+          id: i.id,
+          nameAr: i.nameAr,
+          categoryKey: i.categoryKey,
+          subcategoryKey: i.subcategoryKey,
+          defaultAmountPiastres: i.defaultAmountPiastres,
+          barcode: barcode,
+        );
+      }
+      return linked;
+    }
+    if (holder != null) return holder.id;
+    final name = line.description.trim();
+    if (name.isEmpty) return null;
+    final item = await createItem(
+      nameAr: name,
+      categoryKey: line.categoryKey,
+      subcategoryKey: line.subcategoryKey,
+      defaultAmountPiastres: capturedUnitPrice(line),
+      barcode: barcode,
+    );
+    return item.id;
   }
 
   @override
@@ -866,13 +908,14 @@ class FixtureSpendingRepository implements SpendingRepository {
     final day = DateTime(draft.date.year, draft.date.month, draft.date.day);
     final records = <EntryRecord>[];
     for (final line in draft.lines) {
+      final itemId = await _learnBarcode(line);
       final record = EntryRecord(
         id: _newId(),
         date: day,
         amountPiastres: line.amountPiastres,
         categoryKey: line.categoryKey,
         subcategoryKey: line.subcategoryKey,
-        itemId: line.itemId,
+        itemId: itemId,
         description: line.description,
         paymentMethod: draft.paymentMethod,
         source: draft.kind.entrySource,
@@ -887,10 +930,9 @@ class FixtureSpendingRepository implements SpendingRepository {
       records.add(record);
       _records[record.id] = record;
       _createdAt[record.id] = now;
-      _recordUse(line.itemId, line.amountPiastres);
-      _learnPrice(line);
+      _recordUse(itemId, line.amountPiastres);
+      _learnPrice(itemId, line);
       final alias = line.aliasToLearn;
-      final itemId = line.itemId;
       if (alias != null && itemId != null && normalizeArabic(alias).isNotEmpty) {
         _aliases[normalizeArabic(alias)] = itemId;
       }
@@ -934,8 +976,8 @@ class FixtureSpendingRepository implements SpendingRepository {
 
   /// The item's default price becomes the price of one on [line], as the
   /// drift repository's does.
-  void _learnPrice(CaptureLine line) {
-    final index = _items.indexWhere((i) => i.id == line.itemId);
+  void _learnPrice(String? itemId, CaptureLine line) {
+    final index = _items.indexWhere((i) => i.id == itemId);
     if (index == -1) return;
     final i = _items[index];
     _items[index] = QuickPickItem(

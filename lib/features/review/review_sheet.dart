@@ -957,7 +957,11 @@ class _ReviewSheetState extends State<ReviewSheet> {
                     Icon(AppIcons.warning, size: 16, color: palette.warning),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
-                      child: Text('كمّل المبلغ والفئة في السطور المعلّمة أو امسحها',
+                      child: Text(
+                          _lines.any((l) => l.problems
+                                  .contains(ReviewProblem.missingName))
+                              ? 'كمّل الاسم والمبلغ والفئة في السطور المعلّمة أو امسحها'
+                              : 'كمّل المبلغ والفئة في السطور المعلّمة أو امسحها',
                           style: AppText.caption
                               .copyWith(color: palette.warning)),
                     ),
@@ -1192,6 +1196,7 @@ class _LineCardState extends State<_LineCard> {
     final problems = line.problems;
     final missingAmount = problems.contains(ReviewProblem.missingAmount);
     final missingCategory = problems.contains(ReviewProblem.missingCategory);
+    final missingName = problems.contains(ReviewProblem.missingName);
     final category =
         widget.categories.where((c) => c.key == line.categoryKey).firstOrNull;
     final warnCategory =
@@ -1220,9 +1225,11 @@ class _LineCardState extends State<_LineCard> {
                   textInputAction: TextInputAction.next,
                   decoration: _decoration(
                     context,
-                    warn: line.uncertain.contains(ReviewField.name),
+                    warn: missingName ||
+                        line.uncertain.contains(ReviewField.name),
                     warningKey: 'line-name-warning',
                     hint: 'الاسم',
+                    helper: missingName ? 'اكتب اسم المنتج' : null,
                   ),
                   onChanged: (text) => widget.onChanged(line.withName(text)),
                 ),
@@ -1322,6 +1329,28 @@ class _LineCardState extends State<_LineCard> {
                   const SizedBox(width: AppSpacing.xs),
                   Flexible(
                     child: Text(reference,
+                        textDirection: TextDirection.ltr,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.caption),
+                  ),
+                ],
+              ),
+            ),
+          if (line.barcode case final barcode?)
+            Padding(
+              key: const Key('line-barcode'),
+              padding: const EdgeInsetsDirectional.only(top: AppSpacing.sm),
+              child: Row(
+                children: [
+                  Icon(AppIcons.barcode,
+                      size: 16, color: palette.textSecondary),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(line.itemId == null ? 'منتج جديد' : 'باركود',
+                      style: AppText.caption
+                          .copyWith(color: palette.textSecondary)),
+                  const SizedBox(width: AppSpacing.xs),
+                  Flexible(
+                    child: Text(barcode,
                         textDirection: TextDirection.ltr,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.caption),

@@ -23,6 +23,9 @@ class FakeBarcodeScanService implements BarcodeScanService {
     calls++;
     return result;
   }
+
+  @override
+  Future<List<String>> scanMany(BuildContext context) async => const [];
 }
 
 void main() {

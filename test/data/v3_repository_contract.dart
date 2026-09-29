@@ -865,6 +865,111 @@ void runV3RepositoryContract(
       expect(await repo.setting(lastPaymentMethodSettingKey), 'InstaPay');
     });
 
+    test('itemByBarcode gives the item with the price it was last bought at',
+        () async {
+      final item = await repo.createItem(
+          nameAr: 'بيبسي كانز',
+          categoryKey: 'Drinks',
+          defaultAmountPiastres: 1500,
+          barcode: '6224');
+      expect((await repo.itemByBarcode('6224'))!.suggestedAmountPiastres, 1500);
+      await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.barcode,
+        date: DateTime(2026, 9, 22),
+        lines: [
+          CaptureLine(
+              amountPiastres: 2000,
+              categoryKey: 'Drinks',
+              itemId: item.id,
+              description: 'بيبسي كانز'),
+        ],
+      ));
+      final found = (await repo.itemByBarcode('6224'))!;
+      expect(found.lastAmountPiastres, 2000);
+      expect(found.suggestedAmountPiastres, 2000);
+    });
+
+    test('a scanned line with no item creates the item that learns its code',
+        () async {
+      final groupId = await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.barcode,
+        date: DateTime(2026, 9, 22),
+        lines: const [
+          CaptureLine(
+            amountPiastres: 4000,
+            categoryKey: 'Food',
+            subcategoryKey: 'Groceries',
+            description: 'تونة',
+            quantityMilli: 2000,
+            barcode: '6225',
+          ),
+        ],
+      ));
+
+      final item = (await repo.itemByBarcode('6225'))!;
+      expect(item.nameAr, 'تونة');
+      expect(item.categoryKey, 'Food');
+      expect(item.subcategoryKey, 'Groceries');
+      // The price of one: 40 for two is 20.
+      expect(item.defaultAmountPiastres, 2000);
+      final entry = (await repo.captureGroup(groupId))!.entries.single;
+      expect((await repo.entry(entry.id))!.itemId, item.id);
+      expect((await repo.entry(entry.id))!.source, EntrySource.barcode);
+    });
+
+    test('a scanned line linked to an item without a code teaches it the code',
+        () async {
+      final item =
+          await repo.createItem(nameAr: 'مياه', categoryKey: 'Drinks');
+      await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.barcode,
+        date: DateTime(2026, 9, 22),
+        lines: [
+          CaptureLine(
+              amountPiastres: 800,
+              categoryKey: 'Drinks',
+              itemId: item.id,
+              description: 'مياه',
+              barcode: '6226'),
+        ],
+      ));
+      expect((await repo.itemByBarcode('6226'))!.id, item.id);
+    });
+
+    test('a scanned code never moves off the item that already holds it',
+        () async {
+      final holder = await repo.createItem(
+          nameAr: 'بيبسي', categoryKey: 'Drinks', barcode: '6227');
+      final other = await repo.createItem(
+          nameAr: 'سفن', categoryKey: 'Drinks', barcode: '6228');
+      final groupId = await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.barcode,
+        date: DateTime(2026, 9, 22),
+        lines: [
+          // Linked in review to an item that has a code of its own.
+          CaptureLine(
+              amountPiastres: 800,
+              categoryKey: 'Drinks',
+              itemId: other.id,
+              description: 'سفن',
+              barcode: '6227'),
+          // Unlinked, but the code already has its item: no second item.
+          const CaptureLine(
+              amountPiastres: 900,
+              categoryKey: 'Drinks',
+              description: 'بيبسي تاني',
+              barcode: '6227'),
+        ],
+      ));
+      expect((await repo.itemByBarcode('6227'))!.id, holder.id);
+      expect((await repo.itemByBarcode('6228'))!.id, other.id);
+      final entries = (await repo.captureGroup(groupId))!.entries;
+      expect((await repo.entry(entries.last.id))!.itemId, holder.id);
+      expect(
+          (await repo.allItems()).where((i) => i.nameAr == 'بيبسي تاني'),
+          isEmpty);
+    });
+
     test('a draft or a note does not touch the last payment method', () async {
       await repo.saveCapture(CaptureDraft(
         kind: CaptureKind.text,

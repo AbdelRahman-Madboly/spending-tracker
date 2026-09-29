@@ -55,6 +55,7 @@ class ParsedLine extends Equatable {
     required this.confidence,
     this.flags = const {},
     this.reference,
+    this.barcode,
   });
 
   /// The text this line was read from, as written, for display.
@@ -85,6 +86,9 @@ class ParsedLine extends Equatable {
   /// number read off a screenshot). Text never has one.
   final String? reference;
 
+  /// The barcode the line was scanned from (spec §6.3). Text never has one.
+  final String? barcode;
+
   @override
   List<Object?> get props => [
     rawText,
@@ -100,6 +104,7 @@ class ParsedLine extends Equatable {
     confidence,
     flags,
     reference,
+    barcode,
   ];
 
   @override
