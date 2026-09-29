@@ -6,6 +6,9 @@ import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../core/quantity.dart';
 import '../../data/document_picker_service.dart';
+import '../../data/gemini_key_store.dart';
+import '../../data/net/gemini_client.dart';
+import '../../data/net/network_gate.dart';
 import '../../data/photo_capture_service.dart';
 import '../../data/text_recognition_service.dart';
 import '../../data/voice_playback.dart';
@@ -17,6 +20,7 @@ import '../../domain/parsing/parsed_line.dart';
 import '../../domain/parsing/repository_catalogue.dart';
 import '../../domain/photo_reading.dart';
 import '../../domain/review.dart';
+import '../../domain/smart_parse.dart';
 import '../../domain/spending_repository.dart';
 import '../../domain/transactions.dart';
 import '../add/add_sheet.dart' show keypadText, paymentMethodLabels;
@@ -103,6 +107,8 @@ Future<ReviewOutcome> showReviewSheet(
   TextRecognitionService? textRecognition,
   DocumentPickerService? documentPicker,
   VoicePlayback Function()? playbackFactory,
+  SmartImprover? smartImprover,
+  Future<Uint8List> Function(String path)? readAttachment,
 }) async {
   final latest = _ReviewSnapshot(request.attachments);
   final messenger = ScaffoldMessenger.maybeOf(context);
@@ -124,6 +130,9 @@ Future<ReviewOutcome> showReviewSheet(
         textRecognition: textRecognition,
         documentPicker: documentPicker,
         playbackFactory: playbackFactory,
+        smartImprover: smartImprover,
+        readAttachment: readAttachment,
+        onCleanText: (text) => latest.cleanText = text,
         onChanged: (lines, date) {
           latest.lines = lines;
           latest.date = date;
@@ -162,6 +171,9 @@ class _ReviewSnapshot {
 
   /// What was typed for a capture that came with no words.
   String typed = '';
+
+  /// The smart rewrite the user accepted with اعتمد, if any.
+  String? cleanText;
 
   /// Whether the user changed the lines themselves (an edit, a removal, a
   /// line added) rather than only the date or payment method.
@@ -206,8 +218,10 @@ Future<void> _keepAsDraft(SpendingRepository repository,
     kind: request.kind,
     date: day,
     rawText: text.isEmpty ? null : text,
-    cleanText: request.cleanText,
-    parsedBy: request.parsedBy,
+    // An accepted smart rewrite is kept beside the raw text, and the draft
+    // is read from it when it is reviewed again.
+    cleanText: latest.cleanText ?? request.cleanText,
+    parsedBy: latest.cleanText != null ? 'gemini' : request.parsedBy,
     lines: const [],
     attachments: _withTypedTranscript(latest.attachments, typed),
     isDraft: true,
@@ -249,6 +263,18 @@ class ReviewSheet extends StatefulWidget {
   final DocumentPickerService? documentPicker;
   final VoicePlayback Function()? playbackFactory;
 
+  /// The smart path (spec §6.6). Defaults to Gemini through a network gate
+  /// of its own, which offers nothing unless online features are on.
+  final SmartImprover? smartImprover;
+
+  /// Reads an attachment's bytes for the smart path. Defaults to the file
+  /// the photo service resolves the path to.
+  final Future<Uint8List> Function(String path)? readAttachment;
+
+  /// Told the smart rewrite when the user accepts it, so a capture closed
+  /// afterwards keeps it as its draft's clean text.
+  final ValueChanged<String>? onCleanText;
+
   /// Told the lines and date after every change, so whoever opened the
   /// sheet can keep them as a draft when it is closed.
   final void Function(List<ReviewLine> lines, DateTime date)? onChanged;
@@ -274,6 +300,9 @@ class ReviewSheet extends StatefulWidget {
     this.textRecognition,
     this.documentPicker,
     this.playbackFactory,
+    this.smartImprover,
+    this.readAttachment,
+    this.onCleanText,
     this.onChanged,
     this.onTyped,
     this.onAttachmentsChanged,
@@ -299,6 +328,20 @@ class _ReviewSheetState extends State<ReviewSheet> {
   DocumentPickerService? _documentPicker;
   DocumentPickerService get _documents => _documentPicker ??=
       widget.documentPicker ?? FilePickerDocumentService();
+
+  SmartImprover? _smartImprover;
+  SmartImprover get _smart => _smartImprover ??= widget.smartImprover ??
+      GeminiClient(NetworkGate(_repo), _repo, SecureGeminiKeyStore());
+
+  /// The smart inputs available now, as found when the sheet opened.
+  Set<SmartInputKind> _smartKinds = const {};
+
+  /// A smart request is in flight; its button waits.
+  bool _improving = false;
+
+  /// The smart rewrite accepted with اعتمد: saved as the capture's clean
+  /// text beside the untouched raw text.
+  String? _cleanText;
 
   final _messenger = GlobalKey<ScaffoldMessengerState>();
 
@@ -400,6 +443,12 @@ class _ReviewSheetState extends State<ReviewSheet> {
     };
     final items = await _repo.allItems();
     final payment = await _repo.setting(lastPaymentMethodSettingKey);
+    Set<SmartInputKind> smartKinds;
+    try {
+      smartKinds = await _smart.available();
+    } catch (_) {
+      smartKinds = const {};
+    }
     var parsed = _request.lines;
     String? parsedBy = _request.parsedBy;
     String? photoPayment;
@@ -455,6 +504,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
         _paymentMethod = (photoPayment ?? payment)!;
       }
       _parsedBy = parsedBy;
+      _smartKinds = smartKinds;
       _lines = withReadReferences(
           [for (final p in parsed!) ReviewLine.fromParsed(p, id: _newId())],
           readReferences);
@@ -661,6 +711,116 @@ class _ReviewSheetState extends State<ReviewSheet> {
       ..showSnackBar(SnackBar(key: key, content: Text(message)));
   }
 
+  /// Paths of the capture's attachments of [kind], the saved ones first.
+  List<String> _pathsOf(AttachmentKind kind) => [
+        for (final a in _request.savedAttachments)
+          if (a.kind == kind && a.path != null) a.path!,
+        for (final a in _attachments)
+          if (a.kind == kind && a.path != null) a.path!,
+      ];
+
+  /// What the smart button would send (spec §6.6), or null for no button.
+  ///
+  /// A photo capture sends its photos («استخرج بالتفصيل»). A voice note
+  /// sends its audio when Gemini audio is on, for transcription and
+  /// extraction in one request, and otherwise its transcript like any
+  /// text. A barcode capture has nothing for it to read.
+  SmartInputKind? get _smartKind {
+    switch (_request.kind) {
+      case CaptureKind.barcode:
+        return null;
+      case CaptureKind.photo:
+        return _smartKinds.contains(SmartInputKind.photo) &&
+                _pathsOf(AttachmentKind.photo).isNotEmpty
+            ? SmartInputKind.photo
+            : null;
+      case CaptureKind.voice
+          when _smartKinds.contains(SmartInputKind.audio) &&
+              _pathsOf(AttachmentKind.voice).isNotEmpty:
+        return SmartInputKind.audio;
+      default:
+        return _smartKinds.contains(SmartInputKind.text) &&
+                (_rawText ?? '').trim().isNotEmpty
+            ? SmartInputKind.text
+            : null;
+    }
+  }
+
+  Future<Uint8List> _read(String path) async {
+    if (widget.readAttachment case final read?) return read(path);
+    return (await _photos.resolve(path)).readAsBytes();
+  }
+
+  /// تحسين / استخرج بالتفصيل. The local lines stay on screen while the
+  /// request runs; the smart ones are offered side by side with them and
+  /// replace them only on اعتمد. Any failure leaves the local result and
+  /// says so in one line.
+  Future<void> _improve() async {
+    final kind = _smartKind;
+    if (kind == null || _improving) return;
+    setState(() => _improving = true);
+    SmartResult? result;
+    try {
+      final input = switch (kind) {
+        SmartInputKind.text => SmartInput.text(_rawText!.trim()),
+        SmartInputKind.photo => SmartInput.photos([
+            for (final path in _pathsOf(AttachmentKind.photo))
+              await _read(path),
+          ]),
+        SmartInputKind.audio =>
+          SmartInput.audio(await _read(_pathsOf(AttachmentKind.voice).first)),
+      };
+      result = await _smart.improve(input, day: _date);
+    } catch (_) {
+      result = null;
+    }
+    if (!mounted) return;
+    setState(() => _improving = false);
+    if (result == null || result.lines.isEmpty) {
+      _say('التحسين الذكي مش متاح دلوقتي',
+          key: const Key('review-smart-failed'));
+      return;
+    }
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (_) => _SmartCompareDialog(before: _lines, after: result!),
+    );
+    if (accepted != true || !mounted) return;
+    _accept(result);
+  }
+
+  void _accept(SmartResult result) {
+    // A transfer's reference was read off the photo, not by the smart
+    // path; it follows its amount onto the new lines, so a second copy of
+    // the same transfer is still refused.
+    final references = [
+      for (final l in _lines)
+        if (l.reference != null)
+          ParsedLine(
+            rawText: l.name,
+            date: _date,
+            name: l.name,
+            amountPiastres: l.amountPiastres,
+            confidence: ParseConfidence.high,
+            reference: l.reference,
+          ),
+    ];
+    setState(() {
+      _lines = withReadReferences([
+        for (final p in result.lines) ReviewLine.fromParsed(p, id: _newId()),
+      ], references);
+      _typedLineIds = const {};
+      _cleanText = result.cleanText;
+      _parsedBy = 'gemini';
+      if (result.date != null && _request.date == null && !_dateTouched) {
+        _date = result.date!;
+      }
+    });
+    widget.onCleanText?.call(result.cleanText);
+    _report();
+    widget.onEdited?.call();
+  }
+
   Future<void> _pickDate() async {
     final now = widget.clock();
     final picked = await showDatePicker(
@@ -696,7 +856,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
             (lines.isEmpty && _lines.isNotEmpty
                 ? reviewDraftText(_lines)
                 : null),
-        cleanText: _request.cleanText,
+        cleanText: _cleanText ?? _request.cleanText,
         parsedBy: _parsedBy,
         lines: lines,
         attachments: _withTypedTranscript(
@@ -888,6 +1048,30 @@ class _ReviewSheetState extends State<ReviewSheet> {
                   style: AppText.body.copyWith(color: palette.textSecondary)),
             ),
           ],
+          if (_smartKind case final kind?)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(top: AppSpacing.md),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: FilledButton.tonalIcon(
+                  key: const Key('review-smart'),
+                  style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+                  onPressed: _improving || _saving || _reading > 0
+                      ? null
+                      : _improve,
+                  icon: _improving
+                      ? const SizedBox.square(
+                          key: Key('review-smart-busy'),
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(AppIcons.enhance, size: 20),
+                  label: Text(kind == SmartInputKind.photo
+                      ? 'استخرج بالتفصيل'
+                      : 'تحسين'),
+                ),
+              ),
+            ),
           label(_lines.isEmpty ? 'مفيش سطور' : 'السطور (${_lines.length})'),
           for (final line in _lines)
             Padding(
@@ -1435,6 +1619,125 @@ class _LineCardState extends State<_LineCard> {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// The before/after comparison of spec §6.6: the lines as they stand and
+/// the smart ones, one under the other (side by side does not fit a phone
+/// held in one hand), with the rewrite under them. اعتمد pops true.
+class _SmartCompareDialog extends StatelessWidget {
+  final List<ReviewLine> before;
+  final SmartResult after;
+
+  const _SmartCompareDialog({required this.before, required this.after});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    Widget heading(String text) => Padding(
+          padding: const EdgeInsetsDirectional.only(
+              top: AppSpacing.ms, bottom: AppSpacing.xs),
+          child: Text(text,
+              style: AppText.label.copyWith(color: palette.textSecondary)),
+        );
+    Widget row(String name, int quantityMilli, String? unit, int? amount) {
+      final quantity = quantityMilli == 1000 && unit == null
+          ? ''
+          : ' ${formatQuantityMilli(quantityMilli)} '
+              '${entryUnitLabels[unit] ?? ''}';
+      return Padding(
+        padding: const EdgeInsetsDirectional.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text('$name$quantity'.trim(), style: AppText.body),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              amount == null ? '—' : formatPiastres(amount),
+              textDirection: TextDirection.ltr,
+              style: AppText.body.copyWith(
+                  color: amount == null ? palette.warning : null),
+            ),
+          ],
+        ),
+      );
+    }
+
+    int total(Iterable<int?> amounts) =>
+        amounts.fold(0, (sum, a) => sum + (a ?? 0));
+
+    return AlertDialog(
+      key: const Key('smart-compare'),
+      title: Row(
+        children: [
+          Icon(AppIcons.enhance, color: palette.primary),
+          const SizedBox(width: AppSpacing.sm),
+          const Expanded(child: Text('النتيجة الذكية', style: AppText.title)),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            heading('قبل'),
+            if (before.isEmpty)
+              Text('مفيش سطور',
+                  style: AppText.body.copyWith(color: palette.textSecondary)),
+            for (final l in before)
+              row(l.name.isEmpty ? '؟' : l.name, l.quantityMilli, l.unit,
+                  l.amountPiastres),
+            heading('بعد'),
+            for (final l in after.lines)
+              row(l.name, l.quantityMilli, l.unit, l.amountPiastres),
+            const Divider(height: AppSpacing.lg),
+            Row(
+              children: [
+                Text('الإجمالي',
+                    style:
+                        AppText.label.copyWith(color: palette.textSecondary)),
+                const Spacer(),
+                Text(
+                  '${formatPiastres(total(before.map((l) => l.amountPiastres)))}'
+                  ' ← '
+                  '${formatPiastres(total(after.lines.map((l) => l.amountPiastres)))}',
+                  textDirection: TextDirection.ltr,
+                  style: AppText.body,
+                ),
+              ],
+            ),
+            if (after.cleanText.trim().isNotEmpty) ...[
+              heading('النص بعد التحسين'),
+              Container(
+                padding: const EdgeInsetsDirectional.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: palette.surfaceAlt,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Text(after.cleanText.trim(),
+                    style: AppText.caption
+                        .copyWith(color: palette.textSecondary)),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const Key('smart-keep'),
+          style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('سيبه زي ما هو'),
+        ),
+        FilledButton(
+          key: const Key('smart-accept'),
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('اعتمد'),
+        ),
+      ],
     );
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../../core/design/tokens.dart';
 import '../../data/barcode_scan_service.dart';
+import '../../data/gemini_key_store.dart';
+import '../../data/net/gemini_client.dart';
 import '../../data/net/network_gate.dart';
 import '../../data/net/product_lookup.dart';
 import '../../data/photo_capture_service.dart';
@@ -15,6 +17,7 @@ import '../../domain/barcode_scan.dart';
 import '../../domain/models.dart';
 import '../../domain/online_features.dart';
 import '../../domain/parsing/line_parser.dart';
+import '../../domain/smart_parse.dart';
 import '../../domain/spending_repository.dart';
 import '../add/add_sheet.dart';
 import '../home/widgets/capture_bar.dart';
@@ -71,11 +74,17 @@ Future<void> launchCapture(
   DocumentPickerService? documentPicker,
   BarcodeScanService? barcodeScanService,
   NetworkGate? networkGate,
+  GeminiKeyStore? geminiKeyStore,
   VoiceRecorder Function()? voiceRecorderFactory,
   SpeechRecognitionService? speechRecognition,
   VoicePlayback Function()? playbackFactory,
   DateTime Function() clock = DateTime.now,
 }) async {
+  // The review's smart path goes through the same gate as everything else
+  // here, so one gate answers for every request a capture can make.
+  final gate = networkGate ?? NetworkGate(repository);
+  final smart = GeminiClient(
+      gate, repository, geminiKeyStore ?? SecureGeminiKeyStore());
   switch (action) {
     case CaptureAction.camera:
       await capturePhoto(
@@ -85,6 +94,7 @@ Future<void> launchCapture(
         textRecognition: textRecognition,
         documentPicker: documentPicker,
         playbackFactory: playbackFactory,
+        smartImprover: smart,
         clock: clock,
       );
     case CaptureAction.barcode:
@@ -92,7 +102,7 @@ Future<void> launchCapture(
         context,
         repository,
         scanner: barcodeScanService,
-        networkGate: networkGate,
+        networkGate: gate,
         photoCaptureService: photoCaptureService,
         playbackFactory: playbackFactory,
         clock: clock,
@@ -105,6 +115,7 @@ Future<void> launchCapture(
         speechRecognition: speechRecognition,
         photoCaptureService: photoCaptureService,
         playbackFactory: playbackFactory,
+        smartImprover: smart,
         clock: clock,
       );
     case CaptureAction.text:
@@ -113,6 +124,7 @@ Future<void> launchCapture(
         repository,
         photoCaptureService: photoCaptureService,
         playbackFactory: playbackFactory,
+        smartImprover: smart,
         clock: clock,
       );
   }
@@ -136,6 +148,7 @@ Future<void> capturePhoto(
   TextRecognitionService? textRecognition,
   DocumentPickerService? documentPicker,
   VoicePlayback Function()? playbackFactory,
+  SmartImprover? smartImprover,
   DateTime Function() clock = DateTime.now,
 }) async {
   final photos = photoCaptureService ?? ImagePickerPhotoCaptureService();
@@ -172,6 +185,7 @@ Future<void> capturePhoto(
     textRecognition: textRecognition,
     documentPicker: documentPicker,
     playbackFactory: playbackFactory,
+    smartImprover: smartImprover,
   );
 }
 
@@ -236,6 +250,7 @@ Future<void> captureVoice(
   SpeechRecognitionService? speechRecognition,
   PhotoCaptureService? photoCaptureService,
   VoicePlayback Function()? playbackFactory,
+  SmartImprover? smartImprover,
   DateTime Function() clock = DateTime.now,
 }) async {
   final capturedAt = clock();
@@ -292,6 +307,7 @@ Future<void> captureVoice(
     clock: clock,
     photoCaptureService: photoCaptureService,
     playbackFactory: playbackFactory,
+    smartImprover: smartImprover,
   );
 }
 
@@ -302,6 +318,7 @@ Future<void> captureText(
   SpendingRepository repository, {
   PhotoCaptureService? photoCaptureService,
   VoicePlayback Function()? playbackFactory,
+  SmartImprover? smartImprover,
   DateTime Function() clock = DateTime.now,
 }) async {
   final capturedAt = clock();
@@ -326,6 +343,7 @@ Future<void> captureText(
       clock: clock,
       photoCaptureService: photoCaptureService,
       playbackFactory: playbackFactory,
+      smartImprover: smartImprover,
     );
     return;
   }

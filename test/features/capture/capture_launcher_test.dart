@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:spending_tracker/data/barcode_scan_service.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
+import 'package:spending_tracker/data/gemini_key_store.dart';
 import 'package:spending_tracker/data/net/network_gate.dart';
 import 'package:spending_tracker/data/photo_capture_service.dart';
 import 'package:spending_tracker/data/text_recognition_service.dart';
@@ -83,6 +84,7 @@ void main() {
     String photoText = '',
     List<String> scanned = const [],
     NetworkGate? networkGate,
+    GeminiKeyStore? geminiKeyStore,
   }) async {
     photos = _Photos()..error = photoError;
     if (photo != null) photos.next = photo;
@@ -109,6 +111,7 @@ void main() {
                   textRecognition: recognizer,
                   barcodeScanService: scanner,
                   networkGate: networkGate,
+                  geminiKeyStore: geminiKeyStore,
                   voiceRecorderFactory: () => recorder,
                   speechRecognition: speech,
                   playbackFactory: FakeVoicePlayback.new,
@@ -290,6 +293,38 @@ void main() {
         expect(built, 0);
       });
     }
+
+    testWidgets('with Gemini on, review offers تحسين but sends nothing until '
+        'it is tapped, and then only through the gate', (tester) async {
+      final repository = FixtureSpendingRepository();
+      await repository.setSetting(onlineFeaturesSettingKey, 'true');
+      await repository.setSetting(OnlineFeature.gemini.settingKey, 'true');
+      var built = 0;
+      final gate = NetworkGate(repository, clientFactory: () {
+        built++;
+        return MockClient((_) async => http.Response('down', 503));
+      });
+      await run(tester, CaptureAction.text,
+          repository: repository,
+          networkGate: gate,
+          geminiKeyStore: _MemoryKeys('k'));
+      await tester.enterText(
+          find.byKey(const Key('text-note-field')), 'طماطم ب 30');
+      await tap(tester, find.byKey(const Key('text-note-review')));
+      expect(find.byKey(const Key('review-smart')), findsOneWidget);
+      expect(built, 0);
+
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const Key('review-smart')));
+        for (var i = 0; i < 20; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          await tester.pump();
+        }
+      });
+      await tester.pumpAndSettle();
+      expect(built, 1);
+      expect(find.byKey(const Key('review-smart-failed')), findsOneWidget);
+    });
 
     testWidgets('the master switch alone does not let the barcode lookup out',
         (tester) async {
@@ -521,4 +556,16 @@ void main() {
       expect(await repo.watchDraftCaptures().first, isEmpty);
     });
   });
+}
+
+class _MemoryKeys implements GeminiKeyStore {
+  _MemoryKeys(this.key);
+
+  String? key;
+
+  @override
+  Future<String?> read() async => key;
+
+  @override
+  Future<void> write(String? value) async => key = value;
 }
