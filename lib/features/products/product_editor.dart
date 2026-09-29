@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
+import '../../core/quantity.dart';
 import '../../data/barcode_scan_service.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
@@ -26,6 +27,14 @@ class ProductPrefill {
   final int? pricePiastres;
   final String? barcode;
 }
+
+/// The units a product can be sold loose by, in the order «بيتباع بـ»
+/// offers them after بالقطعة/العبوة. Packaging units (علبة، كيس ...) name
+/// a piece, so they are not offered here.
+const looseUnits = ['liter', 'kg', 'g'];
+
+/// «سعر اللتر», «سعر الكيلو»: the price label of a product sold by [unit].
+String pricePerUnitLabel(String unit) => 'سعر ال${entryUnitLabels[unit]}';
 
 /// The Arabic refusal of a barcode another live product holds.
 String barcodeTakenMessage(String holderName) =>
@@ -93,6 +102,13 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
       null => '',
     },
   );
+  late final _quantity = TextEditingController(
+    text: switch (widget.item?.defaultQuantityMilli) {
+      final q? => formatQuantityMilli(q),
+      null => '',
+    },
+  );
+  late String? _unit = widget.item?.unit;
   late final _barcode = TextEditingController(
     text: widget.item?.barcode ?? widget.prefill.barcode ?? '',
   );
@@ -107,6 +123,7 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
   String? _nameError;
   String? _categoryError;
   String? _priceError;
+  String? _quantityError;
   String? _barcodeError;
   bool _busy = false;
 
@@ -122,6 +139,7 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
   void dispose() {
     _name.dispose();
     _price.dispose();
+    _quantity.dispose();
     _barcode.dispose();
     super.dispose();
   }
@@ -184,7 +202,15 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
     final priceText = _price.text.trim();
     final price = priceText.isEmpty ? null : parsePiastres(priceText);
     final barcode = _barcode.text.trim().isEmpty ? null : _barcode.text.trim();
+    final unit = _unit;
+    final quantityText = _quantity.text.trim();
+    final quantity = unit == null || quantityText.isEmpty
+        ? null
+        : parseQuantityMilli(quantityText);
     setState(() {
+      _quantityError = unit != null && quantityText.isNotEmpty && quantity == null
+          ? 'كمية غير صحيحة'
+          : null;
       _nameError = name.isEmpty ? 'اكتب اسم المنتج' : null;
       _categoryError = _categoryKey == null ? 'اختار الفئة' : null;
       _priceError = priceText.isNotEmpty && price == null
@@ -192,7 +218,10 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
           : null;
       _barcodeError = null;
     });
-    if (_nameError != null || _categoryError != null || _priceError != null) {
+    if (_nameError != null ||
+        _categoryError != null ||
+        _priceError != null ||
+        _quantityError != null) {
       return;
     }
     setState(() => _busy = true);
@@ -205,6 +234,8 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
           subcategoryKey: _subcategoryKey,
           defaultAmountPiastres: price,
           barcode: barcode,
+          unit: unit,
+          defaultQuantityMilli: quantity,
         );
       } else {
         await widget.repository.updateProduct(
@@ -214,6 +245,8 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
           subcategoryKey: _subcategoryKey,
           defaultAmountPiastres: price,
           barcode: barcode,
+          unit: unit,
+          defaultQuantityMilli: quantity,
         );
       }
     } on DuplicateBarcodeException catch (e) {
@@ -330,6 +363,30 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
               ),
             ],
             const SizedBox(height: AppSpacing.lg),
+            const _Label('بيتباع بـ'),
+            Wrap(
+              children: [
+                SelectableChip(
+                  key: const ValueKey('product-unit-none'),
+                  label: 'بالقطعة/العبوة',
+                  icon: AppIcons.piece,
+                  selected: _unit == null,
+                  onTap: () => setState(() {
+                    _unit = null;
+                    _quantityError = null;
+                  }),
+                ),
+                for (final unit in looseUnits)
+                  SelectableChip(
+                    key: ValueKey('product-unit-$unit'),
+                    label: entryUnitLabels[unit]!,
+                    icon: AppIcons.scale,
+                    selected: _unit == unit,
+                    onTap: () => setState(() => _unit = unit),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
             TextField(
               key: const Key('product-price'),
               controller: _price,
@@ -338,12 +395,34 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
               ),
               style: AppText.body,
               decoration: InputDecoration(
-                labelText: 'السعر',
+                labelText: _unit == null ? 'السعر' : pricePerUnitLabel(_unit!),
                 helperText: 'بيتحدث لوحده بآخر سعر دفعته',
                 suffixText: 'ج.م',
                 errorText: _priceError,
               ),
             ),
+            if (_unit != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                key: const Key('product-quantity'),
+                controller: _quantity,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                style: AppText.body,
+                decoration: InputDecoration(
+                  labelText: 'الكمية المعتادة',
+                  helperText: 'اللي بتشتريه عادة، وتقدر تغيره وانت بتسجل',
+                  suffixText: entryUnitLabels[_unit],
+                  errorText: _quantityError,
+                ),
+                onChanged: (_) {
+                  if (_quantityError != null) {
+                    setState(() => _quantityError = null);
+                  }
+                },
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
             TextField(
               key: const Key('product-barcode'),
@@ -370,6 +449,7 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
               _PriceHistory(
                 key: const Key('product-history'),
                 history: _history,
+                unit: widget.item?.unit,
               ),
             ],
             const SizedBox(height: AppSpacing.md),
@@ -433,9 +513,13 @@ class _Label extends StatelessWidget {
 
 /// What one of the product cost each time it was bought, newest first.
 class _PriceHistory extends StatelessWidget {
-  const _PriceHistory({super.key, required this.history});
+  const _PriceHistory({super.key, required this.history, this.unit});
 
   final List<ItemPrice>? history;
+
+  /// The product's unit, when it is sold by one: each price is then per
+  /// unit.
+  final String? unit;
 
   @override
   Widget build(BuildContext context) {
@@ -482,7 +566,10 @@ class _PriceHistory extends StatelessWidget {
                       ),
                     ),
                   Text(
-                    formatPiastres(p.unitPricePiastres, withCurrency: true),
+                    unit == null
+                        ? formatPiastres(p.unitPricePiastres, withCurrency: true)
+                        : formatPiastresPer(
+                            p.unitPricePiastres, entryUnitLabels[unit]!),
                     style: AppText.bodyStrong,
                   ),
                 ],

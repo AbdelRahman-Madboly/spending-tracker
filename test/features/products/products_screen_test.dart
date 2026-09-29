@@ -235,6 +235,104 @@ void main() {
     });
   });
 
+  group('sold by a unit', () {
+    testWidgets('an item edited to be sold by the litre keeps its price per '
+        'litre and usual quantity, and the list shows the price per litre',
+        (tester) async {
+      await pump(tester);
+      await search(tester, 'لبن');
+      await tap(tester, find.byKey(const Key('product-i3')));
+      // A piece product has no usual quantity to fill.
+      expect(find.byKey(const Key('product-quantity')), findsNothing);
+      expect(find.text('السعر'), findsOneWidget);
+
+      await tester.enterText(
+          find.byKey(const Key('product-name')), 'لبن بقري سايب');
+      await tap(tester, find.byKey(const Key('product-unit-liter')));
+      expect(find.text('سعر اللتر'), findsOneWidget);
+      expect(find.byKey(const Key('product-quantity')), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('product-price')), '25');
+      await tester.enterText(find.byKey(const Key('product-quantity')), '2');
+      await tap(tester, find.byKey(const Key('product-save')));
+
+      final item = (await repo.allItems()).firstWhere((i) => i.id == 'i3');
+      expect(item.nameAr, 'لبن بقري سايب');
+      expect(item.unit, 'liter');
+      expect(item.defaultAmountPiastres, 2500);
+      expect(item.defaultQuantityMilli, 2000);
+      final row = find.byKey(const Key('product-i3'));
+      expect(find.descendant(of: row, matching: find.text('25 ج.م / لتر')),
+          findsOneWidget);
+    });
+
+    testWidgets('the editor opens a unit product on its unit, price per unit '
+        'and usual quantity', (tester) async {
+      final milk = await repo.createItem(
+          nameAr: 'لبن بقري سايب',
+          categoryKey: 'Drinks',
+          defaultAmountPiastres: 2500,
+          unit: 'liter',
+          defaultQuantityMilli: 1500);
+      await pump(tester);
+      await search(tester, 'لبن');
+      await tap(tester, find.byKey(Key('product-${milk.id}')));
+      expect(find.text('سعر اللتر'), findsOneWidget);
+      expect(fieldText(tester, 'product-price'), '25');
+      expect(fieldText(tester, 'product-quantity'), '1.5');
+    });
+
+    testWidgets('بالقطعة/العبوة makes a unit product a piece product again',
+        (tester) async {
+      final milk = await repo.createItem(
+          nameAr: 'لبن',
+          categoryKey: 'Drinks',
+          defaultAmountPiastres: 2500,
+          unit: 'liter',
+          defaultQuantityMilli: 2000);
+      await pump(tester);
+      await search(tester, 'لبن');
+      await tap(tester, find.byKey(Key('product-${milk.id}')));
+      await tap(tester, find.byKey(const Key('product-unit-none')));
+      expect(find.byKey(const Key('product-quantity')), findsNothing);
+      await tap(tester, find.byKey(const Key('product-save')));
+      final item = (await repo.allItems()).firstWhere((i) => i.id == milk.id);
+      expect(item.unit, isNull);
+      expect(item.defaultQuantityMilli, isNull);
+      expect(item.defaultAmountPiastres, 2500);
+    });
+
+    testWidgets('a new product sold by the litre may have no price yet',
+        (tester) async {
+      await pump(tester);
+      await tap(tester, find.byKey(const Key('products-add')));
+      await tester.enterText(
+          find.byKey(const Key('product-name')), 'لبن جاموسي سايب');
+      await tap(tester, find.byKey(const Key('product-category-Drinks')));
+      await tap(tester, find.byKey(const Key('product-unit-liter')));
+      await tap(tester, find.byKey(const Key('product-save')));
+      final item = (await repo.allItems())
+          .firstWhere((i) => i.nameAr == 'لبن جاموسي سايب');
+      expect(item.unit, 'liter');
+      expect(item.defaultAmountPiastres, isNull);
+      expect(item.defaultQuantityMilli, isNull);
+    });
+
+    testWidgets('a usual quantity that is not a number is refused',
+        (tester) async {
+      await pump(tester);
+      await search(tester, 'لبن');
+      await tap(tester, find.byKey(const Key('product-i3')));
+      await tap(tester, find.byKey(const Key('product-unit-kg')));
+      expect(find.text('سعر الكيلو'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('product-quantity')), 'abc');
+      await tap(tester, find.byKey(const Key('product-save')));
+      expect(find.text('كمية غير صحيحة'), findsOneWidget);
+      expect(find.byKey(const Key('product-editor')), findsOneWidget);
+      final item = (await repo.allItems()).firstWhere((i) => i.id == 'i3');
+      expect(item.unit, isNull);
+    });
+  });
+
   group('adding', () {
     testWidgets('a product added by hand is saved', (tester) async {
       await pump(tester);

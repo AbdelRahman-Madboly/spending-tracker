@@ -197,4 +197,8 @@ abstract final class AppIcons {
   static const exportSheet = Symbols.table_view_rounded;
   static const backup = Symbols.backup_rounded;
   static const restore = Symbols.settings_backup_restore_rounded;
+
+  // How a product is sold: by the piece or pack, or loose by a unit.
+  static const piece = Symbols.package_2_rounded;
+  static const scale = Symbols.scale_rounded;
 }

@@ -19,6 +19,11 @@ String formatPiastres(int piastres, {bool withCurrency = false}) {
   return withCurrency ? '$signed ج.م' : signed;
 }
 
+/// A price per unit as the product lists show it: `25 ج.م / لتر`.
+/// [unitLabel] is the Arabic label of the unit.
+String formatPiastresPer(int piastres, String unitLabel) =>
+    '${formatPiastres(piastres, withCurrency: true)} / $unitLabel';
+
 /// Upper bound for a parsed amount, in piastres (1,000,000 EGP). Far above
 /// any real purchase this app would ever log — rejecting anything past it
 /// catches typos (an extra digit or two) rather than genuine spending.

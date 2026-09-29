@@ -501,6 +501,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           barcode: item.barcode,
           category: _category(item.categoryKey),
           pricePiastres: item.defaultAmountPiastres,
+          unit: item.unit,
           onTap: () => _edit(item, archived: _archived),
         );
       },
@@ -557,6 +558,7 @@ class _ProductRow extends StatelessWidget {
     this.detail,
     this.barcode,
     this.pricePiastres,
+    this.unit,
   });
 
   final String name;
@@ -564,6 +566,10 @@ class _ProductRow extends StatelessWidget {
   final String? barcode;
   final CategoryView category;
   final int? pricePiastres;
+
+  /// Set for a product sold loose by a unit: [pricePiastres] is then per
+  /// unit and shows as `25 ج.م / لتر`.
+  final String? unit;
   final VoidCallback onTap;
 
   @override
@@ -615,18 +621,24 @@ class _ProductRow extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsetsDirectional.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: palette.categoryInkFill(category.colorKey),
-                          borderRadius: BorderRadius.circular(AppRadii.full),
-                        ),
-                        child: Text(
-                          category.labelAr,
-                          style: AppText.caption.copyWith(color: ink),
+                      // Flexible, so a long label beside a price per unit
+                      // truncates instead of overflowing a narrow phone.
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsetsDirectional.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: palette.categoryInkFill(category.colorKey),
+                            borderRadius: BorderRadius.circular(AppRadii.full),
+                          ),
+                          child: Text(
+                            category.labelAr,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption.copyWith(color: ink),
+                          ),
                         ),
                       ),
                       if (barcode != null) ...[
@@ -656,9 +668,12 @@ class _ProductRow extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.sm),
             Text(
-              pricePiastres == null
-                  ? '—'
-                  : formatPiastres(pricePiastres!, withCurrency: true),
+              switch ((pricePiastres, unit)) {
+                (null, _) => '—',
+                (final p?, final u?) =>
+                  formatPiastresPer(p, entryUnitLabels[u] ?? u),
+                (final p?, null) => formatPiastres(p, withCurrency: true),
+              },
               style: AppText.bodyStrong.copyWith(
                 color: pricePiastres == null
                     ? palette.textSecondary
