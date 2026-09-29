@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 3.0.0+3
+version: 3.1.0+4
 
 environment:
   sdk: ^3.12.0
@@ -81,12 +81,24 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   uses-material-design: true
+  # Two builds from one codebase (see lib/core/app_flavor.dart): personal is
+  # the owner's phone, shared is for anyone else. A build or test run with no
+  # --flavor is the personal one.
+  default-flavor: personal
   assets:
     - assets/fonts/
-    - assets/seed/
-    - assets/import/
-    - assets/import/evidence/
     - assets/catalog/
+    - assets/seed/seed_shared.json
+    # The sample history, the sample September packs and their evidence,
+    # and the sample defaults: the personal build only.
+    - path: assets/seed/seed.json
+      flavors: [personal]
+    - path: assets/import/
+      flavors: [personal]
+    - path: assets/import/evidence/
+      flavors: [personal]
+    - path: assets/personal/
+      flavors: [personal]
   fonts:
     - family: IBMPlexSansArabic
       fonts:

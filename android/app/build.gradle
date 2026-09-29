@@ -35,6 +35,20 @@ android {
         versionName = flutter.versionName
     }
 
+    // Two builds on one application id (lib/core/app_flavor.dart): personal
+    // is the owner's phone and installs over his current build, keeping his
+    // data; shared is for another person's phone. They differ only in the
+    // assets they bundle.
+    flavorDimensions = ["audience"]
+    productFlavors {
+        personal {
+            dimension = "audience"
+        }
+        shared {
+            dimension = "audience"
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

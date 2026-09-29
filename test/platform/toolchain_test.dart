@@ -103,4 +103,52 @@ void main() {
       expect(evidence.lengthInBytes, greaterThan(0));
     });
   });
+
+  group('flavours', () {
+    late String pubspec;
+    late String gradle;
+
+    setUpAll(() {
+      pubspec = File('pubspec.yaml').readAsStringSync();
+      gradle = File('android/app/build.gradle').readAsStringSync();
+    });
+
+    /// The pubspec lines of the assets entry for [path], up to the next.
+    String entry(String path) {
+      final start = pubspec.indexOf('- path: $path\n');
+      expect(start, isNot(-1), reason: '$path has no flavoured entry');
+      final next = pubspec.indexOf('- ', start + 2);
+      return pubspec.substring(start, next == -1 ? pubspec.length : next);
+    }
+
+    test('a build with no flavour named is the personal one', () {
+      expect(pubspec, contains('default-flavor: personal'));
+    });
+
+    test('the owner history and his packs ship only in the personal build',
+        () {
+      for (final path in [
+        'assets/seed/seed.json',
+        'assets/import/',
+        'assets/import/evidence/',
+        'assets/personal/',
+      ]) {
+        expect(entry(path), contains('flavors: [personal]'), reason: path);
+      }
+      // A plain `assets/seed/` or `assets/import/` line would bundle them
+      // into every build.
+      expect(pubspec, isNot(contains('    - assets/seed/\n')));
+      expect(pubspec, isNot(contains('    - assets/import/\n')));
+      expect(pubspec, contains('    - assets/seed/seed_shared.json\n'));
+      expect(pubspec, contains('    - assets/catalog/\n'));
+    });
+
+    test('Android has both flavours on the one application id', () {
+      expect(gradle, contains('productFlavors'));
+      expect(gradle, contains('personal {'));
+      expect(gradle, contains('shared {'));
+      expect(gradle, isNot(contains('applicationIdSuffix')));
+      expect(gradle, contains('applicationId = "com.madboly.spending_tracker"'));
+    });
+  });
 }

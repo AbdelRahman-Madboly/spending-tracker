@@ -1,0 +1,462 @@
+{
+  "categories": [
+    {
+      "key": "Drinks",
+      "labelAr": "مشروبات",
+      "iconName": "local_drink",
+      "sortOrder": 0,
+      "archived": false,
+      "colorKey": "Drinks"
+    },
+    {
+      "key": "Snacks",
+      "labelAr": "سناكس",
+      "iconName": "cookie",
+      "sortOrder": 1,
+      "archived": false,
+      "colorKey": "Snacks"
+    },
+    {
+      "key": "Food",
+      "labelAr": "أكل",
+      "iconName": "restaurant",
+      "sortOrder": 2,
+      "archived": false,
+      "colorKey": "Food"
+    },
+    {
+      "key": "Transport",
+      "labelAr": "مواصلات",
+      "iconName": "directions_bus",
+      "sortOrder": 3,
+      "archived": false,
+      "colorKey": "Transport"
+    },
+    {
+      "key": "Bills",
+      "labelAr": "فواتير",
+      "iconName": "receipt_long",
+      "sortOrder": 4,
+      "archived": false,
+      "colorKey": "Bills"
+    },
+    {
+      "key": "Personal Care",
+      "labelAr": "عناية شخصية",
+      "iconName": "content_cut",
+      "sortOrder": 5,
+      "archived": false,
+      "colorKey": "Personal Care"
+    },
+    {
+      "key": "Shopping",
+      "labelAr": "تسوق",
+      "iconName": "shopping_bag",
+      "sortOrder": 6,
+      "archived": false,
+      "colorKey": "Shopping"
+    },
+    {
+      "key": "Family/Social",
+      "labelAr": "عائلة وزيارات",
+      "iconName": "groups",
+      "sortOrder": 7,
+      "archived": false,
+      "colorKey": "Family/Social"
+    },
+    {
+      "key": "Gifts",
+      "labelAr": "هدايا",
+      "iconName": "card_giftcard",
+      "sortOrder": 8,
+      "archived": false,
+      "colorKey": "Gifts"
+    },
+    {
+      "key": "Loans",
+      "labelAr": "سلف",
+      "iconName": "handshake",
+      "sortOrder": 9,
+      "archived": false,
+      "colorKey": "Loans"
+    },
+    {
+      "key": "Health",
+      "labelAr": "صحة",
+      "iconName": "medication",
+      "colorKey": "Health"
+    },
+    {
+      "key": "Home",
+      "labelAr": "البيت",
+      "iconName": "home",
+      "colorKey": "Home"
+    },
+    {
+      "key": "Subscriptions",
+      "labelAr": "اشتراكات",
+      "iconName": "subscriptions",
+      "colorKey": "Education"
+    }
+  ],
+  "subcategories": [
+    {
+      "key": "Soda",
+      "categoryKey": "Drinks",
+      "sortOrder": 0,
+      "archived": false
+    },
+    {
+      "key": "Water",
+      "categoryKey": "Drinks",
+      "sortOrder": 1,
+      "archived": false
+    },
+    {
+      "key": "Milk",
+      "categoryKey": "Drinks",
+      "sortOrder": 2,
+      "archived": false
+    },
+    {
+      "key": "Juice",
+      "categoryKey": "Drinks",
+      "sortOrder": 3,
+      "archived": false
+    },
+    {
+      "key": "HotDrinks",
+      "categoryKey": "Drinks",
+      "sortOrder": 4,
+      "archived": false
+    },
+    {
+      "key": "Chips",
+      "categoryKey": "Snacks",
+      "sortOrder": 5,
+      "archived": false
+    },
+    {
+      "key": "Chocolate",
+      "categoryKey": "Snacks",
+      "sortOrder": 6,
+      "archived": false
+    },
+    {
+      "key": "Biscuits",
+      "categoryKey": "Snacks",
+      "sortOrder": 7,
+      "archived": false
+    },
+    {
+      "key": "Sweets",
+      "categoryKey": "Snacks",
+      "sortOrder": 8,
+      "archived": false
+    },
+    {
+      "key": "FastFood",
+      "categoryKey": "Snacks",
+      "sortOrder": 9,
+      "archived": false
+    },
+    {
+      "key": "Breakfast",
+      "categoryKey": "Food",
+      "sortOrder": 10,
+      "archived": false
+    },
+    {
+      "key": "Lunch",
+      "categoryKey": "Food",
+      "sortOrder": 11,
+      "archived": false
+    },
+    {
+      "key": "Dinner",
+      "categoryKey": "Food",
+      "sortOrder": 12,
+      "archived": false
+    },
+    {
+      "key": "Groceries",
+      "categoryKey": "Food",
+      "sortOrder": 13,
+      "archived": false
+    },
+    {
+      "key": "PublicTransport",
+      "categoryKey": "Transport",
+      "sortOrder": 14,
+      "archived": false
+    },
+    {
+      "key": "Taxi",
+      "categoryKey": "Transport",
+      "sortOrder": 15,
+      "archived": false
+    },
+    {
+      "key": "PhoneBill",
+      "categoryKey": "Bills",
+      "sortOrder": 16,
+      "archived": false
+    },
+    {
+      "key": "HomeInternet",
+      "categoryKey": "Bills",
+      "sortOrder": 17,
+      "archived": false
+    },
+    {
+      "key": "Haircut",
+      "categoryKey": "Personal Care",
+      "sortOrder": 18,
+      "archived": false
+    },
+    {
+      "key": "Cosmetics",
+      "categoryKey": "Personal Care",
+      "sortOrder": 19,
+      "archived": false
+    },
+    {
+      "key": "Clothes",
+      "categoryKey": "Shopping",
+      "sortOrder": 20,
+      "archived": false
+    },
+    {
+      "key": "Electronics",
+      "categoryKey": "Shopping",
+      "sortOrder": 21,
+      "archived": false
+    },
+    {
+      "key": "OnlineShopping",
+      "categoryKey": "Shopping",
+      "sortOrder": 22,
+      "archived": false
+    },
+    {
+      "key": "Trips",
+      "categoryKey": "Family/Social",
+      "sortOrder": 23,
+      "archived": false
+    },
+    {
+      "key": "Visits",
+      "categoryKey": "Family/Social",
+      "sortOrder": 24,
+      "archived": false
+    },
+    {
+      "key": "Gifts",
+      "categoryKey": "Gifts",
+      "sortOrder": 25,
+      "archived": false
+    },
+    {
+      "key": "Loans",
+      "categoryKey": "Loans",
+      "sortOrder": 26,
+      "archived": false
+    },
+    {
+      "key": "Medicine",
+      "categoryKey": "Health",
+      "labelAr": "أدوية",
+      "iconName": "medication"
+    },
+    {
+      "key": "Cleaning",
+      "categoryKey": "Home",
+      "labelAr": "منظفات",
+      "iconName": "cleaning_services"
+    },
+    {
+      "key": "Laundry",
+      "categoryKey": "Personal Care",
+      "labelAr": "غسيل",
+      "iconName": "local_laundry_service"
+    },
+    {
+      "key": "FamilySupport",
+      "categoryKey": "Family/Social",
+      "labelAr": "مصروف البيت",
+      "iconName": "family_restroom"
+    },
+    {
+      "key": "Software",
+      "categoryKey": "Subscriptions",
+      "labelAr": "برامج",
+      "iconName": "code"
+    },
+    {
+      "key": "Cloud",
+      "categoryKey": "Subscriptions",
+      "labelAr": "تخزين سحابي",
+      "iconName": "cloud"
+    },
+    {
+      "key": "Courses",
+      "categoryKey": "Subscriptions",
+      "labelAr": "كورسات",
+      "iconName": "school"
+    },
+    {
+      "key": "QuickMeals",
+      "categoryKey": "Food",
+      "labelAr": "أكل سريع التحضير",
+      "iconName": "ramen_dining"
+    }
+  ],
+  "items": [
+    {
+      "id": "item-01",
+      "nameAr": "مخبز",
+      "nameEn": "Bakery",
+      "categoryKey": "Food",
+      "subcategoryKey": "Breakfast",
+      "defaultAmountPiastres": 2500,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    },
+    {
+      "id": "item-02",
+      "nameAr": "أكل",
+      "nameEn": "Food",
+      "categoryKey": "Food",
+      "subcategoryKey": "Lunch",
+      "defaultAmountPiastres": 5000,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    },
+    {
+      "id": "item-03",
+      "nameAr": "شويبس",
+      "nameEn": "Schweppes soda",
+      "categoryKey": "Drinks",
+      "subcategoryKey": "Soda",
+      "defaultAmountPiastres": 4000,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    },
+    {
+      "id": "item-04",
+      "nameAr": "لبن",
+      "nameEn": "Milk",
+      "categoryKey": "Drinks",
+      "subcategoryKey": "Milk",
+      "defaultAmountPiastres": 2500,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    },
+    {
+      "id": "item-05",
+      "nameAr": "إندومي",
+      "nameEn": "Instant noodles",
+      "categoryKey": "Food",
+      "subcategoryKey": "QuickMeals",
+      "defaultAmountPiastres": 2000,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    },
+    {
+      "id": "item-06",
+      "nameAr": "شوكولاتة",
+      "nameEn": "Chocolate",
+      "categoryKey": "Snacks",
+      "subcategoryKey": "Chocolate",
+      "defaultAmountPiastres": 500,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    },
+    {
+      "id": "item-07",
+      "nameAr": "تاكسي",
+      "nameEn": "Taxi",
+      "categoryKey": "Transport",
+      "subcategoryKey": "Taxi",
+      "defaultAmountPiastres": 3500,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    },
+    {
+      "id": "item-08",
+      "nameAr": "مواصلات",
+      "nameEn": "Transport",
+      "categoryKey": "Transport",
+      "subcategoryKey": "PublicTransport",
+      "defaultAmountPiastres": 4400,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    },
+    {
+      "id": "item-09",
+      "nameAr": "حلاقة",
+      "nameEn": "Hair cut",
+      "categoryKey": "Personal Care",
+      "subcategoryKey": "Haircut",
+      "defaultAmountPiastres": 10000,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    },
+    {
+      "id": "item-10",
+      "nameAr": "شحن رصيد",
+      "nameEn": "Mobile credit top-up",
+      "categoryKey": "Bills",
+      "subcategoryKey": "PhoneBill",
+      "defaultAmountPiastres": 10000,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    },
+    {
+      "id": "item-11",
+      "nameAr": "فاتورة موبايل",
+      "nameEn": "Mobile phone bill",
+      "categoryKey": "Bills",
+      "subcategoryKey": "PhoneBill",
+      "defaultAmountPiastres": 7000,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    },
+    {
+      "id": "item-12",
+      "nameAr": "إنترنت",
+      "nameEn": "Internet bundle",
+      "categoryKey": "Bills",
+      "subcategoryKey": "HomeInternet",
+      "defaultAmountPiastres": 21660,
+      "barcode": null,
+      "useCount": 0,
+      "lastUsedAt": null,
+      "archived": false
+    }
+  ],
+  "entries": [],
+  "salaryPeriods": []
+}

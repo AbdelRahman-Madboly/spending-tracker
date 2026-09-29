@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/app_flavor.dart';
 import 'pre_migration_backup.dart';
 import 'tables.dart';
 
@@ -39,13 +40,15 @@ class AppDatabase extends _$AppDatabase {
   /// doesn't have those.
   AppDatabase.forTesting(super.executor, {this.seedJsonLoader});
 
-  /// Loads assets/seed/seed.json. Set at construction: [AppDatabase()]
-  /// (the real app) always seeds from the bundled asset; [forTesting]
-  /// defaults to `null`, meaning "don't seed real data at all".
+  /// Loads the build's seed ([AppFlavor.seedAsset]: the sample history in
+  /// the personal build, only the catalogue in the shared one). Set at
+  /// construction: [AppDatabase()] (the real app) always seeds from the
+  /// bundled asset; [forTesting] defaults to `null`, meaning "don't seed
+  /// real data at all".
   Future<String> Function()? seedJsonLoader = _defaultSeedLoader;
 
   static Future<String> _defaultSeedLoader() =>
-      rootBundle.loadString('assets/seed/seed.json');
+      rootBundle.loadString(AppFlavor.current.seedAsset);
 
   /// The schema this build writes. Also the target the pre-migration
   /// backup compares the on-disk `user_version` against.
@@ -185,9 +188,11 @@ class AppDatabase extends _$AppDatabase {
         (data['salaryPeriods'] as List).cast<Map<String, dynamic>>();
 
     await transaction(() async {
+      await _seedExtraCatalogue(data);
       // Items before entries: entries reference items by id via itemId.
       for (final item in items) {
         await into(this.items).insert(
+          mode: InsertMode.insertOrIgnore,
           ItemsCompanion.insert(
             id: item['id'] as String,
             nameAr: item['nameAr'] as String,
@@ -250,6 +255,63 @@ class AppDatabase extends _$AppDatabase {
         );
       }
     });
+  }
+
+  /// The seed's categories and subcategories beyond the fixed ones (the
+  /// shared build's Health, Home, Subscriptions and theirs), each after
+  /// those already there. A row the database has, or one without a label
+  /// and an icon (the personal seed lists the fixed ones by key only), is
+  /// left alone.
+  Future<void> _seedExtraCatalogue(Map<String, dynamic> data) async {
+    bool complete(Map<String, dynamic> row) =>
+        row['labelAr'] is String && row['iconName'] is String;
+
+    final knownCategories = {
+      for (final c in await select(categories).get()) c.key,
+    };
+    var order = knownCategories.length;
+    for (final row
+        in (data['categories'] as List? ?? const [])
+            .cast<Map<String, dynamic>>()) {
+      final key = row['key'] as String;
+      if (knownCategories.contains(key) || !complete(row)) continue;
+      final color = row['colorKey'] as String?;
+      await into(categories).insert(
+        CategoriesCompanion.insert(
+          key: key,
+          labelAr: row['labelAr'] as String,
+          iconName: row['iconName'] as String,
+          colorKey: Value(categoryColorKeys.contains(color) ? color : 'Other'),
+          sortOrder: Value(order++),
+        ),
+      );
+      knownCategories.add(key);
+    }
+
+    final knownSubcategories = {
+      for (final s in await select(subcategories).get()) s.key,
+    };
+    order = knownSubcategories.length;
+    for (final row
+        in (data['subcategories'] as List? ?? const [])
+            .cast<Map<String, dynamic>>()) {
+      final key = row['key'] as String;
+      if (knownSubcategories.contains(key) ||
+          !complete(row) ||
+          !knownCategories.contains(row['categoryKey'])) {
+        continue;
+      }
+      await into(subcategories).insert(
+        SubcategoriesCompanion.insert(
+          key: key,
+          categoryKey: row['categoryKey'] as String,
+          labelAr: row['labelAr'] as String,
+          iconName: row['iconName'] as String,
+          sortOrder: Value(order++),
+        ),
+      );
+      knownSubcategories.add(key);
+    }
   }
 }
 
