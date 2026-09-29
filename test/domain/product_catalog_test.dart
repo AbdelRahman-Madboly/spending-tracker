@@ -168,4 +168,52 @@ void main() {
       expect(keys, (categoryKey: null, subcategoryKey: null));
     });
   });
+
+  group('ensureCatalogueAdditions', () {
+    late FixtureSpendingRepository repo;
+    final catalog = ProductCatalog.parse(sampleJson());
+
+    setUp(() => repo = FixtureSpendingRepository());
+
+    test('creates every category and subcategory the catalogue adds, once',
+        () async {
+      await ensureCatalogueAdditions(repo, catalog);
+      await ensureCatalogueAdditions(repo, catalog);
+      final categories = await repo.categories();
+      expect(categories.where((c) => c.key == 'Pantry'), hasLength(1));
+      expect((await repo.subcategories('Pantry')).map((s) => s.key),
+          ['Pasta']);
+      expect(
+          (await repo.subcategories('Drinks')).where((s) => s.key == 'Nectar'),
+          hasLength(1));
+    });
+
+    test('never brings back a category or subcategory the user archived',
+        () async {
+      await repo.createCategory(
+          key: 'Pantry', labelAr: 'مخزن', iconName: 'category');
+      await repo.archiveCategory('Pantry');
+      await repo.createSubcategory(
+          key: 'Nectar',
+          categoryKey: 'Drinks',
+          labelAr: 'نكتار',
+          iconName: 'category');
+      await repo.archiveSubcategory('Nectar');
+
+      await ensureCatalogueAdditions(repo, catalog);
+
+      expect((await repo.categories()).map((c) => c.key),
+          isNot(contains('Pantry')));
+      expect((await repo.archivedCategories()).map((c) => c.key),
+          contains('Pantry'));
+      expect((await repo.subcategories('Drinks')).map((s) => s.key),
+          isNot(contains('Nectar')));
+    });
+
+    test('an empty catalogue adds nothing', () async {
+      final before = (await repo.categories()).length;
+      await ensureCatalogueAdditions(repo, ProductCatalog.empty);
+      expect(await repo.categories(), hasLength(before));
+    });
+  });
 }

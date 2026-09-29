@@ -10,6 +10,8 @@ import 'data/backup/data_transfer.dart';
 import 'data/db/database.dart';
 import 'data/drift_spending_repository.dart';
 import 'data/import_sources.dart';
+import 'data/product_catalog_source.dart';
+import 'domain/product_catalog.dart' show ensureCatalogueAdditions;
 import 'features/shell/app_shell.dart';
 import 'features/shell/quick_launch.dart';
 
@@ -64,6 +66,17 @@ class _SpendingAppState extends State<SpendingApp>
     // return to the app (a bill made from an entry, a day that passed).
     // A reboot is covered by the plugin's own boot receiver.
     BillReminders.shared.rescheduleFrom(_repository);
+    // The categories the bundled catalogue files products under («البيت»,
+    // «أكل سريع التحضير», …) exist from the start, not only once a
+    // catalogue product has been saved. Off the first frame: the catalogue
+    // is read and indexed off the UI thread.
+    final repository = _repository;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ProductCatalogSource.shared
+          .load()
+          .then((catalog) => ensureCatalogueAdditions(repository, catalog))
+          .catchError((Object _) {});
+    });
   }
 
   @override

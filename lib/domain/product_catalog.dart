@@ -1,6 +1,9 @@
 import 'dart:convert';
 
 import '../core/arabic_text.dart';
+import 'import/import_pack.dart'
+    show CatalogueAdditions, CategoryAddition, SubcategoryAddition;
+import 'import/importer.dart' show Importer;
 import 'spending_repository.dart';
 
 /// A category the catalogue files products under that the app may not have
@@ -296,6 +299,36 @@ Future<({String? categoryKey, String? subcategoryKey})> ensureCatalogueCategory(
   }
   return (categoryKey: categoryKey, subcategoryKey: subcategoryKey);
 }
+
+/// Creates every category and subcategory [catalog] adds that the database
+/// lacks, by key, so the user can file things under them before any
+/// catalogue product has needed one (the app runs this on start). One the
+/// user archived counts as present and stays archived.
+Future<void> ensureCatalogueAdditions(
+  SpendingRepository repository,
+  ProductCatalog catalog,
+) => Importer(repository).ensureCatalogue(
+  CatalogueAdditions(
+    categories: [
+      for (final c in catalog.categories)
+        CategoryAddition(
+          key: c.key,
+          labelAr: c.labelAr,
+          iconName: c.iconName,
+          colorKey: c.colorKey,
+        ),
+    ],
+    subcategories: [
+      for (final s in catalog.subcategories)
+        SubcategoryAddition(
+          key: s.key,
+          categoryKey: s.categoryKey,
+          labelAr: s.labelAr,
+          iconName: s.iconName,
+        ),
+    ],
+  ),
+);
 
 Future<bool> _subcategoryKeyTaken(
     SpendingRepository repository, String key) async {
