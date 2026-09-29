@@ -376,6 +376,38 @@ void main() {
     expect(h.outcomes, [ReviewOutcome.saved]);
   });
 
+  testWidgets('a barcode draft opens as the lines its codes scan to',
+      (tester) async {
+    final repo = FixtureSpendingRepository();
+    await repo.saveCapture(CaptureDraft(
+      kind: CaptureKind.barcode,
+      date: DateTime(2026, 9, 20),
+      rawText: '#9999 عصير جهينة\n#9999',
+      lines: const [],
+      isDraft: true,
+    ));
+    final draft = (await repo.watchDraftCaptures().first).single;
+    await _open(tester, ReviewRequest.fromDraft(draft), harness: _Harness(repo));
+
+    Finder inLine(Finder f) => find.descendant(
+        of: find.byKey(const Key('review-line-l0')), matching: f);
+    expect(find.byKey(const Key('review-line-l1')), findsNothing);
+    expect(inLine(find.byKey(const Key('line-barcode'))), findsOneWidget);
+    expect(
+        tester
+            .widget<TextField>(inLine(find.byKey(const Key('line-name'))))
+            .controller!
+            .text,
+        'عصير جهينة');
+    await tester.enterText(inLine(find.byKey(const Key('line-amount'))), '50');
+    await _tap(tester, inLine(find.byKey(const Key('category-Drinks'))));
+    await _tap(tester, find.byKey(const Key('review-save')));
+
+    final learned = (await repo.itemByBarcode('9999'))!;
+    expect(learned.nameAr, 'عصير جهينة');
+    expect(await repo.watchDraftCaptures().first, isEmpty);
+  });
+
   testWidgets('closing a draft opened from Needs review leaves it as it was',
       (tester) async {
     final repo = FixtureSpendingRepository();

@@ -116,6 +116,82 @@ void main() {
     });
   });
 
+  group('barcode drafts', () {
+    late FixtureSpendingRepository repo;
+
+    setUp(() => repo = FixtureSpendingRepository());
+
+    ReviewLine scanned(String code, {String name = '', int count = 1}) =>
+        ReviewLine.fromParsed(
+          ParsedLine(
+            rawText: code,
+            date: day,
+            name: name,
+            quantityMilli: count * 1000,
+            confidence: ParseConfidence.low,
+            flags: const {ParseFlag.noAmount, ParseFlag.noCategory},
+            barcode: code,
+          ),
+          id: code,
+        );
+
+    test('a scanned line is kept as its code once per scan, named once', () {
+      final text = barcodeDraftText([
+        scanned('9999'),
+        scanned('8888', name: 'عصير جهينة', count: 2),
+        ReviewLine.blank('b').withName('شيبسي').withAmount(1000),
+      ]);
+      expect(text, '#9999\n#8888 عصير جهينة\n#8888\nشيبسي ب 10');
+    });
+
+    test('an unknown code closed unnamed is still kept', () {
+      expect(barcodeDraftText([scanned('9999')]), '#9999');
+    });
+
+    test('a draft comes back as the lines its codes scan to, with the names '
+        'typed and the rest as text', () async {
+      final known = await repo.createItem(
+          nameAr: 'تونة',
+          categoryKey: 'Food',
+          defaultAmountPiastres: 2000,
+          barcode: '6230');
+      final result = await readBarcodeDraft(
+          '#6230\n#9999 عصير جهينة\n#9999\n#7777\nشيبسي ب 10',
+          repository: repo,
+          day: day);
+      expect(result.text, 'شيبسي ب 10');
+      final lines = result.lines;
+      expect(lines.map((l) => l.barcode), ['6230', '9999', '7777']);
+      expect(lines[0].itemId, known.id);
+      expect(lines[0].amountPiastres, 2000);
+      expect(lines[1].name, 'عصير جهينة');
+      expect(lines[1].quantityMilli, 2000);
+      expect(lines[1].itemId, isNull);
+      expect(lines[2].name, '');
+      expect(lines.every((l) => l.date == day), isTrue);
+    });
+
+    test('a code named after an item it was linked to links it again',
+        () async {
+      final item = await repo.createItem(
+          nameAr: 'مياه', categoryKey: 'Drinks', defaultAmountPiastres: 800);
+      final lines =
+          (await readBarcodeDraft('#9999 مياه', repository: repo, day: day))
+              .lines;
+      expect(lines.single.itemId, item.id);
+      expect(lines.single.categoryKey, 'Drinks');
+      expect(lines.single.amountPiastres, 800);
+      expect(lines.single.barcode, '9999');
+    });
+
+    test('a draft kept before codes were kept reads as text', () async {
+      final result =
+          await readBarcodeDraft('شويبس ب 40', repository: repo, day: day);
+      expect(result.lines, isEmpty);
+      expect(result.text, 'شويبس ب 40');
+    });
+  });
+
   group('ReviewLine with a barcode', () {
     ParsedLine unknown({String name = ''}) => ParsedLine(
           rawText: '9999',

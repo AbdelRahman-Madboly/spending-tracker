@@ -9,6 +9,7 @@ import '../../data/document_picker_service.dart';
 import '../../data/photo_capture_service.dart';
 import '../../data/text_recognition_service.dart';
 import '../../data/voice_playback.dart';
+import '../../domain/barcode_scan.dart';
 import '../../domain/models.dart';
 import '../../domain/parsing/catalogue_matcher.dart';
 import '../../domain/parsing/line_parser.dart';
@@ -150,7 +151,9 @@ Future<ReviewOutcome> showReviewSheet(
 class _ReviewSnapshot {
   _ReviewSnapshot(this.attachments);
 
-  List<ReviewLine> lines = const [];
+  /// The lines as they stand, once the sheet has made them. Until then (a
+  /// sheet closed while still loading) the capture's own lines stand in.
+  List<ReviewLine>? lines;
 
   /// The capture's new attachments as they stand: photos and files added in
   /// review, less a photo refused as a transfer already recorded.
@@ -174,19 +177,29 @@ class _ReviewSnapshot {
 /// InstaPay transfer's reference and payment method). Only lines the user
 /// changed are written as text, and even then the photos are read again
 /// for their references (see [withReadReferences]).
+///
+/// A barcode capture keeps its codes (see [barcodeDraftText]): a product
+/// not named yet has no text, and without its code it would be lost.
 Future<void> _keepAsDraft(SpendingRepository repository,
     ReviewRequest request, _ReviewSnapshot latest) async {
   if (request.draftId != null) return;
   final raw = request.rawText ?? '';
   final typed = raw.trim().isEmpty ? latest.typed.trim() : '';
   final linesAsRead = request.kind == CaptureKind.photo && !latest.edited;
+  final lines = latest.lines ??
+      [
+        for (final (i, p) in (request.lines ?? const <ParsedLine>[]).indexed)
+          ReviewLine.fromParsed(p, id: 'k$i'),
+      ];
   final text = raw.trim().isNotEmpty
       ? raw
       : typed.isNotEmpty
           ? typed
           : linesAsRead
               ? ''
-              : reviewDraftText(latest.lines);
+              : request.kind == CaptureKind.barcode
+                  ? barcodeDraftText(lines)
+                  : reviewDraftText(lines);
   if (text.trim().isEmpty && latest.attachments.isEmpty) return;
   final day = latest.date ?? ArabicLineParser.captureDay(request.capturedAt);
   await repository.saveCapture(CaptureDraft(
@@ -417,6 +430,17 @@ class _ReviewSheetState extends State<ReviewSheet> {
           readReferences = read.lines;
         }
         if (read.instaPay) photoPayment = 'InstaPay';
+      } else if (_request.kind == CaptureKind.barcode) {
+        // A barcode capture kept for later: its codes are scanned again,
+        // and anything added by hand is parsed from the rest of its text.
+        final kept = await readBarcodeDraft(_request.rawText,
+            repository: _repo, day: _date);
+        parsed = [
+          ...kept.lines,
+          if (kept.text.trim().isNotEmpty)
+            ...parser.parse(kept.text, capturedAt: _request.capturedAt),
+        ];
+        parsedBy ??= 'local';
       } else {
         parsed = parser.parse(text, capturedAt: _request.capturedAt);
         parsedBy ??= 'local';

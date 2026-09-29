@@ -1,4 +1,7 @@
+import '../core/arabic_text.dart';
+import 'models.dart';
 import 'parsing/parsed_line.dart';
+import 'review.dart';
 import 'spending_repository.dart';
 
 /// Counts the products passed in front of the scanner in continuous mode
@@ -88,4 +91,110 @@ Future<List<ParsedLine>> barcodeLines(
     ));
   }
   return lines;
+}
+
+/// Starts a row of a barcode draft's text that holds a scanned code.
+const _codeMark = '#';
+
+/// The text a barcode capture is kept as when review closes without
+/// saving (spec §6.7: closing never discards a capture).
+///
+/// A draft stores text, not lines, and a product not named yet has no text
+/// of its own, so a scanned line is kept as its code: one `#code` row per
+/// scan, the first carrying the name typed for it, which
+/// [readBarcodeDraft] scans back to lines. A line with no code (one added
+/// by hand) is kept as the text the parser reads back to it.
+String barcodeDraftText(Iterable<ReviewLine> lines) {
+  final rows = <String>[];
+  for (final line in lines) {
+    final code = line.barcode;
+    if (code == null) {
+      final text = reviewDraftText([line]);
+      if (text.isNotEmpty) rows.add(text);
+      continue;
+    }
+    final count = (line.quantityMilli + 500) ~/ 1000;
+    final name = line.name.trim().replaceAll(RegExp(r'\s+'), ' ');
+    for (var i = 0; i < (count < 1 ? 1 : count); i++) {
+      rows.add(i == 0 && name.isNotEmpty
+          ? '$_codeMark$code $name'
+          : '$_codeMark$code');
+    }
+  }
+  return rows.join('\n');
+}
+
+/// A barcode draft's text read back: its codes scanned again through
+/// [barcodeLines], so a code the app has learned since is its item at its
+/// price, and the rest of the text for the parser.
+///
+/// A name typed for an unknown code comes back with it. When an item has
+/// that name (the line was linked to it in review), the line is linked to
+/// it again rather than making a second item of the same name when saved.
+/// Codes are read offline: the product lookup only saves typing, and a
+/// name kept with the draft is already typed. A draft kept before codes
+/// were kept has no `#` rows and reads as text only.
+Future<({List<ParsedLine> lines, String text})> readBarcodeDraft(
+  String? rawText, {
+  required SpendingRepository repository,
+  required DateTime day,
+}) async {
+  final codes = <String>[];
+  final names = <String, String>{};
+  final rest = <String>[];
+  for (final row in (rawText ?? '').split('\n')) {
+    final trimmed = row.trim();
+    if (!trimmed.startsWith(_codeMark) || trimmed.length == 1) {
+      if (trimmed.isNotEmpty) rest.add(trimmed);
+      continue;
+    }
+    final body = trimmed.substring(1);
+    final space = body.indexOf(' ');
+    final code = space < 0 ? body : body.substring(0, space);
+    final name = space < 0 ? '' : body.substring(space + 1).trim();
+    codes.add(code);
+    if (name.isNotEmpty) names.putIfAbsent(code, () => name);
+  }
+  final text = rest.join('\n');
+  if (codes.isEmpty) return (lines: const <ParsedLine>[], text: text);
+  final scanned =
+      await barcodeLines(codes, repository: repository, day: day);
+  final items = names.isEmpty
+      ? const <QuickPickItem>[]
+      : await repository.allItems();
+  final lines = [
+    for (final line in scanned)
+      switch (names[line.barcode]) {
+        final name? when line.itemId == null => _named(line, name, items),
+        _ => line,
+      },
+  ];
+  return (lines: lines, text: text);
+}
+
+/// [line], an unknown code, with the [name] typed for it, and linked to
+/// the item of that name when there is one.
+ParsedLine _named(ParsedLine line, String name, List<QuickPickItem> items) {
+  final key = normalizeArabic(name);
+  final item =
+      items.where((i) => normalizeArabic(i.nameAr) == key).firstOrNull;
+  final price = item?.suggestedAmountPiastres;
+  final count = line.quantityMilli ~/ 1000;
+  return ParsedLine(
+    rawText: line.rawText,
+    date: line.date,
+    name: item?.nameAr ?? name,
+    itemId: item?.id,
+    categoryKey: item?.categoryKey,
+    subcategoryKey: item?.subcategoryKey,
+    quantityMilli: line.quantityMilli,
+    amountPiastres: price == null ? null : price * count,
+    unitPricePiastres: count > 1 ? price : null,
+    confidence: item == null ? ParseConfidence.low : ParseConfidence.medium,
+    flags: {
+      if (item == null || price == null) ParseFlag.noAmount,
+      if (item == null) ParseFlag.noCategory,
+    },
+    barcode: line.barcode,
+  );
 }

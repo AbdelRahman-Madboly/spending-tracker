@@ -203,6 +203,31 @@ void main() {
       expect(learned.suggestedAmountPiastres, 2500);
     });
 
+    testWidgets('an unknown code scanned offline and closed unnamed waits in '
+        'Needs review with its code', (tester) async {
+      await run(tester, CaptureAction.barcode, scanned: ['9999']);
+      expect(find.byKey(const Key('review-sheet')), findsOneWidget);
+
+      await tap(tester, find.byKey(const Key('review-later')));
+
+      final draft = (await repo.watchDraftCaptures().first).single;
+      expect(draft.kind, CaptureKind.barcode);
+      expect(draft.rawText, '#9999');
+    });
+
+    testWidgets('a name typed for an unknown code is kept with it',
+        (tester) async {
+      await run(tester, CaptureAction.barcode, scanned: ['9999', '9999']);
+      await tester.enterText(
+          inLine(0, find.byKey(const Key('line-name'))), 'عصير جهينة');
+      await tester.pumpAndSettle();
+
+      await tap(tester, find.byKey(const Key('review-later')));
+
+      final draft = (await repo.watchDraftCaptures().first).single;
+      expect(draft.rawText, '#9999 عصير جهينة\n#9999');
+    });
+
     testWidgets('backing out of the scanner with nothing scanned opens nothing',
         (tester) async {
       await run(tester, CaptureAction.barcode);
