@@ -610,6 +610,33 @@ void runV3RepositoryContract(
       expect(bread.attachmentText, contains('مع أحمد'));
     });
 
+    test('watchTransactions carries a note added while it is watched, and '
+        'every attachment change after it', () async {
+      final groupId = await repo.saveCapture(twoLines());
+      final lines = (await repo.captureGroup(groupId))!.entries;
+      final emitted = <List<TransactionView>>[];
+      final sub = repo.watchTransactions().listen(emitted.add);
+      addTearDown(sub.cancel);
+      Future<Set<String>> textOf(String id) async {
+        await pumpEventQueue();
+        return emitted.last.firstWhere((t) => t.id == id).attachmentText.toSet();
+      }
+
+      expect(await textOf(lines.first.id), isNot(contains('مع أحمد')));
+      await repo.addAttachment(
+        entryId: lines.first.id,
+        attachment:
+            const DraftAttachment(kind: AttachmentKind.text, text: 'مع أحمد'),
+      );
+      expect(await textOf(lines.first.id), contains('مع أحمد'));
+      await repo.addAttachment(
+        entryId: lines.first.id,
+        attachment: const DraftAttachment(
+            kind: AttachmentKind.text, text: 'Uber من المحطة'),
+      );
+      expect(await textOf(lines.first.id), contains('Uber من المحطة'));
+    });
+
     test('watchTransactions names an item-only entry after its item',
         () async {
       final item = (await repo.topItems(1)).single;

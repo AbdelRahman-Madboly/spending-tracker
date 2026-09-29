@@ -1377,45 +1377,74 @@ class DriftSpendingRepository implements SpendingRepository {
 
   @override
   Stream<List<TransactionView>> watchTransactions() {
-    // Same shape as [watchPeriods]: a fresh entries query whenever the
-    // attachments change, otherwise entry updates flow straight through,
-    // so a note added in the detail sheet shows in the row's glyphs.
-    return _db.select(_db.attachments).watch().asyncExpand((attachments) {
+    // Recomputed whenever the entries (with their labels and items) or the
+    // attachments change. Both queries are live streams that never
+    // complete, so they are merged by hand as in [watchPeriods]: with
+    // asyncExpand the entries stream opened on the first attachments
+    // would be the only one ever listened to, and a note or transcript
+    // added later would never reach the row's glyphs or the search.
+    final query = _db.select(_db.entries).join([
+      leftOuterJoin(_db.categories,
+          _db.categories.key.equalsExp(_db.entries.categoryKey)),
+      leftOuterJoin(_db.subcategories,
+          _db.subcategories.key.equalsExp(_db.entries.subcategoryKey)),
+      leftOuterJoin(_db.items, _db.items.id.equalsExp(_db.entries.itemId)),
+    ])
+      ..where(_db.entries.deletedAt.isNull())
+      // Lines of one capture share createdAt; rowid keeps them in the
+      // order they were captured.
+      ..orderBy([
+        OrderingTerm.desc(_db.entries.date),
+        OrderingTerm.desc(_db.entries.createdAt),
+        OrderingTerm.asc(_db.entries.rowId),
+      ]);
+    final controller = StreamController<List<TransactionView>>();
+    List<TypedResult>? rows;
+    List<Attachment>? attachments;
+    void emit() {
+      final entries = rows;
+      final all = attachments;
+      if (entries == null || all == null) return;
       final byEntry = <String, List<Attachment>>{};
       final byGroup = <String, List<Attachment>>{};
-      for (final a in attachments) {
+      for (final a in all) {
         if (a.entryId case final id?) (byEntry[id] ??= []).add(a);
         if (a.captureGroupId case final id?) (byGroup[id] ??= []).add(a);
       }
-      final query = _db.select(_db.entries).join([
-        leftOuterJoin(_db.categories,
-            _db.categories.key.equalsExp(_db.entries.categoryKey)),
-        leftOuterJoin(_db.subcategories,
-            _db.subcategories.key.equalsExp(_db.entries.subcategoryKey)),
-        leftOuterJoin(_db.items, _db.items.id.equalsExp(_db.entries.itemId)),
-      ])
-        ..where(_db.entries.deletedAt.isNull())
-        // Lines of one capture share createdAt; rowid keeps them in the
-        // order they were captured.
-        ..orderBy([
-          OrderingTerm.desc(_db.entries.date),
-          OrderingTerm.desc(_db.entries.createdAt),
-          OrderingTerm.asc(_db.entries.rowId),
-        ]);
-      return query.watch().map((rows) => [
-            for (final row in rows)
-              _transactionView(
-                row.readTable(_db.entries),
-                row.readTableOrNull(_db.categories),
-                row.readTableOrNull(_db.subcategories),
-                row.readTableOrNull(_db.items),
-                [
-                  ...?byEntry[row.readTable(_db.entries).id],
-                  ...?byGroup[row.readTable(_db.entries).captureGroupId],
-                ],
-              ),
-          ]);
-    });
+      controller.add([
+        for (final row in entries)
+          _transactionView(
+            row.readTable(_db.entries),
+            row.readTableOrNull(_db.categories),
+            row.readTableOrNull(_db.subcategories),
+            row.readTableOrNull(_db.items),
+            [
+              ...?byEntry[row.readTable(_db.entries).id],
+              ...?byGroup[row.readTable(_db.entries).captureGroupId],
+            ],
+          ),
+      ]);
+    }
+
+    final subs = <StreamSubscription<Object?>>[];
+    controller
+      ..onListen = () {
+        subs
+          ..add(_db.select(_db.attachments).watch().listen((a) {
+            attachments = a;
+            emit();
+          }, onError: controller.addError))
+          ..add(query.watch().listen((r) {
+            rows = r;
+            emit();
+          }, onError: controller.addError));
+      }
+      ..onCancel = () async {
+        for (final sub in subs) {
+          await sub.cancel();
+        }
+      };
+    return controller.stream;
   }
 
   static TransactionView _transactionView(

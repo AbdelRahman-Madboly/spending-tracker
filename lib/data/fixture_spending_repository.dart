@@ -1164,6 +1164,8 @@ class FixtureSpendingRepository implements SpendingRepository {
     final view = _attachmentFrom(attachment,
         entryId: entryId, captureGroupId: captureGroupId, now: DateTime.now());
     _attachments.add(view);
+    // Rows show their attachments' glyphs and search their text.
+    _controller.add(null);
     return view;
   }
 
