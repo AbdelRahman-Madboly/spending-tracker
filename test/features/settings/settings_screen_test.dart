@@ -5,6 +5,7 @@ import 'package:spending_tracker/core/design/app_theme.dart';
 import 'package:spending_tracker/core/design/category_colors.dart';
 import 'package:spending_tracker/core/design/tokens.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
+import 'package:spending_tracker/features/products/products_screen.dart';
 import 'package:spending_tracker/features/settings/import_screen.dart';
 import 'package:spending_tracker/features/settings/settings_screen.dart';
 
@@ -81,60 +82,17 @@ void main() {
   });
 
   testWidgets(
-      'lists the item catalogue with name, category and price, and '
-      'archiving one removes it from the list', (tester) async {
+      'المنتجات opens the Products screen, where items are listed, edited '
+      'and archived', (tester) async {
     final repository = FixtureSpendingRepository();
     await pumpSettings(tester, repository);
 
-    expect(find.text('شويبس'), findsOneWidget);
-    expect(find.text('40'), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('archive-item-i1')));
+    expect(find.byKey(const Key('settings-item-i1')), findsNothing);
+    await tester.tap(find.byKey(const Key('settings-products')));
     await tester.pumpAndSettle();
 
-    expect(find.text('شويبس'), findsNothing);
-
-    // Archiving is a soft delete, not a deletion: the quick-pick grid must
-    // no longer offer it, without touching entries that already reference
-    // it.
-    final topItems = await repository.topItems(20);
-    expect(topItems.map((i) => i.id), isNot(contains('i1')));
-  });
-
-  testWidgets(
-      'tapping an item opens an edit dialog pre-filled with its current '
-      'values, and saving updates its name, category and price in the list',
-      (tester) async {
-    final repository = FixtureSpendingRepository();
-    await pumpSettings(tester, repository);
-
-    await tester.tap(find.text('شويبس'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('تعديل العنصر'), findsOneWidget);
-    // A TextField's entered value isn't a `Text` widget, so the pre-fill is
-    // checked through the field's controller rather than `find.text`.
-    final nameField =
-        tester.widget<TextField>(find.byKey(const Key('new-item-name')));
-    final amountField =
-        tester.widget<TextField>(find.byKey(const Key('new-item-amount')));
-    expect(nameField.controller!.text, 'شويبس');
-    expect(amountField.controller!.text, '40');
-
-    await tester.enterText(
-        find.byKey(const Key('new-item-name')), 'شويبس مانجا');
-    await tester.enterText(find.byKey(const Key('new-item-amount')), '45');
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('new-item-save')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('شويبس مانجا'), findsOneWidget);
-    expect(find.text('شويبس'), findsNothing);
-
-    final updated =
-        (await repository.allItems()).firstWhere((i) => i.id == 'i1');
-    expect(updated.categoryKey, 'Drinks');
-    expect(updated.defaultAmountPiastres, 4500);
+    expect(find.byType(ProductsScreen), findsOneWidget);
+    expect(find.byKey(const Key('product-i1')), findsOneWidget);
   });
 
   testWidgets('shows the app name and version in the about section',
@@ -155,9 +113,9 @@ void main() {
         tester.getSize(find.byKey(const Key('settings-salary-save'))).height;
     expect(saveHeight, greaterThanOrEqualTo(48));
 
-    final archiveHeight =
-        tester.getSize(find.byKey(const Key('archive-item-i1'))).height;
-    expect(archiveHeight, greaterThanOrEqualTo(48));
+    final productsHeight =
+        tester.getSize(find.byKey(const Key('settings-products'))).height;
+    expect(productsHeight, greaterThanOrEqualTo(48));
 
     final addCategorySize =
         tester.getSize(find.byKey(const Key('add-category')));
@@ -168,10 +126,6 @@ void main() {
         tester.getSize(find.byKey(const Key('expand-category-Drinks')));
     expect(expandSize.height, greaterThanOrEqualTo(48));
     expect(expandSize.width, greaterThanOrEqualTo(48));
-
-    final addItemSize = tester.getSize(find.byKey(const Key('add-item')));
-    expect(addItemSize.height, greaterThanOrEqualTo(48));
-    expect(addItemSize.width, greaterThanOrEqualTo(48));
   });
 
   group('category management', () {
@@ -486,81 +440,6 @@ void main() {
       expect((await repository.allItems()).map((i) => i.id), contains('i1'));
       expect((await repository.categories()).map((c) => c.key),
           isNot(contains('Drinks')));
-    });
-  });
-
-  group('item management', () {
-    testWidgets('the add-item button creates a new item shown in the list',
-        (tester) async {
-      final repository = FixtureSpendingRepository();
-      await pumpSettings(tester, repository);
-
-      await tester.tap(find.byKey(const Key('add-item')));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(
-          find.byKey(const Key('new-item-name')), 'سجائر');
-      await tester.enterText(
-          find.byKey(const Key('new-item-amount')), '80');
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('new-item-save')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('سجائر'), findsOneWidget);
-      final items = await repository.allItems();
-      expect(items.map((i) => i.nameAr), contains('سجائر'));
-    });
-
-    testWidgets(
-        'archiving an item and switching to the archived view shows it '
-        'there with an unarchive control that restores it', (tester) async {
-      final repository = FixtureSpendingRepository();
-      await pumpSettings(tester, repository);
-
-      await tester.tap(find.byKey(const Key('archive-item-i1')));
-      await tester.pumpAndSettle();
-      expect(find.text('شويبس'), findsNothing);
-
-      await tester.tap(find.byKey(const Key('items-view-archived')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('شويبس'), findsOneWidget);
-      expect(find.byKey(const Key('unarchive-item-i1')), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('unarchive-item-i1')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('شويبس'), findsNothing);
-
-      await tester.tap(find.byKey(const Key('items-view-active')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('شويبس'), findsOneWidget);
-      final items = await repository.allItems();
-      expect(items.map((i) => i.id), contains('i1'));
-    });
-
-    testWidgets(
-        'unarchiving an item whose barcode another item now holds keeps it '
-        'archived and says why', (tester) async {
-      final repository = FixtureSpendingRepository();
-      final old = await repository.createItem(
-          nameAr: 'بيبسي كانز', categoryKey: 'Drinks', barcode: '6221');
-      await repository.archiveItem(old.id);
-      await repository.createItem(
-          nameAr: 'بيبسي', categoryKey: 'Drinks', barcode: '6221');
-      await pumpSettings(tester, repository);
-
-      await tester.tap(find.byKey(const Key('items-view-archived')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(Key('unarchive-item-${old.id}')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('الباركود مسجل لصنف آخر، فلا يمكن استرجاع هذا الصنف'),
-          findsOneWidget);
-      expect(find.text('بيبسي كانز'), findsOneWidget);
-      expect((await repository.archivedItems()).map((i) => i.id),
-          contains(old.id));
     });
   });
 

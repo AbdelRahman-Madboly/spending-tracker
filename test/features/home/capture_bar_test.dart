@@ -41,4 +41,20 @@ void main() {
     // Right to left.
     expect(xs, [...xs]..sort((a, b) => b.compareTo(a)));
   });
+
+  testWidgets('a long press on باركود reports it, the others do nothing',
+      (tester) async {
+    final held = <CaptureAction>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+            body: CaptureBar(onAction: (_) {}, onLongPress: held.add)),
+      ),
+    ));
+    for (final action in CaptureAction.values) {
+      await tester.longPress(find.byKey(Key('capture-${action.name}')));
+    }
+    expect(held, [CaptureAction.barcode]);
+  });
 }

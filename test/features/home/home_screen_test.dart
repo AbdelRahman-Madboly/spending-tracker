@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/core/design/tokens.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/domain/models.dart';
+import 'package:spending_tracker/features/products/products_screen.dart';
 import 'package:spending_tracker/features/home/home_screen.dart';
 import 'package:spending_tracker/features/home/widgets/capture_bar.dart';
 import 'package:spending_tracker/features/home/widgets/range_chart_section.dart';
@@ -289,6 +290,13 @@ void main() {
     final calls = await _pump(tester, FixtureSpendingRepository());
     await tester.tap(find.byKey(const Key('capture-camera')));
     expect(calls.captures, [CaptureAction.camera]);
+  });
+
+  testWidgets('a long press on باركود opens المنتجات', (tester) async {
+    await _pump(tester, FixtureSpendingRepository());
+    await tester.longPress(find.byKey(const Key('capture-barcode')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ProductsScreen), findsOneWidget);
   });
 
   testWidgets('tapping the trend chart opens statistics', (tester) async {

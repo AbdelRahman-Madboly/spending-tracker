@@ -26,10 +26,14 @@ extension CaptureActionLabels on CaptureAction {
 /// Four 56dp capture buttons, each a 24dp icon over its label. Used on the
 /// dashboard and in the FAB's long-press speed dial, so both reach the same
 /// flows.
+///
+/// A long press on باركود reports [onLongPress] (it opens «المنتجات»); the
+/// other buttons have no long press.
 class CaptureBar extends StatelessWidget {
   final ValueChanged<CaptureAction> onAction;
+  final ValueChanged<CaptureAction>? onLongPress;
 
-  const CaptureBar({super.key, required this.onAction});
+  const CaptureBar({super.key, required this.onAction, this.onLongPress});
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +56,10 @@ class CaptureBar extends StatelessWidget {
                   key: Key('capture-${action.name}'),
                   borderRadius: BorderRadius.circular(AppRadii.md),
                   onTap: () => onAction(action),
+                  onLongPress:
+                      action == CaptureAction.barcode && onLongPress != null
+                          ? () => onLongPress!(action)
+                          : null,
                   child: ConstrainedBox(
                     constraints:
                         const BoxConstraints(minHeight: 56, minWidth: 56),

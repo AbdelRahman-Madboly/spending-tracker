@@ -9,6 +9,7 @@ import '../../domain/import/importer.dart' show importOfferSettingKey;
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../capture/capture_launcher.dart';
+import '../products/products_screen.dart';
 import '../review/review_sheet.dart';
 import '../statistics/statistics_screen.dart';
 import '../transactions/transactions_screen.dart';
@@ -41,6 +42,9 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<CaptureAction>? onCapture;
   final VoidCallback? onOpenStatistics;
 
+  /// Opens «المنتجات» (a long press on the capture bar's باركود).
+  final VoidCallback? onOpenProducts;
+
   /// Opens السجل filtered to the given day.
   final ValueChanged<DateTime>? onOpenTransactions;
   final ValueChanged<CaptureGroupView>? onOpenDraft;
@@ -57,6 +61,7 @@ class HomeScreen extends StatefulWidget {
     this.onAdd,
     this.onCapture,
     this.onOpenStatistics,
+    this.onOpenProducts,
     this.onOpenTransactions,
     this.onOpenDraft,
     this.onImportBundled,
@@ -260,6 +265,10 @@ class _HomeScreenState extends State<HomeScreen>
       ? widget.onCapture!(action)
       : launchCapture(context, _repo, action, clock: widget.clock);
 
+  void _openProducts() => widget.onOpenProducts != null
+      ? widget.onOpenProducts!()
+      : openProductsScreen(context, _repo);
+
   void _openStatistics() => widget.onOpenStatistics != null
       ? widget.onOpenStatistics!()
       : Navigator.of(context).push(MaterialPageRoute<void>(
@@ -313,7 +322,10 @@ class _HomeScreenState extends State<HomeScreen>
                           summary: period),
                 ),
                 gap,
-                CaptureBar(onAction: _capture),
+                CaptureBar(
+                  onAction: _capture,
+                  onLongPress: (_) => _openProducts(),
+                ),
                 // Always in the list, so showing or hiding it never shifts
                 // the sections below to new slots.
                 if (!_offerImport)

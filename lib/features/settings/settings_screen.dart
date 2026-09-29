@@ -12,8 +12,7 @@ import '../../data/net/gemini_client.dart';
 import '../../data/net/network_gate.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
-import '../add/widgets/new_item_dialog.dart'
-    show showEditItemDialog, showNewItemDialog;
+import '../products/products_screen.dart';
 import 'import_screen.dart';
 import 'widgets/category_dialogs.dart';
 import 'recurring_bills_screen.dart';
@@ -68,7 +67,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   List<CategoryView> _categories = const [];
   Map<String, List<SubcategoryView>> _subcategoriesByCategory = const {};
   List<QuickPickItem> _items = const [];
-  List<QuickPickItem> _archivedItems = const [];
   List<CategoryView> _archivedCategories = const [];
   List<SubcategoryView> _archivedSubcategories = const [];
   final Set<String> _expandedCategories = {};
@@ -77,7 +75,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late final GeminiClient _gemini = widget.gemini ??
       GeminiClient(NetworkGate(widget.repository), widget.repository,
           _geminiKeys);
-  bool _showArchivedItems = false;
   bool _loaded = false;
   String? _salaryError;
 
@@ -114,14 +111,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return DataTransfer(host: host, repository: () => repository);
   }
 
-  List<SubcategoryView> get _allSubcategories =>
-      _subcategoriesByCategory.values.expand((s) => s).toList();
-
   Future<void> _load() async {
     final summary = await widget.repository.watchCurrentPeriod().first;
     final categories = await widget.repository.categories();
     final items = await widget.repository.allItems();
-    final archivedItems = await widget.repository.archivedItems();
     final archivedCategories = await widget.repository.archivedCategories();
     final archivedSubcategories =
         await widget.repository.archivedSubcategories();
@@ -136,7 +129,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _categories = categories;
       _subcategoriesByCategory = subcategoriesByCategory;
       _items = items;
-      _archivedItems = archivedItems;
       _archivedCategories = archivedCategories;
       _archivedSubcategories = archivedSubcategories;
       _loaded = true;
@@ -159,60 +151,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _archiveItem(String itemId) async {
-    await widget.repository.archiveItem(itemId);
-    await _load();
-  }
-
-  Future<void> _unarchiveItem(String itemId) async {
-    try {
-      await widget.repository.unarchiveItem(itemId);
-    } on DuplicateBarcodeException {
-      // Another live item took this barcode while this one was archived;
-      // bringing it back would make a scan ambiguous, so it stays put.
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content:
-                Text('الباركود مسجل لصنف آخر، فلا يمكن استرجاع هذا الصنف')));
-      }
-      return;
-    }
-    await _load();
-  }
-
-  Future<void> _editItem(QuickPickItem item) async {
-    final result = await showEditItemDialog(
-      context: context,
-      categories: _categories,
-      item: item,
-      subcategories: _allSubcategories,
-    );
-    if (result == null) return;
-    await widget.repository.updateItem(
-      itemId: item.id,
-      nameAr: result.nameAr,
-      categoryKey: result.categoryKey,
-      defaultAmountPiastres: result.amountPiastres,
-    );
-    await _load();
-  }
-
-  Future<void> _addItem() async {
-    if (_categories.isEmpty) return;
-    final result = await showNewItemDialog(
-      context: context,
-      categories: _categories,
-      initialCategoryKey: _categories.first.key,
-      subcategories: _allSubcategories,
-    );
-    if (result == null) return;
-    await widget.repository.createItem(
-      nameAr: result.nameAr,
-      categoryKey: result.categoryKey,
-      subcategoryKey: result.subcategoryKey,
-      defaultAmountPiastres: result.amountPiastres,
-    );
-    await _load();
+  Future<void> _openProducts() async {
+    await openProductsScreen(context, widget.repository);
+    // A product added from the catalogue may have brought its category.
+    if (mounted) await _load();
   }
 
   Future<void> _addCategory() async {
@@ -452,112 +394,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                 ],
                 const Divider(height: AppSpacing.lg),
-                _SectionHeader(
-                  'المنتجات',
-                  trailing: IconButton(
-                    key: const Key('add-item'),
-                    icon: const Icon(AppIcons.addCircle),
-                    tooltip: 'إضافة منتج',
-                    onPressed: _addItem,
-                  ),
+                ListTile(
+                  key: const Key('settings-products'),
+                  minTileHeight: 56,
+                  leading: const Icon(AppIcons.barcode),
+                  title: const Text('المنتجات', style: AppText.body),
+                  subtitle: const Text(
+                      'منتجاتك وأسعارها وباركودها، ودليل المنتجات',
+                      style: AppText.caption),
+                  trailing: const Icon(AppIcons.chevronStart),
+                  onTap: _openProducts,
                 ),
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          key: const Key('items-view-active'),
-                          onPressed: () =>
-                              setState(() => _showArchivedItems = false),
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: _showArchivedItems
-                                ? null
-                                : palette.primaryContainer,
-                          ),
-                          child: const Text('النشطة'),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: OutlinedButton(
-                          key: const Key('items-view-archived'),
-                          onPressed: () =>
-                              setState(() => _showArchivedItems = true),
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: _showArchivedItems
-                                ? palette.primaryContainer
-                                : null,
-                          ),
-                          child: const Text('المؤرشفة'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!_showArchivedItems)
-                  for (final item in _items)
-                    ListTile(
-                      key: ValueKey('settings-item-${item.id}'),
-                      onTap: () => _editItem(item),
-                      title: Text(item.nameAr, style: AppText.body),
-                      subtitle: Text(
-                        _categories
-                            .firstWhere(
-                              (c) => c.key == item.categoryKey,
-                              orElse: () => CategoryView(
-                                  key: item.categoryKey,
-                                  labelAr: item.categoryKey,
-                                  iconName: ''),
-                            )
-                            .labelAr,
-                        style: AppText.caption,
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (item.defaultAmountPiastres != null)
-                            Padding(
-                              padding: const EdgeInsetsDirectional.only(
-                                  end: AppSpacing.sm),
-                              child: Text(
-                                  formatPiastres(item.defaultAmountPiastres!),
-                                  style: AppText.body),
-                            ),
-                          IconButton(
-                            key: ValueKey('archive-item-${item.id}'),
-                            icon: const Icon(AppIcons.archive),
-                            tooltip: 'أرشفة',
-                            onPressed: () => _archiveItem(item.id),
-                          ),
-                        ],
-                      ),
-                    )
-                else
-                  for (final item in _archivedItems)
-                    ListTile(
-                      key: ValueKey('settings-archived-item-${item.id}'),
-                      title: Text(item.nameAr, style: AppText.body),
-                      subtitle: Text(
-                        _categories
-                            .firstWhere(
-                              (c) => c.key == item.categoryKey,
-                              orElse: () => CategoryView(
-                                  key: item.categoryKey,
-                                  labelAr: item.categoryKey,
-                                  iconName: ''),
-                            )
-                            .labelAr,
-                        style: AppText.caption,
-                      ),
-                      trailing: IconButton(
-                        key: ValueKey('unarchive-item-${item.id}'),
-                        icon: const Icon(AppIcons.unarchive),
-                        tooltip: 'استعادة',
-                        onPressed: () => _unarchiveItem(item.id),
-                      ),
-                    ),
                 const Divider(height: AppSpacing.lg),
                 const _SectionHeader('الأقسام والفئات الفرعية المؤرشفة'),
                 if (_archivedCategories.isEmpty &&
