@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/core/design/app_theme.dart';
 import 'package:spending_tracker/core/design/tokens.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
+import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';
 import 'package:spending_tracker/features/home/home_screen.dart';
+import 'package:spending_tracker/features/review/review_sheet.dart';
 import 'package:spending_tracker/features/settings/settings_screen.dart';
 import 'package:spending_tracker/features/shell/app_shell.dart';
 import 'package:spending_tracker/features/statistics/statistics_screen.dart';
@@ -59,6 +61,15 @@ void main() {
     'settings': (r) => SettingsScreen(repository: r),
     'add sheet': (r) =>
         Scaffold(body: AddSheet(repository: r, onSubmit: (_) {})),
+    // A line with no amount and one with no category, so the warnings show.
+    'review sheet': (r) => ReviewSheet(
+          repository: r,
+          request: ReviewRequest(
+            kind: CaptureKind.text,
+            capturedAt: DateTime(2026, 9, 22, 12),
+            rawText: 'عيش\nحاجة غريبة ب 20\nطماطم ب 30',
+          ),
+        ),
   };
 
   for (final (brightness, palette, other) in [

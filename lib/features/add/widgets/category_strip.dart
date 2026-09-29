@@ -15,11 +15,16 @@ class CategoryStrip extends StatelessWidget {
   final String? selectedKey;
   final ValueChanged<String?> onSelected;
 
+  /// False drops the "الكل" chip, where a category must be picked (a
+  /// review line) and "none" is not a choice to offer as if it were one.
+  final bool showAll;
+
   const CategoryStrip({
     super.key,
     required this.categories,
     required this.selectedKey,
     required this.onSelected,
+    this.showAll = true,
   });
 
   @override
@@ -34,13 +39,14 @@ class CategoryStrip extends StatelessWidget {
         padding: const EdgeInsetsDirectional.only(end: AppSpacing.xs),
         child: Row(
           children: [
-            SelectableChip(
-              key: const Key('category-all'),
-              label: 'الكل',
-              icon: AppIcons.all,
-              selected: selectedKey == null,
-              onTap: () => onSelected(null),
-            ),
+            if (showAll)
+              SelectableChip(
+                key: const Key('category-all'),
+                label: 'الكل',
+                icon: AppIcons.all,
+                selected: selectedKey == null,
+                onTap: () => onSelected(null),
+              ),
             for (final category in categories)
               SelectableChip(
                 key: Key('category-${category.key}'),

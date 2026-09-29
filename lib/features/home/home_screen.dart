@@ -8,6 +8,7 @@ import '../../domain/dashboard.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../capture/capture_launcher.dart';
+import '../review/review_sheet.dart';
 import '../statistics/statistics_screen.dart';
 import '../transactions/transactions_screen.dart';
 import 'widgets/capture_bar.dart';
@@ -246,7 +247,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _openDraft(CaptureGroupView draft) => widget.onOpenDraft != null
       ? widget.onOpenDraft!(draft)
-      : showDraftPreview(context, draft);
+      : showReviewSheet(context,
+          repository: _repo,
+          request: ReviewRequest.fromDraft(draft),
+          clock: widget.clock);
 
   @override
   Widget build(BuildContext context) {

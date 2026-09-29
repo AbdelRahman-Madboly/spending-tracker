@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../data/barcode_scan_service.dart';
 import '../../data/photo_capture_service.dart';
-import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../add/add_sheet.dart';
 import '../home/widgets/capture_bar.dart';
@@ -79,51 +77,4 @@ Future<void> launchCapture(
               : 'كتابة المصاريف كنص جاية في التحديث الجاي'),
         ));
   }
-}
-
-/// Stands in for the review sheet (Phase C) when a draft is tapped: shows
-/// what was captured, so a draft is at least readable before review exists.
-Future<void> showDraftPreview(BuildContext context, CaptureGroupView draft) {
-  return showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
-    ),
-    builder: (context) {
-      final palette = context.palette;
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(
-              AppSpacing.md, 0, AppSpacing.md, AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Icon(AppIcons.review, color: palette.primary),
-                  const SizedBox(width: AppSpacing.sm),
-                  const Text('محتاج مراجعة', style: AppText.title),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(draft.cleanText ?? draft.rawText ?? '',
-                  style: AppText.body),
-              if (draft.attachments.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text('${draft.attachments.length} مرفق',
-                    style: AppText.caption
-                        .copyWith(color: palette.textSecondary)),
-              ],
-              const SizedBox(height: AppSpacing.md),
-              Text('شاشة المراجعة جاية في التحديث الجاي',
-                  style:
-                      AppText.label.copyWith(color: palette.textSecondary)),
-            ],
-          ),
-        ),
-      );
-    },
-  );
 }

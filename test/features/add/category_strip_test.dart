@@ -100,4 +100,20 @@ void main() {
 
     expect(selected, isNull);
   });
+
+  testWidgets('without الكل, no chip is selected when nothing is chosen',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: CategoryStrip(
+          categories: _categories,
+          selectedKey: null,
+          showAll: false,
+          onSelected: (_) {},
+        ),
+      ),
+    ));
+    expect(find.byKey(const Key('category-all')), findsNothing);
+    expect(find.byKey(const Key('category-Food')), findsOneWidget);
+  });
 }

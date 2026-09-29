@@ -312,4 +312,29 @@ void main() {
     );
     handle.dispose();
   });
+
+  testWidgets('a draft in Needs review opens the review sheet, and saving '
+      'it clears the section', (tester) async {
+    final repository = FixtureSpendingRepository();
+    await repository.saveCapture(CaptureDraft(
+      kind: CaptureKind.text,
+      date: DateTime(2026, 9, 6),
+      rawText: 'طماطم ب 30',
+      lines: const [],
+      isDraft: true,
+    ));
+    await _pump(tester, repository: repository);
+
+    await tester.tap(find.descendant(
+        of: find.byKey(const Key('needs-review-section')),
+        matching: find.text('طماطم ب 30')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('review-sheet')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('review-save')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('review-sheet')), findsNothing);
+    expect(find.byKey(const Key('needs-review-section')), findsNothing);
+  });
 }
