@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 
 import '../../core/amount_expression.dart';
@@ -5,6 +7,7 @@ import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../core/quantity.dart';
+import '../../data/bill_reminders.dart';
 import '../../data/document_picker_service.dart';
 import '../../data/photo_capture_service.dart';
 import '../../data/voice_playback.dart';
@@ -420,6 +423,7 @@ class _EntryDetailSheetState extends State<EntryDetailSheet> {
       nextDue: nextMonthlyDue(entry.date, widget.clock()),
     );
     _say('اتعملت فاتورة شهرية');
+    unawaited(BillReminders.shared.rescheduleFrom(_repo));
   });
 
   Future<void> _delete() => _run(() async {

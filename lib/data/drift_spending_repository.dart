@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 
 import 'db/database.dart';
 import '../core/arabic_text.dart';
+import '../domain/bills.dart';
 import '../domain/models.dart';
 import '../domain/spending_repository.dart';
 
@@ -1460,5 +1461,37 @@ class DriftSpendingRepository implements SpendingRepository {
         ));
     await _bumpItemUse(source.itemId, now);
     return newId;
+  }
+
+  @override
+  Future<RecurringBillView> payRecurringBill(String id, DateTime paidOn,
+      {DateTime? expectedDue}) {
+    return _db.transaction(() async {
+      final row = await (_db.select(_db.recurringBills)
+            ..where((t) => t.id.equals(id) & t.archived.equals(false)))
+          .getSingleOrNull();
+      if (row == null) throw StateError('no live recurring bill $id');
+      final bill = _billView(row);
+      if (expectedDue != null &&
+          _formatDate(expectedDue) != _formatDate(bill.nextDue)) {
+        throw StateError('bill $id is no longer due ${_formatDate(expectedDue)}');
+      }
+      final now = DateTime.now();
+      await _db.into(_db.entries).insert(EntriesCompanion.insert(
+            id: _newId(),
+            date: _formatDate(paidOn),
+            amountPiastres: bill.amountPiastres,
+            categoryKey: bill.categoryKey,
+            subcategoryKey: Value(bill.subcategoryKey),
+            description: Value(bill.nameAr),
+            source: Value(EntrySource.manual.name),
+            createdAt: now,
+            updatedAt: now,
+          ));
+      final next = dueAfterPayment(bill);
+      await (_db.update(_db.recurringBills)..where((t) => t.id.equals(id)))
+          .write(RecurringBillsCompanion(nextDue: Value(_formatDate(next))));
+      return _billView(row.copyWith(nextDue: _formatDate(next)));
+    });
   }
 }

@@ -60,6 +60,8 @@ dependencies:
   # Reads the zip a Samsung Notes .sdocx file is (plan Task 13).
   archive: ^4.0.9
   receive_sharing_intent: ^1.9.0
+  flutter_local_notifications: ^21.0.0
+  timezone: ^0.11.1
 
 dev_dependencies:
   flutter_test:
