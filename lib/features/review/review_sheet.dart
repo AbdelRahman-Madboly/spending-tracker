@@ -5,6 +5,7 @@ import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../core/quantity.dart';
+import '../../data/instapay_identity.dart';
 import '../../data/product_catalog_source.dart';
 import '../../data/document_picker_service.dart';
 import '../../data/gemini_key_store.dart';
@@ -613,12 +614,13 @@ class _ReviewSheetState extends State<ReviewSheet> {
     final refused = <String>[];
     Set<String>? salaryIds;
     try {
+      final identity = await instaPayIdentity(_repo);
       for (final path in paths) {
         PhotoReading reading;
         try {
           final file = await _photos.resolve(path);
           reading = readPhotoText(await _recognizer.recognize(file.path),
-              now: widget.clock());
+              now: widget.clock(), ownIdentity: identity);
         } catch (_) {
           continue;
         }

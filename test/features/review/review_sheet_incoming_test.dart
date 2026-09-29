@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/core/app_flavor.dart';
+import 'package:spending_tracker/data/instapay_identity.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/features/review/review_sheet.dart';
@@ -230,5 +232,27 @@ void main() {
     final attachments = await h.repo.attachmentsForEntry(entries.single.id);
     expect([for (final a in attachments) a.path],
         ['attachments/2026-09/p2.jpg']);
+  });
+
+  group('the shared build', () {
+    setUp(() => AppFlavor.current = AppFlavor.shared);
+    tearDown(() => AppFlavor.current = AppFlavor.personal);
+
+    testWidgets('does not take the owner for the user', (tester) async {
+      await _open(tester, {'p1.jpg': _received});
+      expect(find.byKey(const Key('review-incoming-choice')), findsNothing);
+    });
+
+    testWidgets('finds the user by the InstaPay name set in the settings',
+        (tester) async {
+      await _open(tester, {
+        'p1.jpg': 'InstaPay\nEGP 3,000.00\nFrom\nahmed.m@instapay\nTo\n'
+            'Sara A***\nsara.a@instapay\nReference Number\n512345678555',
+      }, before: (repo) async {
+        await repo.setSetting(instaPayIdentitySettingKey, 'sara.a@instapay');
+      });
+      expect(find.byKey(const Key('review-incoming-choice')), findsOneWidget);
+      expect(_salaryChosen(tester), isTrue);
+    });
   });
 }

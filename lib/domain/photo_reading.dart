@@ -15,12 +15,32 @@ enum TransferDirection {
   uncertain,
 }
 
-/// The user's own InstaPay identity: the address, and the Latin spellings
-/// of the name the payer's app shows (often cut short as "Mostafa M***").
-final _ownIdentity = RegExp(
-  r'sampleuser\s*@\s*instapay|mou?s[\s-]?t?a?fa',
-  caseSensitive: false,
-);
+/// What finds the user in a transfer screenshot, from [identity]: the text
+/// of «اسمك أو حسابك على InstaPay», names and addresses separated by commas
+/// (Latin or Arabic), semicolons or new lines. Any case matches. A name
+/// matches with or without a space or a hyphen between any two of its
+/// letters («Abdelaziz» finds "Abdel Aziz" and "Abdel-Aziz"), and an
+/// address with spaces around its @, as the recogniser often reads them.
+/// Null when it names nobody.
+RegExp? ownIdentityPattern(String identity) {
+  String loose(String part) => part
+      .replaceAll(RegExp(r'[\s-]+'), '')
+      .split('')
+      .map(RegExp.escape)
+      .join(r'[\s-]?');
+  final patterns = <String>[];
+  for (final raw in identity.split(RegExp(r'[,،;\n]'))) {
+    final token = raw.trim();
+    final at = token.indexOf('@');
+    final pattern = at == -1
+        ? loose(token)
+        : '${loose(token.substring(0, at))}\\s*@\\s*'
+              '${loose(token.substring(at + 1))}';
+    if (loose(token.replaceAll('@', '')).isNotEmpty) patterns.add(pattern);
+  }
+  if (patterns.isEmpty) return null;
+  return RegExp(patterns.join('|'), caseSensitive: false);
+}
 
 final _receivedWord =
     RegExp(r'\breceived\b|تم\s+استلام|استلمت|وارد', caseSensitive: false);
@@ -134,7 +154,11 @@ String _latinDigits(String input) {
 
 /// Reads the recogniser's text (spec §6.2). [now] bounds the date: a date
 /// after today is a misread (or an expiry date) and is left out.
-PhotoReading readPhotoText(String text, {required DateTime now}) {
+///
+/// [ownIdentity] is who the user is on InstaPay (see [ownIdentityPattern]);
+/// with none, only a Received label says a transfer came in.
+PhotoReading readPhotoText(String text,
+    {required DateTime now, String ownIdentity = ''}) {
   final lines = [
     for (final l in _latinDigits(text).split('\n'))
       if (l.trim().isNotEmpty) l.trim(),
@@ -145,7 +169,9 @@ PhotoReading readPhotoText(String text, {required DateTime now}) {
     date: _readDate(lines, now),
     reference: isInstaPay ? _readReference(lines) : null,
     isInstaPay: isInstaPay,
-    direction: isInstaPay ? _readDirection(lines) : TransferDirection.sent,
+    direction: isInstaPay
+        ? _readDirection(lines, ownIdentityPattern(ownIdentity))
+        : TransferDirection.sent,
     words: _readWords(lines),
   );
 }
@@ -155,7 +181,8 @@ PhotoReading readPhotoText(String text, {required DateTime now}) {
 /// Received label says money in; the user under From says money out.
 /// The user named with nothing to place them, or signals both ways, is
 /// uncertain; a transfer that names someone else is sent.
-TransferDirection _readDirection(List<String> lines) {
+TransferDirection _readDirection(List<String> lines, RegExp? ownIdentity) {
+  bool own(String line) => ownIdentity?.hasMatch(line) ?? false;
   var ownUnderTo = false, ownUnderFrom = false, ownNamed = false;
   var receivedWord = false;
   // The label the lines under it belong to, until the next label.
@@ -165,11 +192,11 @@ TransferDirection _readDirection(List<String> lines) {
       underTo = true;
     } else if (_fromLabel.hasMatch(line)) {
       underTo = false;
-    } else if (!_ownIdentity.hasMatch(line) && _referenceLabel.hasMatch(line)) {
+    } else if (!own(line) && _referenceLabel.hasMatch(line)) {
       underTo = null;
     }
     if (_receivedWord.hasMatch(line)) receivedWord = true;
-    if (_ownIdentity.hasMatch(line)) {
+    if (own(line)) {
       ownNamed = true;
       if (underTo == true) ownUnderTo = true;
       if (underTo == false) ownUnderFrom = true;

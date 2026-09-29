@@ -5,7 +5,12 @@ import 'package:spending_tracker/domain/photo_reading.dart';
 
 final _now = DateTime(2026, 9, 29, 12);
 
-PhotoReading _read(String text) => readPhotoText(text, now: _now);
+/// The owner's identity as the personal build's defaults give it
+/// (`assets/personal/defaults.json`).
+const _owner = 'sampleuser@instapay، Mostafa، Moustafa، Mostfa';
+
+PhotoReading _read(String text) =>
+    readPhotoText(text, now: _now, ownIdentity: _owner);
 
 const _instaPay = '''
 InstaPay
@@ -37,6 +42,50 @@ Date
 ''';
 
 void main() {
+  group('own identity', () {
+    test('matches every spelling the owner was matched by before', () {
+      for (final name in [
+        'Mostafa Sample',
+        'MOSTAFA S***',
+        'Mos Tafa',
+        'Mos-Tafa',
+        'Mous Tafa',
+        'Moustafa',
+        'Mostfa',
+        'sampleuser @ instapay',
+      ]) {
+        expect(_read('InstaPay\nTo\n$name\nEGP 5').direction,
+            TransferDirection.received,
+            reason: name);
+      }
+    });
+
+    test('a configured name and address place the transfer', () {
+      const identity = 'Sara Ahmed, sara.a@instapay';
+      PhotoReading read(String text) =>
+          readPhotoText(text, now: _now, ownIdentity: identity);
+      expect(read('InstaPay\nFrom\nAhmed\nTo\nSARA AHMED\nEGP 50').direction,
+          TransferDirection.received);
+      expect(
+          read('InstaPay\nFrom\nsara.a@instapay\nTo\nahmed@instapay')
+              .direction,
+          TransferDirection.sent);
+      expect(read(_instaPayReceived).direction, TransferDirection.sent);
+    });
+
+    test('with no identity only the labels say anything', () {
+      PhotoReading read(String text, [String identity = '']) =>
+          readPhotoText(text, now: _now, ownIdentity: identity);
+      expect(read('InstaPay\nsampleuser@instapay\nEGP 700').direction,
+          TransferDirection.sent);
+      expect(read(_instaPayReceived).direction, TransferDirection.sent);
+      expect(read('InstaPay\nMoney Received\nfrom a@instapay\nEGP 7').direction,
+          TransferDirection.received);
+      expect(read('InstaPay\nTo\nX\nEGP 7', ' ، @ ').direction,
+          TransferDirection.sent);
+    });
+  });
+
   group('amounts', () {
     test('a total next to a currency word is read in piastres', () {
       expect(_read('Total 85.50 EGP').amountPiastres, 8550);
