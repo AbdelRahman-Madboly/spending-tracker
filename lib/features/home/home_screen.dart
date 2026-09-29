@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/design/tokens.dart';
 import '../../core/widgets/skeleton.dart';
 import '../../domain/dashboard.dart';
+import '../../domain/import/importer.dart' show importOfferSettingKey;
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../capture/capture_launcher.dart';
@@ -44,6 +45,11 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<DateTime>? onOpenTransactions;
   final ValueChanged<CaptureGroupView>? onOpenDraft;
 
+  /// Opens the import of the bundled packs; true when something was
+  /// imported. With it, the dashboard offers that import once (plan
+  /// Task 13) until it is done or dismissed.
+  final Future<bool> Function()? onImportBundled;
+
   const HomeScreen({
     super.key,
     required this.repository,
@@ -53,6 +59,7 @@ class HomeScreen extends StatefulWidget {
     this.onOpenStatistics,
     this.onOpenTransactions,
     this.onOpenDraft,
+    this.onImportBundled,
   });
 
   @override
@@ -91,9 +98,29 @@ class _HomeScreenState extends State<HomeScreen>
   /// the app sits open with no database change to trigger a reload.
   Timer? _midnight;
 
+  /// Whether the import offer shows; false until the setting is read.
+  bool _offerImport = false;
+
+  Future<void> _loadImportOffer() async {
+    if (widget.onImportBundled == null) return;
+    final done = await _repo.setting(importOfferSettingKey);
+    if (mounted) setState(() => _offerImport = done == null);
+  }
+
+  Future<void> _closeImportOffer() async {
+    setState(() => _offerImport = false);
+    await _repo.setSetting(importOfferSettingKey, '1');
+  }
+
+  Future<void> _importBundled() async {
+    final imported = await widget.onImportBundled!();
+    if (imported && mounted) await _closeImportOffer();
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadImportOffer();
     WidgetsBinding.instance.addObserver(this);
     _setToday();
     _scheduleMidnight();
@@ -287,6 +314,19 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 gap,
                 CaptureBar(onAction: _capture),
+                // Always in the list, so showing or hiding it never shifts
+                // the sections below to new slots.
+                if (!_offerImport)
+                  const SizedBox.shrink()
+                else
+                  Padding(
+                    padding:
+                        const EdgeInsetsDirectional.only(top: AppSpacing.section),
+                    child: _ImportOfferCard(
+                      onImport: _importBundled,
+                      onDismiss: _closeImportOffer,
+                    ),
+                  ),
                 StreamBuilder<List<CaptureGroupView>>(
                   stream: _drafts,
                   builder: (context, snapshot) {
@@ -372,6 +412,59 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The one-time offer to import the September data bundled with the app.
+class _ImportOfferCard extends StatelessWidget {
+  final VoidCallback onImport;
+  final VoidCallback onDismiss;
+
+  const _ImportOfferCard({required this.onImport, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return Card(
+      key: const Key('import-offer'),
+      margin: EdgeInsets.zero,
+      color: palette.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('استيراد مصاريف سبتمبر',
+                style: AppText.title
+                    .copyWith(color: palette.onPrimaryContainer)),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'ملاحظات سامسونج والإدخالات اليدوية ومتتبع الشغل جاهزين '
+              'للاستيراد. هتراجعهم قبل ما يتسجلوا.',
+              style:
+                  AppText.body.copyWith(color: palette.onPrimaryContainer),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              children: [
+                FilledButton(
+                  key: const Key('import-offer-import'),
+                  onPressed: onImport,
+                  child: const Text('استيراد'),
+                ),
+                TextButton(
+                  key: const Key('import-offer-dismiss'),
+                  onPressed: onDismiss,
+                  child: const Text('مش دلوقتي'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/design/app_theme.dart';
 import 'data/db/database.dart';
 import 'data/drift_spending_repository.dart';
+import 'data/import_sources.dart';
 import 'features/shell/app_shell.dart';
 
 class SpendingApp extends StatefulWidget {
@@ -68,7 +69,7 @@ class _SpendingAppState extends State<SpendingApp> {
         textDirection: TextDirection.rtl,
         child: child ?? const SizedBox.shrink(),
       ),
-      home: AppShell(repository: _repository),
+      home: AppShell(repository: _repository, shareInbox: PluginShareInbox()),
     );
   }
 }

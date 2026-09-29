@@ -124,4 +124,14 @@ void main() {
       () async {
     await storage.delete('photos/does-not-exist.jpg');
   });
+
+  test('importBytes writes bytes under attachments/<yyyy-MM>/ with the extension',
+      () async {
+    final relativePath =
+        await storage.importBytes([7, 8, 9], fileName: 'Packing-Slip.PDF');
+
+    expect(p.dirname(relativePath), p.join('attachments', '2026-09'));
+    expect(p.extension(relativePath), '.pdf');
+    expect(await storage.resolve(relativePath).readAsBytes(), [7, 8, 9]);
+  });
 }

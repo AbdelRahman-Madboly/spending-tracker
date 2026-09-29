@@ -1,13 +1,20 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
+import '../../data/import_sources.dart';
+import '../../domain/import/import_pack.dart';
+import '../../domain/import/importer.dart' show PickedImportFile;
 import '../../domain/spending_repository.dart';
 import '../../domain/statistics.dart';
 import '../../domain/transactions.dart';
 import '../capture/capture_launcher.dart';
 import '../home/home_screen.dart';
 import '../home/widgets/capture_bar.dart';
+import '../settings/import_screen.dart';
 import '../settings/settings_screen.dart';
 import '../statistics/statistics_screen.dart';
 import '../transactions/transactions_screen.dart';
@@ -28,10 +35,15 @@ class AppShell extends StatefulWidget {
   final SpendingRepository repository;
   final DateTime Function() clock;
 
+  /// Text and files other apps share in (the Android share target), each
+  /// opened on the import review.
+  final ShareInbox? shareInbox;
+
   const AppShell({
     super.key,
     required this.repository,
     this.clock = DateTime.now,
+    this.shareInbox,
   });
 
   @override
@@ -74,11 +86,52 @@ class _AppShellState extends State<AppShell>
     curve: AppMotion.enter,
   );
 
+  StreamSubscription<SharedImport>? _shares;
+
+  @override
+  void initState() {
+    super.initState();
+    _shares = widget.shareInbox?.shares.listen(_openShared);
+  }
+
   @override
   void dispose() {
+    _shares?.cancel();
     _fade.dispose();
     super.dispose();
   }
+
+  Future<bool> _openImport({
+    List<ImportPack>? packs,
+    PickedImportFile? file,
+  }) async {
+    final imported = await Navigator.of(context).push(MaterialPageRoute<bool>(
+      builder: (_) => ImportScreen(
+        repository: widget.repository,
+        importer: appImporter(widget.repository),
+        packs: packs,
+        initialFile: file,
+        loadBundled: loadBundledPacks,
+        pickFile: pickImportFile,
+        clock: widget.clock,
+      ),
+    ));
+    return imported ?? false;
+  }
+
+  void _openShared(SharedImport share) {
+    if (!mounted) return;
+    _openImport(
+      file: switch (share) {
+        SharedText(:final text) =>
+          (name: 'shared.txt', bytes: utf8.encode(text)),
+        SharedFile(:final name, :final bytes) => (name: name, bytes: bytes),
+      },
+    );
+  }
+
+  Future<bool> _importBundled() async =>
+      _openImport(packs: await loadBundledPacks());
 
   void _select(AppTab tab) {
     if (tab == _tab) return;
@@ -147,6 +200,7 @@ class _AppShellState extends State<AppShell>
       onOpenStatistics: _openStatistics,
       onOpenTransactions: (day) =>
           _openTransactions(TransactionFilter.day(day)),
+      onImportBundled: _importBundled,
     ),
     AppTab.transactions => TransactionsScreen(
       repository: widget.repository,

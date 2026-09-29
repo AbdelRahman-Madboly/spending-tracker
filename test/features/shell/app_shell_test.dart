@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
+import 'package:spending_tracker/data/import_sources.dart';
 import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';
 import 'package:spending_tracker/features/home/home_screen.dart';
@@ -18,6 +19,10 @@ Future<void> _pump(
   bool disableAnimations = false,
   FixtureSpendingRepository? repository,
 }) async {
+  final repo = repository ?? FixtureSpendingRepository();
+  // The one-time import offer has tests of its own; here it would push the
+  // dashboard's sections down past the fold.
+  await repo.setSetting(importOfferSettingKey, '1');
   tester.view.physicalSize = const Size(1080, 2400);
   tester.view.devicePixelRatio = 3.0;
   addTearDown(tester.view.reset);
@@ -31,7 +36,7 @@ Future<void> _pump(
             disableAnimations: disableAnimations,
           ),
           child: AppShell(
-            repository: repository ?? FixtureSpendingRepository(),
+            repository: repo,
             clock: _today,
           ),
         ),

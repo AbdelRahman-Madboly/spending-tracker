@@ -91,6 +91,19 @@ abstract class SpendingRepository {
   /// data and must never be rewritten.
   Future<void> updateSalary(int amountPiastres);
 
+  /// Records a salary paid on [datePaid], as imported (plan Task 13): with
+  /// its note, its evidence photo (relative to app documents) and its
+  /// import identity. Unlike [updateSalary] the day is the one the salary
+  /// was paid, not today. Throws [StateError] when [externalId] is already
+  /// on a salary period or an entry, and records nothing.
+  Future<void> addSalaryPeriod({
+    required DateTime datePaid,
+    required int amountPiastres,
+    String? note,
+    String? evidencePhotoPath,
+    String? externalId,
+  });
+
   /// Every non-archived item in the catalogue, for the settings screen.
   /// Unlike [topItems]/[itemsInCategory], this is neither truncated nor
   /// reordered by usage — it lists the whole catalogue as-is.

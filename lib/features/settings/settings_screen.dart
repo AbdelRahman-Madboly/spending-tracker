@@ -6,12 +6,14 @@ import '../../core/design/category_colors.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../data/gemini_key_store.dart';
+import '../../data/import_sources.dart';
 import '../../data/net/gemini_client.dart';
 import '../../data/net/network_gate.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../add/widgets/new_item_dialog.dart'
     show showEditItemDialog, showNewItemDialog;
+import 'import_screen.dart';
 import 'widgets/category_dialogs.dart';
 import 'widgets/online_settings_section.dart';
 
@@ -75,6 +77,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  Future<void> _openImport() async {
+    await Navigator.of(context).push(MaterialPageRoute<bool>(
+      builder: (_) => ImportScreen(
+        repository: widget.repository,
+        importer: appImporter(widget.repository),
+        loadBundled: loadBundledPacks,
+        pickFile: pickImportFile,
+      ),
+    ));
+    // New categories may have come with the import.
+    if (mounted) await _load();
   }
 
   @override
@@ -580,6 +595,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onPressed: () => _unarchiveSubcategory(subcategory.key),
                     ),
                   ),
+                const Divider(height: AppSpacing.lg),
+                const _SectionHeader('البيانات'),
+                ListTile(
+                  key: const Key('settings-import'),
+                  leading: const Icon(AppIcons.importData),
+                  title: const Text('استيراد', style: AppText.body),
+                  subtitle: const Text(
+                      'البيانات المرفقة، ملف JSON أو ملاحظة سامسونج أو نص',
+                      style: AppText.caption),
+                  onTap: _openImport,
+                ),
                 const Divider(height: AppSpacing.lg),
                 const _SectionHeader('المزايا الأونلاين'),
                 OnlineSettingsSection(

@@ -5,6 +5,7 @@ import 'package:spending_tracker/core/design/app_theme.dart';
 import 'package:spending_tracker/core/design/category_colors.dart';
 import 'package:spending_tracker/core/design/tokens.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
+import 'package:spending_tracker/features/settings/import_screen.dart';
 import 'package:spending_tracker/features/settings/settings_screen.dart';
 
 void main() {
@@ -762,5 +763,14 @@ void main() {
       await pumpSettings(tester, FixtureSpendingRepository());
       expect(find.byKey(const Key('settings-theme-mode')), findsNothing);
     });
+  });
+
+  testWidgets('البيانات -> استيراد opens the import screen', (tester) async {
+    await pumpSettings(tester, FixtureSpendingRepository());
+    expect(find.text('البيانات'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('settings-import')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ImportScreen), findsOneWidget);
+    expect(find.byKey(const Key('import-bundled')), findsOneWidget);
   });
 }

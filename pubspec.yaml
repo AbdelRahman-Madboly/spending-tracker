@@ -57,6 +57,9 @@ dependencies:
   material_symbols_icons: ^4.2960.0
   quick_actions: ^1.1.1
   file_picker: ^13.1.0
+  # Reads the zip a Samsung Notes .sdocx file is (plan Task 13).
+  archive: ^4.0.9
+  receive_sharing_intent: ^1.9.0
 
 dev_dependencies:
   flutter_test:

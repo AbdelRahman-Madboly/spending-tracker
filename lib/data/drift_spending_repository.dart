@@ -581,6 +581,29 @@ class DriftSpendingRepository implements SpendingRepository {
   }
 
   @override
+  Future<void> addSalaryPeriod({
+    required DateTime datePaid,
+    required int amountPiastres,
+    String? note,
+    String? evidencePhotoPath,
+    String? externalId,
+  }) async {
+    // Checked against entries too: one identity names one imported row,
+    // whichever table it landed in.
+    if (externalId != null && (await knownExternalIds()).contains(externalId)) {
+      throw StateError('external id $externalId already exists');
+    }
+    await _db.into(_db.salaryPeriods).insert(SalaryPeriodsCompanion.insert(
+          id: _newId(),
+          datePaid: _formatDate(datePaid),
+          amountPiastres: amountPiastres,
+          note: Value(note),
+          evidencePhotoPath: Value(evidencePhotoPath),
+          externalId: Value(externalId),
+        ));
+  }
+
+  @override
   Future<List<QuickPickItem>> allItems() async {
     final rows = await (_db.select(_db.items)
           ..where((t) => t.archived.equals(false)))

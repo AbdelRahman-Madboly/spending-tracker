@@ -357,6 +357,29 @@ class FixtureSpendingRepository implements SpendingRepository {
     _controller.add(null);
   }
 
+  /// Import identities of the salaries [addSalaryPeriod] recorded.
+  final _salaryExternalIds = <String>{};
+
+  /// The fixture keeps one salary figure, so a recorded salary becomes it,
+  /// as the latest salary becomes the current period's in the database.
+  @override
+  Future<void> addSalaryPeriod({
+    required DateTime datePaid,
+    required int amountPiastres,
+    String? note,
+    String? evidencePhotoPath,
+    String? externalId,
+  }) async {
+    if (externalId != null) {
+      if ((await knownExternalIds()).contains(externalId)) {
+        throw StateError('external id $externalId already exists');
+      }
+      _salaryExternalIds.add(externalId);
+    }
+    _salary = amountPiastres;
+    _controller.add(null);
+  }
+
   @override
   Future<List<QuickPickItem>> allItems() async =>
       _items.where((i) => !_archivedItemIds.contains(i.id)).toList();
@@ -1168,6 +1191,7 @@ class FixtureSpendingRepository implements SpendingRepository {
   Future<Set<String>> knownExternalIds() async => {
         for (final r in _records.values)
           if (r.externalId != null) r.externalId!,
+        ..._salaryExternalIds,
       };
 
   // ---- v3: السجل, entry detail, edit and delete ----

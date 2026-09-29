@@ -1016,6 +1016,31 @@ void runV3RepositoryContract(
           isEmpty);
     });
 
+    test('addSalaryPeriod records a dated salary with its import identity',
+        () async {
+      await repo.addSalaryPeriod(
+        datePaid: today(),
+        amountPiastres: 710000,
+        note: 'InstaPay reference A1',
+        evidencePhotoPath: 'attachments/2026-09/s.jpeg',
+        externalId: 'pack:manual.json:sal-1',
+      );
+      expect(await repo.knownExternalIds(), contains('pack:manual.json:sal-1'));
+      expect((await repo.watchPeriods().first).first.salaryPiastres, 710000);
+    });
+
+    test('addSalaryPeriod refuses an import identity already recorded',
+        () async {
+      await repo.addSalaryPeriod(
+          datePaid: today(), amountPiastres: 710000, externalId: 'sal-1');
+      await expectLater(
+        repo.addSalaryPeriod(
+            datePaid: today(), amountPiastres: 800000, externalId: 'sal-1'),
+        throwsStateError,
+      );
+      expect((await repo.watchPeriods().first).first.salaryPiastres, 710000);
+    });
+
     test('a draft or a note does not touch the last payment method', () async {
       await repo.saveCapture(CaptureDraft(
         kind: CaptureKind.text,

@@ -115,6 +115,12 @@ abstract final class AppIcons {
   static const all = Symbols.apps_rounded;
   static const archive = Symbols.archive_rounded;
   static const unarchive = Symbols.unarchive_rounded;
+
+  // Import (settings -> البيانات).
+  static const importData = Symbols.download_rounded;
+  static const importBundled = Symbols.inventory_2_rounded;
+  static const importFile = Symbols.file_open_rounded;
+  static const importPaste = Symbols.content_paste_rounded;
   static const brokenImage = Symbols.broken_image_rounded;
   static const keyboard = Symbols.keyboard_rounded;
   static const warning = Symbols.warning_rounded;

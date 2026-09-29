@@ -29,15 +29,33 @@ class PhotoStorage {
   Future<String> importFile(File source) =>
       _import(source, fallbackExtension: '');
 
+  /// As [importFile], for a file that is bytes in memory rather than on
+  /// disk (an import pack's evidence, read from the bundled assets):
+  /// [fileName] gives only the extension.
+  Future<String> importBytes(List<int> bytes, {required String fileName}) async {
+    final (destination, relativePath) =
+        await _destination(p.extension(fileName).toLowerCase());
+    await destination.writeAsBytes(bytes, flush: true);
+    return relativePath;
+  }
+
   Future<String> _import(File source, {required String fallbackExtension}) async {
+    var extension = p.extension(source.path).toLowerCase();
+    if (extension.isEmpty) extension = fallbackExtension;
+    final (destination, relativePath) = await _destination(extension);
+    await source.copy(destination.path);
+    return relativePath;
+  }
+
+  /// A fresh file in this month's attachments folder, and its path
+  /// relative to [documentsDirectory].
+  Future<(File, String)> _destination(String extension) async {
     final now = clock();
     final month = now.month.toString().padLeft(2, '0');
     final folder = p.join('attachments', '${now.year}-$month');
     final targetDir = Directory(p.join(documentsDirectory.path, folder));
     await targetDir.create(recursive: true);
 
-    var extension = p.extension(source.path).toLowerCase();
-    if (extension.isEmpty) extension = fallbackExtension;
     // Two files in the same microsecond (a multi-pick) would collide on the
     // clock alone: step past any name already taken.
     var stamp = DateTime.now().microsecondsSinceEpoch;
@@ -46,9 +64,7 @@ class PhotoStorage {
       stamp++;
       destination = File(p.join(targetDir.path, '$stamp$extension'));
     }
-
-    await source.copy(destination.path);
-    return p.join(folder, '$stamp$extension');
+    return (destination, p.join(folder, '$stamp$extension'));
   }
 
   /// Resolves a relative path previously returned by [importPhoto] or
