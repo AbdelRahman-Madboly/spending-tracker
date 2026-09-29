@@ -135,7 +135,17 @@ Future<void> capturePhoto(
 }) async {
   final photos = photoCaptureService ?? ImagePickerPhotoCaptureService();
   final capturedAt = clock();
-  final result = await photos.captureFromCamera();
+  final PhotoCaptureResult result;
+  try {
+    result = await photos.captureFromCamera();
+  } catch (_) {
+    // A camera already in use, or no camera app to take the picture.
+    if (context.mounted) {
+      _say(context, 'ما قدرتش أفتح الكاميرا، جرب تاني',
+          const Key('photo-failed'));
+    }
+    return;
+  }
   if (!context.mounted) return;
   if (result.outcome == PhotoCaptureOutcome.permissionDenied) {
     _say(context, 'محتاج إذن الكاميرا عشان أصور. اسمح بيه من إعدادات التطبيق.',

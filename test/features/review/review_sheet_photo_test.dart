@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/document_picker_service.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
@@ -28,18 +30,30 @@ class FakePhotos implements PhotoCaptureService {
   final gallery = <List<String>>[];
   final deleted = <String>[];
 
+  /// When set, the next pick waits on it: a picker still up.
+  Completer<List<String>>? galleryGate;
+
+  /// When set, the pickers throw it, as a busy camera would.
+  Object? error;
+
   @override
-  Future<PhotoCaptureResult> captureFromCamera() async => camera.isEmpty
-      ? const PhotoCaptureResult(PhotoCaptureOutcome.cancelled)
-      : PhotoCaptureResult(PhotoCaptureOutcome.attached, camera.removeAt(0));
+  Future<PhotoCaptureResult> captureFromCamera() async {
+    if (error case final e?) throw e;
+    return camera.isEmpty
+        ? const PhotoCaptureResult(PhotoCaptureOutcome.cancelled)
+        : PhotoCaptureResult(PhotoCaptureOutcome.attached, camera.removeAt(0));
+  }
 
   @override
   Future<PhotoCaptureResult> pickFromGallery() async =>
       const PhotoCaptureResult(PhotoCaptureOutcome.cancelled);
 
   @override
-  Future<List<String>> pickManyFromGallery() async =>
-      gallery.isEmpty ? const [] : gallery.removeAt(0);
+  Future<List<String>> pickManyFromGallery() async {
+    if (error case final e?) throw e;
+    if (galleryGate case final gate?) return gate.future;
+    return gallery.isEmpty ? const [] : gallery.removeAt(0);
+  }
 
   @override
   Future<File> resolve(String relativePath) async => File('/docs/$relativePath');
@@ -74,7 +88,10 @@ class FakeDocuments implements DocumentPickerService {
 }
 
 class _Harness {
-  final repo = FixtureSpendingRepository();
+  _Harness(FixtureSpendingRepository? repo)
+      : repo = repo ?? FixtureSpendingRepository();
+
+  final FixtureSpendingRepository repo;
   final photos = FakePhotos();
   final documents = FakeDocuments();
   late FakeRecognizer recognizer;
@@ -86,12 +103,13 @@ Future<_Harness> _open(
   Map<String, String> texts = const {},
   List<DraftAttachment>? attachments,
   ReviewRequest? request,
+  FixtureSpendingRepository? repo,
   Future<void> Function(_Harness h)? before,
 }) async {
   tester.view.physicalSize = const Size(1080, 2400);
   tester.view.devicePixelRatio = 3.0;
   addTearDown(tester.view.reset);
-  final h = _Harness()..recognizer = FakeRecognizer(texts);
+  final h = _Harness(repo)..recognizer = FakeRecognizer(texts);
   await before?.call(h);
   await tester.pumpWidget(
     MaterialApp(
@@ -346,5 +364,124 @@ void main() {
     expect(h.recognizer.read, ['/docs/attachments/2026-09/p1.jpg']);
     expect(find.byKey(const Key('line-reference')), findsOneWidget);
     expect(find.byKey(const Key('review-type-text')), findsNothing);
+  });
+
+  group('an InstaPay screenshot kept for later', () {
+    Future<void> expectRecordedOnce(
+        WidgetTester tester, FixtureSpendingRepository repo) async {
+      final entries =
+          await repo.watchEntriesForDay(DateTime(2026, 9, 28)).first;
+      final record = (await repo.entry(entries.single.id))!;
+      expect(record.reference, '512345678901');
+      expect(record.paymentMethod, 'InstaPay');
+
+      // The same transfer photographed again is refused.
+      await _open(tester,
+          repo: repo,
+          texts: {'p2.jpg': _instaPay},
+          attachments: const [
+            DraftAttachment(
+                kind: AttachmentKind.photo,
+                path: 'attachments/2026-09/p2.jpg'),
+          ]);
+      expect(find.text('العملية دي متسجلة قبل كده'), findsOneWidget);
+      expect(find.byKey(const Key('line-reference')), findsNothing);
+    }
+
+    testWidgets('is read again when reviewed, reference and InstaPay included',
+        (tester) async {
+      final first = await _open(tester, texts: {'p1.jpg': _instaPay});
+      await _tap(tester, find.byKey(const Key('review-later')));
+      final draft = await _onlyDraft(first.repo);
+      expect(draft.rawText, isNull);
+      await first.repo.setSetting(lastPaymentMethodSettingKey, 'Cash');
+
+      final h = await _open(tester,
+          repo: first.repo,
+          texts: {'p1.jpg': _instaPay},
+          request: ReviewRequest.fromDraft(draft));
+      expect(find.byKey(const Key('line-reference')), findsOneWidget);
+      await _tap(tester, find.text('عائلة وزيارات').first);
+      await _tap(tester, find.byKey(const Key('review-save')));
+
+      expect(h.outcomes, [ReviewOutcome.saved]);
+      await expectRecordedOnce(tester, first.repo);
+    });
+
+    testWidgets('after an edit keeps the edit and still gets its reference '
+        'back', (tester) async {
+      final first = await _open(tester, texts: {'p1.jpg': _instaPay});
+      await tester.enterText(find.byKey(const Key('line-name')), 'تحويل لماما');
+      await tester.pumpAndSettle();
+      await _tap(tester, find.byKey(const Key('review-later')));
+      final draft = await _onlyDraft(first.repo);
+      expect(draft.rawText, contains('تحويل لماما'));
+      await first.repo.setSetting(lastPaymentMethodSettingKey, 'Cash');
+
+      final h = await _open(tester,
+          repo: first.repo,
+          texts: {'p1.jpg': _instaPay},
+          request: ReviewRequest.fromDraft(draft));
+      expect(find.widgetWithText(TextField, 'تحويل لماما'), findsOneWidget);
+      expect(find.byKey(const Key('line-reference')), findsOneWidget);
+      expect(
+          tester
+              .widget<SelectableChip>(
+                  find.byKey(const Key('payment-InstaPay')))
+              .selected,
+          isTrue);
+      await _tap(tester, find.text('عائلة وزيارات').first);
+      await _tap(tester, find.byKey(const Key('review-save')));
+
+      expect(h.outcomes, [ReviewOutcome.saved]);
+      await expectRecordedOnce(tester, first.repo);
+    });
+  });
+
+  testWidgets('a dated screenshot added after an unreadable photo dates the '
+      'capture', (tester) async {
+    final h = await _open(tester, texts: {'p2.jpg': _instaPay});
+    h.photos.gallery.add(['attachments/2026-09/p2.jpg']);
+
+    await _tap(tester, find.byKey(const Key('review-add-gallery')));
+    await _tap(tester, find.text('عائلة وزيارات').first);
+    await _tap(tester, find.byKey(const Key('review-save')));
+
+    expect(h.outcomes, [ReviewOutcome.saved]);
+    final group = (await h.repo.watchDraftCaptures().first);
+    expect(group, isEmpty);
+    final entries =
+        await h.repo.watchEntriesForDay(DateTime(2026, 9, 28)).first;
+    expect(entries, hasLength(1));
+  });
+
+  testWidgets('a photo picked after the sheet closed is dropped, not kept '
+      'loose', (tester) async {
+    final h = await _open(tester);
+    h.photos.galleryGate = Completer();
+
+    await _tap(tester, find.byKey(const Key('review-add-gallery')));
+    await _tap(tester, find.byKey(const Key('review-later')));
+    h.photos.galleryGate!.complete(['attachments/2026-09/p2.jpg']);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(h.photos.deleted, ['attachments/2026-09/p2.jpg']);
+    final draft = await _onlyDraft(h.repo);
+    expect([for (final a in draft.attachments) a.path],
+        ['attachments/2026-09/p1.jpg']);
+  });
+
+  testWidgets('a picker that fails says so', (tester) async {
+    final h = await _open(tester);
+    h.photos.error = PlatformException(code: 'already_active');
+
+    await _tap(tester, find.byKey(const Key('review-add-camera')));
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('review-photo-failed')), findsOneWidget);
+
+    await _tap(tester, find.byKey(const Key('review-add-gallery')));
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('review-photo-failed')), findsOneWidget);
   });
 }

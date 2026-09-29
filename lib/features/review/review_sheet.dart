@@ -129,6 +129,7 @@ Future<ReviewOutcome> showReviewSheet(
         },
         onAttachmentsChanged: (attachments) => latest.attachments = attachments,
         onTyped: (text) => latest.typed = text,
+        onEdited: () => latest.edited = true,
       ),
     ),
   );
@@ -158,21 +159,34 @@ class _ReviewSnapshot {
 
   /// What was typed for a capture that came with no words.
   String typed = '';
+
+  /// Whether the user changed the lines themselves (an edit, a removal, a
+  /// line added) rather than only the date or payment method.
+  bool edited = false;
 }
 
 /// Keeps a new capture as a draft. A draft stores its text and
 /// attachments only, so lines that came with no text of their own are
 /// written as text the parser reads back to them.
+///
+/// A photo capture's lines as read are not: its photos are read again when
+/// the draft is reviewed, which brings back what text cannot carry (an
+/// InstaPay transfer's reference and payment method). Only lines the user
+/// changed are written as text, and even then the photos are read again
+/// for their references (see [withReadReferences]).
 Future<void> _keepAsDraft(SpendingRepository repository,
     ReviewRequest request, _ReviewSnapshot latest) async {
   if (request.draftId != null) return;
   final raw = request.rawText ?? '';
   final typed = raw.trim().isEmpty ? latest.typed.trim() : '';
+  final linesAsRead = request.kind == CaptureKind.photo && !latest.edited;
   final text = raw.trim().isNotEmpty
       ? raw
       : typed.isNotEmpty
           ? typed
-          : reviewDraftText(latest.lines);
+          : linesAsRead
+              ? ''
+              : reviewDraftText(latest.lines);
   if (text.trim().isEmpty && latest.attachments.isEmpty) return;
   final day = latest.date ?? ArabicLineParser.captureDay(request.capturedAt);
   await repository.saveCapture(CaptureDraft(
@@ -233,6 +247,11 @@ class ReviewSheet extends StatefulWidget {
   /// Told the capture's new attachments whenever they change.
   final ValueChanged<List<DraftAttachment>>? onAttachmentsChanged;
 
+  /// Told when the user changes the lines themselves: until then a photo
+  /// capture's lines are only what its photos read as, and a draft of it
+  /// reads the photos again instead of keeping the lines as text.
+  final VoidCallback? onEdited;
+
   const ReviewSheet({
     super.key,
     required this.repository,
@@ -245,6 +264,7 @@ class ReviewSheet extends StatefulWidget {
     this.onChanged,
     this.onTyped,
     this.onAttachmentsChanged,
+    this.onEdited,
   });
 
   @override
@@ -282,6 +302,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
   bool _loaded = false;
   bool _saving = false;
   bool _paymentTouched = false;
+  bool _dateTouched = false;
   int _nextId = 0;
 
   List<ReviewLine> _lines = const [];
@@ -369,15 +390,16 @@ class _ReviewSheetState extends State<ReviewSheet> {
     var parsed = _request.lines;
     String? parsedBy = _request.parsedBy;
     String? photoPayment;
+    List<ParsedLine> readReferences = const [];
     if (parsed == null) {
       final text = _request.cleanText ?? _request.rawText ?? '';
       final catalogue = await loadParserCatalogue(_repo);
       _catalogue = catalogue;
       final parser = ArabicLineParser(catalogue);
       _parser = parser;
-      if (_request.kind == CaptureKind.photo && text.trim().isEmpty) {
-        // A photo capture with no words, new or kept for later: read its
-        // photos, the ones the draft holds and the ones just taken.
+      if (_request.kind == CaptureKind.photo) {
+        // A photo capture, new or kept for later: read its photos, the ones
+        // the draft holds and the ones just taken.
         _items = items;
         final read = await _readPhotos([
           for (final a in _request.savedAttachments)
@@ -385,7 +407,15 @@ class _ReviewSheetState extends State<ReviewSheet> {
           for (final a in _request.attachments)
             if (a.kind == AttachmentKind.photo && a.path != null) a.path!,
         ]);
-        parsed = read.lines;
+        if (text.trim().isEmpty) {
+          parsed = read.lines;
+        } else {
+          // Lines edited before the draft was kept come back from its
+          // text; the photos give back only what the text cannot hold.
+          parsed = parser.parse(text, capturedAt: _request.capturedAt);
+          parsedBy ??= 'local';
+          readReferences = read.lines;
+        }
         if (read.instaPay) photoPayment = 'InstaPay';
       } else {
         parsed = parser.parse(text, capturedAt: _request.capturedAt);
@@ -401,7 +431,9 @@ class _ReviewSheetState extends State<ReviewSheet> {
         _paymentMethod = (photoPayment ?? payment)!;
       }
       _parsedBy = parsedBy;
-      _lines = [for (final p in parsed!) ReviewLine.fromParsed(p, id: _newId())];
+      _lines = withReadReferences(
+          [for (final p in parsed!) ReviewLine.fromParsed(p, id: _newId())],
+          readReferences);
       if (_request.date == null && parsed.isNotEmpty) _date = parsed.first.date;
       _loaded = true;
     });
@@ -493,9 +525,18 @@ class _ReviewSheetState extends State<ReviewSheet> {
         DraftAttachment(kind: AttachmentKind.photo, path: path),
     ]);
     if (_request.kind != CaptureKind.photo) return;
+    final hadLines = _lines.isNotEmpty;
     final read = await _readPhotos(paths);
     if (!mounted) return;
     setState(() {
+      // The first photo that reads as anything dates the capture, as the
+      // first one would have when the sheet opened.
+      if (_request.date == null &&
+          !_dateTouched &&
+          !hadLines &&
+          read.lines.isNotEmpty) {
+        _date = read.lines.first.date;
+      }
       _lines = [
         ..._lines,
         for (final p in read.lines) ReviewLine.fromParsed(p, id: _newId()),
@@ -506,16 +547,49 @@ class _ReviewSheetState extends State<ReviewSheet> {
   }
 
   Future<void> _addFromCamera() async {
-    final result = await _photos.captureFromCamera();
+    final PhotoCaptureResult result;
+    try {
+      result = await _photos.captureFromCamera();
+    } catch (_) {
+      _sayPhotoFailed();
+      return;
+    }
+    final path = result.relativePath;
+    if (!_stillOpen([?path])) return;
     if (result.outcome == PhotoCaptureOutcome.permissionDenied) {
       _say('محتاج إذن الكاميرا عشان أصور', key: const Key('review-camera-denied'));
     }
-    final path = result.relativePath;
     if (path != null) await _addPhotos([path]);
   }
 
-  Future<void> _addFromGallery() async =>
-      _addPhotos(await _photos.pickManyFromGallery());
+  Future<void> _addFromGallery() async {
+    final List<String> paths;
+    try {
+      paths = await _photos.pickManyFromGallery();
+    } catch (_) {
+      _sayPhotoFailed();
+      return;
+    }
+    if (!_stillOpen(paths)) return;
+    await _addPhotos(paths);
+  }
+
+  /// Whether the sheet is still up after a picker. When it was closed while
+  /// the picker was up, the capture was already kept without [paths], so
+  /// the copies just made would belong to nothing: they are deleted.
+  bool _stillOpen(List<String> paths) {
+    if (mounted) return true;
+    for (final path in paths) {
+      _photos.delete(path);
+    }
+    return false;
+  }
+
+  void _sayPhotoFailed() {
+    if (!mounted) return;
+    _say('ما قدرتش أفتح الصور، جرب تاني',
+        key: const Key('review-photo-failed'));
+  }
 
   Future<void> _addPdf() async {
     final PickedDocument? picked;
@@ -542,16 +616,19 @@ class _ReviewSheetState extends State<ReviewSheet> {
       _lines = [for (final l in _lines) l.id == line.id ? line : l];
     });
     _report();
+    widget.onEdited?.call();
   }
 
   void _remove(String id) {
     setState(() => _lines = [for (final l in _lines) if (l.id != id) l]);
     _report();
+    widget.onEdited?.call();
   }
 
   void _addLine() {
     setState(() => _lines = [..._lines, ReviewLine.blank(_newId())]);
     _report();
+    widget.onEdited?.call();
   }
 
   void _say(String message, {Key? key}) {
@@ -569,7 +646,10 @@ class _ReviewSheetState extends State<ReviewSheet> {
       lastDate: DateTime(now.year, now.month, now.day),
     );
     if (picked != null && mounted) {
-      setState(() => _date = picked);
+      setState(() {
+        _date = picked;
+        _dateTouched = true;
+      });
       _report();
     }
   }

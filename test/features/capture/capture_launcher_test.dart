@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/barcode_scan_service.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
@@ -18,9 +19,11 @@ class _Photos implements PhotoCaptureService {
   int camera = 0;
   PhotoCaptureResult next =
       const PhotoCaptureResult(PhotoCaptureOutcome.cancelled);
+  Object? error;
   @override
   Future<PhotoCaptureResult> captureFromCamera() async {
     camera++;
+    if (error case final e?) throw e;
     return next;
   }
 
@@ -62,9 +65,10 @@ void main() {
     FakeSpeechRecognition? speechRecognition,
     FixtureSpendingRepository? repository,
     PhotoCaptureResult? photo,
+    Object? photoError,
     String photoText = '',
   }) async {
-    photos = _Photos();
+    photos = _Photos()..error = photoError;
     if (photo != null) photos.next = photo;
     final recognizer = _Recognizer()..text = photoText;
     scanner = _Scanner();
@@ -156,6 +160,15 @@ void main() {
           photo:
               const PhotoCaptureResult(PhotoCaptureOutcome.permissionDenied));
       expect(find.byKey(const Key('photo-permission-denied')), findsOneWidget);
+      expect(find.byKey(const Key('review-sheet')), findsNothing);
+    });
+
+    testWidgets('a camera that fails says so instead of throwing',
+        (tester) async {
+      await run(tester, CaptureAction.camera,
+          photoError: PlatformException(code: 'camera_access_denied'));
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('photo-failed')), findsOneWidget);
       expect(find.byKey(const Key('review-sheet')), findsNothing);
     });
   });

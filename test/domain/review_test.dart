@@ -261,4 +261,46 @@ void main() {
     expect(line.reference, '512345678901');
     expect(line.toCaptureLine().reference, '512345678901');
   });
+
+  group('withReadReferences', () {
+    ParsedLine read(String reference, int? amount) => ParsedLine(
+          rawText: 'InstaPay',
+          date: DateTime(2026, 9, 28),
+          name: 'تحويل إنستاباي',
+          amountPiastres: amount,
+          confidence: ParseConfidence.high,
+          reference: reference,
+        );
+    ReviewLine line(String id, int? amount) => ReviewLine.fromParsed(
+        _parsed(name: 'تحويل $id', amount: amount), id: id);
+
+    test('gives a reference to the line with the amount the photo showed',
+        () {
+      final lines = withReadReferences(
+          [line('a', 3000), line('b', 125000)], [read('512345678901', 125000)]);
+      expect(lines[0].reference, isNull);
+      expect(lines[1].reference, '512345678901');
+      expect(lines[1].name, 'تحويل b');
+    });
+
+    test('gives a single reference to a single line whose amount was edited',
+        () {
+      final lines =
+          withReadReferences([line('a', 120000)], [read('512345678901', 125000)]);
+      expect(lines.single.reference, '512345678901');
+    });
+
+    test('does not guess among several lines', () {
+      final lines = withReadReferences(
+          [line('a', 3000), line('b', 4000)], [read('512345678901', 125000)]);
+      expect([for (final l in lines) l.reference], [null, null]);
+    });
+
+    test('leaves a reference a line already has', () {
+      final lines = withReadReferences(
+          [line('a', 125000).withReference('512345678901')],
+          [read('512345678901', 125000)]);
+      expect(lines.single.reference, '512345678901');
+    });
+  });
 }

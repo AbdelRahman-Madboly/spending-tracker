@@ -193,6 +193,24 @@ class ReviewLine extends Equatable {
     );
   }
 
+  /// The line carrying [reference]: a transfer's reference read again off
+  /// the photo of a draft whose lines came back from its text.
+  ReviewLine withReference(String reference) => ReviewLine(
+        id: id,
+        name: name,
+        capturedName: capturedName,
+        itemId: itemId,
+        linkedInReview: linkedInReview,
+        categoryKey: categoryKey,
+        subcategoryKey: subcategoryKey,
+        quantityMilli: quantityMilli,
+        unit: unit,
+        amountPiastres: amountPiastres,
+        unitPricePiastres: unitPricePiastres,
+        uncertain: uncertain,
+        reference: reference,
+      );
+
   /// Links [item]: the line takes its name, category and subcategory, and
   /// the doubts about name and category are settled.
   ReviewLine withItem(QuickPickItem item) {
@@ -277,3 +295,41 @@ String reviewDraftText(Iterable<ReviewLine> lines) => [
             'ب ${formatPiastres(l.amountPiastres!).replaceAll(',', '')}',
         ].where((part) => part.isNotEmpty).join(' '),
     ].where((row) => row.isNotEmpty).join('\n');
+
+/// Gives [lines] the references [read] off the capture's photos again.
+///
+/// A draft keeps text, not lines, so a photo draft edited before it was
+/// kept comes back from its text without the transfer's reference (spec
+/// §6.2), and with it the refusal of a second copy of the same transfer.
+/// Each reference goes to the first line without one that has the amount
+/// the photo showed; when the amount was edited too, a single reference
+/// left over goes to a single line left over. A reference no line takes is
+/// dropped rather than guessed onto an unrelated line.
+List<ReviewLine> withReadReferences(
+    List<ReviewLine> lines, Iterable<ParsedLine> read) {
+  final result = [...lines];
+  final pending = <String>[];
+  for (final r in read) {
+    final reference = r.reference;
+    if (reference == null || result.any((l) => l.reference == reference)) {
+      continue;
+    }
+    final i = result.indexWhere((l) =>
+        l.reference == null &&
+        r.amountPiastres != null &&
+        l.amountPiastres == r.amountPiastres);
+    if (i < 0) {
+      pending.add(reference);
+    } else {
+      result[i] = result[i].withReference(reference);
+    }
+  }
+  final free = [
+    for (final (i, l) in result.indexed)
+      if (l.reference == null) i,
+  ];
+  if (pending.length == 1 && free.length == 1) {
+    result[free.single] = result[free.single].withReference(pending.single);
+  }
+  return result;
+}
