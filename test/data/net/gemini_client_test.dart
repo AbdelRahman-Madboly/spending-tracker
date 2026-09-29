@@ -9,6 +9,7 @@ import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/data/gemini_key_store.dart';
 import 'package:spending_tracker/data/net/gemini_client.dart';
 import 'package:spending_tracker/data/net/network_gate.dart';
+import 'package:spending_tracker/domain/gemini_usage.dart';
 import 'package:spending_tracker/domain/online_features.dart';
 import 'package:spending_tracker/domain/smart_parse.dart';
 
@@ -57,12 +58,14 @@ void main() {
       });
     });
     return GeminiClient(gate, repo, keys ?? MemoryKeyStore('k-123'),
-        timeout: timeout);
+        timeout: timeout, clock: () => DateTime(2026, 9, 22, 10, 30));
   }
 
-  http.Response answerWith(Object lines, {String cleanText = 'عيش ب 10'}) =>
+  http.Response answerWith(Object lines,
+          {String cleanText = 'عيش ب 10', Map<String, int>? usage}) =>
       http.Response.bytes(
           utf8.encode(jsonEncode({
+            'usageMetadata': ?usage,
             'candidates': [
               {
                 'content': {
@@ -231,6 +234,93 @@ void main() {
     });
   });
 
+  group('usage', () {
+    Future<GeminiMonthUsage> september() async => GeminiMonthUsage.fromJson(
+        '2026-09', await repo.setting('gemini_usage:2026-09'));
+
+    test('a request records its tokens, model and feature', () async {
+      await turnOn(OnlineFeature.gemini);
+      await repo.setSetting(geminiModelSettingKey, 'gemini-3.8-flash');
+      final client = clientAnswering((_) => answerWith([bread], usage: {
+            'promptTokenCount': 1200,
+            'candidatesTokenCount': 80,
+            'thoughtsTokenCount': 20,
+            'totalTokenCount': 1300,
+          }));
+      await client.improve(const SmartInput.text('عيش ب ١٠'), day: day);
+      await client.improve(SmartInput.photos([Uint8List(3)]), day: day);
+
+      final usage = await september();
+      expect(usage.total.requests, 2);
+      expect(usage.total.failures, 0);
+      expect(usage.total.promptTokens, 2400);
+      expect(usage.total.outputTokens, 200,
+          reason: 'thinking tokens are billed as output');
+      expect(usage.total.totalTokens, 2600);
+      expect(usage.feature(GeminiUsageFeature.rewrite).requests, 1);
+      expect(usage.feature(GeminiUsageFeature.photo).requests, 1);
+      expect(usage.models, {'gemini-3.8-flash': 2});
+      expect(usage.day(DateTime(2026, 9, 22)).requests, 2);
+    });
+
+    test('a voice note counts as audio', () async {
+      await turnOn(OnlineFeature.gemini);
+      await repo.setSetting(OnlineFeature.geminiAudio.settingKey, 'true');
+      final client = clientAnswering((_) => answerWith([bread]));
+      await client.improve(SmartInput.audio(Uint8List(2)), day: day);
+      expect(
+          (await september()).feature(GeminiUsageFeature.audio).requests, 1);
+    });
+
+    test('failures are counted with a short error', () async {
+      await turnOn(OnlineFeature.gemini);
+      await clientAnswering((_) => http.Response('{"error":{}}', 429))
+          .improve(const SmartInput.text('عيش'), day: day);
+      expect((await september()).lastError, 'HTTP 429');
+      await clientAnswering((_) => http.Response('not json', 200))
+          .improve(const SmartInput.text('عيش'), day: day);
+      expect((await september()).lastError, 'bad answer');
+      await clientAnswering((_) => throw http.ClientException('offline'))
+          .improve(const SmartInput.text('عيش'), day: day);
+      expect((await september()).lastError, 'no connection');
+      await clientAnswering((_) => Completer<http.Response>().future,
+              timeout: const Duration(milliseconds: 50))
+          .improve(const SmartInput.text('عيش'), day: day);
+
+      final usage = await september();
+      expect(usage.total.requests, 4);
+      expect(usage.total.failures, 4);
+      expect(usage.lastError, 'timeout');
+      expect(usage.lastErrorAt, DateTime(2026, 9, 22, 10, 30));
+    });
+
+    test('nothing is recorded when nothing is sent', () async {
+      await clientAnswering((_) => answerWith([bread]))
+          .improve(const SmartInput.text('عيش'), day: day);
+      expect(await repo.setting('gemini_usage:2026-09'), isNull);
+    });
+
+    test('the counters never hold the note, the answer or the key',
+        () async {
+      await turnOn(OnlineFeature.gemini);
+      await clientAnswering((_) => answerWith([bread]))
+          .improve(const SmartInput.text('طماطم سرية'), day: day);
+      final stored = (await repo.setting('gemini_usage:2026-09'))!;
+      expect(stored, isNot(contains('طماطم')));
+      expect(stored, isNot(contains('عيش')));
+      expect(stored, isNot(contains('k-123')));
+    });
+
+    test('a counter that cannot be written does not fail the request',
+        () async {
+      repo = _NoUsageRepo();
+      await turnOn(OnlineFeature.gemini);
+      final result = await clientAnswering((_) => answerWith([bread]))
+          .improve(const SmartInput.text('عيش'), day: day);
+      expect(result, isNotNull);
+    });
+  });
+
   group('check', () {
     test('asks for the model with the key given and says whether it works',
         () async {
@@ -270,4 +360,12 @@ class _ThrowingKeyStore implements GeminiKeyStore {
 
   @override
   Future<void> write(String? value) => throw StateError('keystore unavailable');
+}
+
+class _NoUsageRepo extends FixtureSpendingRepository {
+  @override
+  Future<void> setSetting(String key, String value) async {
+    if (key.startsWith('gemini_usage:')) throw StateError('disk full');
+    return super.setSetting(key, value);
+  }
 }

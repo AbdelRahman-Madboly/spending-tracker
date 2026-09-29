@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/design/app_icons.dart';
@@ -6,6 +8,7 @@ import '../../../data/gemini_key_store.dart';
 import '../../../data/net/gemini_client.dart';
 import '../../../domain/online_features.dart';
 import '../../../domain/spending_repository.dart';
+import 'gemini_usage_card.dart';
 
 /// The label of each online feature's switch (spec §4.6).
 const _featureLabels = {
@@ -16,13 +19,17 @@ const _featureLabels = {
 };
 
 /// Online features (spec §4.6): the master switch, one switch per feature
-/// under it, the Gemini key with a test button, the model id, and the
-/// warning that the data goes to Google.
+/// under it, the Gemini key with a test button, the model id, the
+/// warning that the data goes to Google, and the usage card
+/// ([GeminiUsageCard]).
 ///
 /// A feature's switch keeps its own choice while the master is off (it is
 /// only greyed out), so turning the master back on restores what was on.
 /// The key is written to secure storage and never shown again once saved:
-/// the field stays empty with "المفتاح محفوظ" under it.
+/// the field stays empty with "المفتاح محفوظ" and the key's last 4
+/// characters under it, enough to tell which key it is. Saving a key turns
+/// on the master switch and the Gemini switch, so a pasted key just works;
+/// either can be turned off again.
 class OnlineSettingsSection extends StatefulWidget {
   final SpendingRepository repository;
   final GeminiKeyStore keyStore;
@@ -48,8 +55,13 @@ class _OnlineSettingsSectionState extends State<OnlineSettingsSection> {
   Map<OnlineFeature, bool> _features = {
     for (final f in OnlineFeature.values) f: false,
   };
-  bool _keySaved = false;
+  /// The saved key's last 4 characters, or null when no key is saved.
+  String? _keyTail;
+  bool get _keySaved => _keyTail != null;
   bool _testing = false;
+
+  /// The model id is saved once typing stops, not on every keystroke.
+  Timer? _modelSave;
 
   @override
   void initState() {
@@ -59,6 +71,10 @@ class _OnlineSettingsSectionState extends State<OnlineSettingsSection> {
 
   @override
   void dispose() {
+    if (_modelSave?.isActive ?? false) {
+      _modelSave!.cancel();
+      _saveModel();
+    }
     _key.dispose();
     _model.dispose();
     super.dispose();
@@ -73,17 +89,23 @@ class _OnlineSettingsSectionState extends State<OnlineSettingsSection> {
     final model = await _repo.setting(geminiModelSettingKey);
     // Secure storage can be unavailable (a device without a keystore, a
     // test): then no key is saved as far as this screen knows.
-    var keySaved = false;
+    String? keyTail;
     try {
-      keySaved = ((await widget.keyStore.read())?.trim() ?? '').isNotEmpty;
+      keyTail = _tailOf((await widget.keyStore.read())?.trim() ?? '');
     } catch (_) {}
     if (!mounted) return;
     setState(() {
       _master = master;
       _features = features;
-      _keySaved = keySaved;
+      _keyTail = keyTail;
       if (model != null && model.trim().isNotEmpty) _model.text = model;
     });
+  }
+
+  /// A key too short to hide most of shows no characters at all.
+  static String? _tailOf(String key) {
+    if (key.isEmpty) return null;
+    return key.length <= 8 ? '' : key.substring(key.length - 4);
   }
 
   Future<void> _setMaster(bool on) async {
@@ -108,7 +130,15 @@ class _OnlineSettingsSectionState extends State<OnlineSettingsSection> {
     _key.clear();
     if (!mounted) return;
     FocusScope.of(context).unfocus();
-    setState(() => _keySaved = true);
+    setState(() {
+      _keyTail = _tailOf(key);
+      _master = true;
+      _features = {..._features, OnlineFeature.gemini: true};
+    });
+    try {
+      await _repo.setSetting(onlineFeaturesSettingKey, 'true');
+      await _repo.setSetting(OnlineFeature.gemini.settingKey, 'true');
+    } catch (_) {}
     _say('اتحفظ المفتاح');
   }
 
@@ -119,7 +149,7 @@ class _OnlineSettingsSectionState extends State<OnlineSettingsSection> {
       _say('ما قدرتش أمسح المفتاح، جرب تاني');
       return;
     }
-    if (mounted) setState(() => _keySaved = false);
+    if (mounted) setState(() => _keyTail = null);
   }
 
   /// Tries the typed key when there is one, so a key can be checked before
@@ -144,6 +174,20 @@ class _OnlineSettingsSectionState extends State<OnlineSettingsSection> {
       GeminiCheck.fails => 'المفتاح مش شغال أو مفيش نت',
       GeminiCheck.switchedOff => 'شغّل المزايا الأونلاين وتحسين Gemini الأول',
     });
+  }
+
+  void _modelChanged(String _) {
+    _modelSave?.cancel();
+    _modelSave = Timer(const Duration(milliseconds: 600), _saveModel);
+  }
+
+  /// Saves the model id; a failed write keeps the old one and is not an
+  /// error the user can act on here.
+  Future<void> _saveModel() async {
+    _modelSave?.cancel();
+    try {
+      await _repo.setSetting(geminiModelSettingKey, _model.text.trim());
+    } catch (_) {}
   }
 
   void _say(String message) {
@@ -216,7 +260,7 @@ class _OnlineSettingsSectionState extends State<OnlineSettingsSection> {
           textDirection: TextDirection.ltr,
           decoration: InputDecoration(
             labelText: 'مفتاح Gemini',
-            helperText: _keySaved ? 'المفتاح محفوظ' : null,
+            helperText: _keySaved ? 'المفتاح محفوظ ••••$_keyTail' : null,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -239,14 +283,14 @@ class _OnlineSettingsSectionState extends State<OnlineSettingsSection> {
                       dimension: 16,
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(AppIcons.check, size: 20),
-              label: const Text('اختبار'),
+              label: const Text('تجربة'),
             ),
             if (_keySaved)
               TextButton(
                 key: const Key('settings-gemini-key-clear'),
                 style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
                 onPressed: _clearKey,
-                child: const Text('امسح المفتاح'),
+                child: const Text('حذف'),
               ),
           ],
         ),
@@ -257,9 +301,14 @@ class _OnlineSettingsSectionState extends State<OnlineSettingsSection> {
           autocorrect: false,
           textDirection: TextDirection.ltr,
           decoration: const InputDecoration(labelText: 'الموديل'),
-          onChanged: (value) =>
-              _repo.setSetting(geminiModelSettingKey, value.trim()),
+          onChanged: _modelChanged,
+          onSubmitted: (_) => _saveModel(),
+          onTapOutside: (_) {
+            if (_modelSave?.isActive ?? false) _saveModel();
+          },
         ),
+        const SizedBox(height: AppSpacing.md),
+        GeminiUsageCard(repository: _repo),
       ],
     );
   }

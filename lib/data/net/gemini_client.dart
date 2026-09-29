@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 
+import '../../domain/gemini_usage.dart';
 import '../../domain/online_features.dart';
 import '../../domain/smart_parse.dart';
 import '../../domain/spending_repository.dart';
 import '../gemini_key_store.dart';
+import '../gemini_usage_log.dart';
 import 'network_gate.dart';
 
 /// The `app_settings` key of the Gemini model id (spec §4.6). A setting,
@@ -22,13 +25,22 @@ enum GeminiCheck { works, fails, switchedOff }
 /// already on screen and stays there. That covers the switch being off, no
 /// key, no connection, the 20-second timeout, a 4xx or 5xx, and an answer
 /// that does not match the schema.
+///
+/// Every request that is actually sent is counted in [GeminiUsageLog]:
+/// its tokens from `usageMetadata`, the model, the feature and whether it
+/// worked. Nothing that was sent or received goes into the counters.
 class GeminiClient implements SmartImprover {
   GeminiClient(this._gate, this._repository, this._keys,
-      {this.timeout = defaultTimeout});
+      {this.timeout = defaultTimeout, DateTime Function()? clock})
+      : _clock = clock ?? DateTime.now,
+        _usage = GeminiUsageLog(_repository);
 
   final NetworkGate _gate;
   final SpendingRepository _repository;
   final GeminiKeyStore _keys;
+  final DateTime Function() _clock;
+  final GeminiUsageLog _usage;
+
   /// How long a request may take; tests shorten it.
   final Duration timeout;
 
@@ -39,6 +51,13 @@ class GeminiClient implements SmartImprover {
 
   /// A model id goes into the request path, so only a plain name is used.
   static final _modelId = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]*$');
+
+  static GeminiUsageFeature _usageFeatureFor(SmartInputKind kind) =>
+      switch (kind) {
+        SmartInputKind.text => GeminiUsageFeature.rewrite,
+        SmartInputKind.photo => GeminiUsageFeature.photo,
+        SmartInputKind.audio => GeminiUsageFeature.audio,
+      };
 
   static OnlineFeature _featureFor(SmartInputKind kind) =>
       kind == SmartInputKind.audio
@@ -81,31 +100,64 @@ class GeminiClient implements SmartImprover {
       final model = await _model();
       if (key == null || !_modelId.hasMatch(model)) return null;
       final catalogue = await loadSmartCatalogue(_repository);
-      final response = await _gate.post(
-        feature,
-        Uri.https(host, '/v1beta/models/$model:generateContent'),
-        headers: {'x-goog-api-key': key, 'content-type': 'application/json'},
-        body: jsonEncode({
-          'contents': [
-            {
-              'role': 'user',
-              'parts': [
-                {'text': smartPrompt(catalogue, input.kind)},
-                ..._partsOf(input),
-              ],
+      Future<void> count({bool ok = false, String? error, Object? body}) =>
+          _usage.record(_eventOf(
+              model: model,
+              feature: _usageFeatureFor(input.kind),
+              ok: ok,
+              error: error,
+              body: body));
+      final GateResponse response;
+      try {
+        response = await _gate.post(
+          feature,
+          Uri.https(host, '/v1beta/models/$model:generateContent'),
+          headers: {'x-goog-api-key': key, 'content-type': 'application/json'},
+          body: jsonEncode({
+            'contents': [
+              {
+                'role': 'user',
+                'parts': [
+                  {'text': smartPrompt(catalogue, input.kind)},
+                  ..._partsOf(input),
+                ],
+              },
+            ],
+            'generationConfig': {
+              'responseMimeType': 'application/json',
+              'responseJsonSchema': smartResponseSchema(catalogue),
             },
-          ],
-          'generationConfig': {
-            'responseMimeType': 'application/json',
-            'responseJsonSchema': smartResponseSchema(catalogue),
-          },
-        }),
-        timeout: timeout,
-      );
-      if (response.statusCode != 200) return null;
-      final answer = _answerText(response.body);
-      if (answer == null) return null;
-      return readSmartResult(answer, catalogue, day: day);
+          }),
+          timeout: timeout,
+        );
+      } on NetworkDisabled {
+        // Refused before anything was sent: nothing to count.
+        return null;
+      } on TimeoutException {
+        await count(error: 'timeout');
+        return null;
+      } catch (_) {
+        await count(error: 'no connection');
+        return null;
+      }
+      if (response.statusCode != 200) {
+        await count(error: 'HTTP ${response.statusCode}');
+        return null;
+      }
+      Object? body;
+      try {
+        body = jsonDecode(response.body);
+      } on FormatException {
+        body = null;
+      }
+      final answer = _answerText(body);
+      final result =
+          answer == null ? null : readSmartResult(answer, catalogue, day: day);
+      await count(
+          ok: result != null,
+          error: result == null ? 'bad answer' : null,
+          body: body);
+      return result;
     } catch (_) {
       return null;
     }
@@ -135,10 +187,40 @@ class GeminiClient implements SmartImprover {
           ],
       };
 
+  /// The usage event of one sent request. The tokens come from the
+  /// response's `usageMetadata` when there is one; output is everything
+  /// past the prompt, so thinking tokens count as the output they are
+  /// billed as.
+  GeminiUsageEvent _eventOf({
+    required String model,
+    required GeminiUsageFeature feature,
+    required bool ok,
+    String? error,
+    Object? body,
+  }) {
+    final meta = body is Map ? body['usageMetadata'] : null;
+    int count(String name) => switch (meta is Map ? meta[name] : null) {
+          final int n when n >= 0 => n,
+          _ => 0,
+        };
+    final prompt = count('promptTokenCount');
+    var total = count('totalTokenCount');
+    if (total < prompt) total = prompt + count('candidatesTokenCount');
+    return GeminiUsageEvent(
+      at: _clock(),
+      model: model,
+      feature: feature,
+      ok: ok,
+      promptTokens: prompt,
+      outputTokens: total - prompt,
+      totalTokens: total,
+      error: error,
+    );
+  }
+
   /// The text of the first candidate's parts, which with a JSON response
   /// type is the JSON answer itself.
-  static String? _answerText(String body) {
-    final decoded = jsonDecode(body);
+  static String? _answerText(Object? decoded) {
     if (decoded is! Map || decoded['candidates'] is! List) return null;
     final candidates = decoded['candidates'] as List;
     if (candidates.isEmpty || candidates.first is! Map) return null;

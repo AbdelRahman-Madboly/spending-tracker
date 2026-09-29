@@ -11,11 +11,11 @@ void main() {
   Future<void> pumpSettings(
       WidgetTester tester, FixtureSpendingRepository repository) async {
     // Tall enough that the whole settings list (salary, ten categories,
-    // twelve items, online features and the about block) is mounted
-    // without scrolling — a ListView only mounts children within the
-    // viewport, and this suite needs to find items at every position in
-    // the list.
-    tester.view.physicalSize = const Size(1080, 9600);
+    // twelve items, online features with the usage card and the about
+    // block) is mounted without scrolling — a ListView only mounts
+    // children within the viewport, and this suite needs to find items at
+    // every position in the list.
+    tester.view.physicalSize = const Size(1080, 13200);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
 
@@ -703,7 +703,7 @@ void main() {
   group('appearance', () {
     Future<ThemeModeController> pumpWithThemeMode(
         WidgetTester tester, FixtureSpendingRepository repository) async {
-      tester.view.physicalSize = const Size(1080, 9600);
+      tester.view.physicalSize = const Size(1080, 13200);
       tester.view.devicePixelRatio = 3.0;
       addTearDown(tester.view.reset);
 
