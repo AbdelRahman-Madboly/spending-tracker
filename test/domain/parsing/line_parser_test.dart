@@ -587,4 +587,56 @@ void main() {
       expect(line.flags, contains(ParseFlag.noAmount));
     });
   });
+
+  group('a product whose name carries its size', () {
+    final packParser = ArabicLineParser(ParserCatalogue(
+      items: const [
+        CatalogueItem('half', 'لبن بخيرو نص لتر', 'Drinks', 'Milk'),
+        CatalogueItem('litre', 'لبن بخيرو 1 لتر', 'Drinks', 'Milk'),
+        CatalogueItem('cow', 'لبن بقري سايب', 'Drinks', 'Milk',
+            unit: 'liter', unitPricePiastres: 2500, usualQuantityMilli: 2000),
+      ],
+      subcategories: const [CatalogueSubcategory('Milk', 'Drinks', 'لبن')],
+    ));
+    ParsedLine pack(String text) {
+      final lines = packParser.parse(text, capturedAt: afternoon);
+      expect(lines, hasLength(1), reason: '"$text" gave $lines');
+      return lines.single;
+    }
+
+    test('"لبن بخيرو نص لتر ب 25" is one pack of that product, not half a '
+        'litre', () {
+      final line = pack('لبن بخيرو نص لتر ب 25');
+      expect(line.itemId, 'half');
+      expectLine(line, name: 'لبن بخيرو نص لتر', amount: 2500);
+      expect(line.rawText, 'لبن بخيرو نص لتر ب 25');
+    });
+
+    test('"لبن بخيرو ١ لتر ب ٤٥" is the litre pack', () {
+      final line = pack('لبن بخيرو ١ لتر ب ٤٥');
+      expect(line.itemId, 'litre');
+      expectLine(line, name: 'لبن بخيرو 1 لتر', amount: 4500);
+    });
+
+    test('a count before it is the number of packs', () {
+      final line = pack('2 لبن بخيرو نص لتر ب 50');
+      expect(line.itemId, 'half');
+      expectLine(line,
+          name: 'لبن بخيرو نص لتر', amount: 5000, quantityMilli: 2000);
+    });
+
+    test('loose milk beside it is still priced by the litre', () {
+      final lines = packParser.parse(
+          'لبن بخيرو نص لتر ب 25 و 2 لتر لبن بقري سايب ب 50',
+          capturedAt: afternoon);
+      expect(lines, hasLength(2));
+      expect(lines[0].itemId, 'half');
+      expect(lines[1].itemId, 'cow');
+      expectLine(lines[1],
+          name: 'لبن بقري سايب',
+          amount: 5000,
+          quantityMilli: 2000,
+          unit: 'liter');
+    });
+  });
 }

@@ -186,6 +186,9 @@ class ParserCatalogue {
       ParserCatalogue(items: const [], subcategories: const []);
 
   final Map<String, CatalogueItem> _items;
+
+  /// Every item, for the parser's look for names that carry a size.
+  Iterable<CatalogueItem> get items => _items.values;
   final Map<String, CatalogueSubcategory> _subcategories;
 
   /// Normalised item names and aliases to their item.

@@ -15,9 +15,76 @@ import 'parsed_line.dart';
 /// quantity and which a unit price, then the leftover words become the
 /// name and are matched against the catalogue.
 class ArabicLineParser {
-  ArabicLineParser(this.catalogue);
+  ArabicLineParser(this.catalogue) : _sizedNames = _sizedNamesOf(catalogue);
 
   final ParserCatalogue catalogue;
+
+  /// Item names that carry a number or a unit ("لبن بخيرو نص لتر"), as
+  /// normalised words, longest first. Read as numbers, their size would be
+  /// taken for the quantity bought and the item never matched.
+  final List<(List<String>, String)> _sizedNames;
+
+  static List<(List<String>, String)> _sizedNamesOf(ParserCatalogue c) {
+    bool sizeWord(String w) =>
+        _units.containsKey(w) ||
+        _fractions.containsKey(w) ||
+        RegExp(r'^[0-9]+([.,][0-9]+)?$').hasMatch(w);
+    final names = <(List<String>, String)>[
+      for (final item in c.items)
+        if (_normalWords(item.nameAr) case final words
+            when words.length > 1 && words.any(sizeWord))
+          (words, item.nameAr),
+    ]..sort((a, b) => b.$1.length.compareTo(a.$1.length));
+    return names;
+  }
+
+  static List<String> _normalWords(String text) => [
+        for (final w in text.trim().split(RegExp(r'\s+')))
+          if (normalizeArabic(_working(w)) case final n when n.isNotEmpty) n,
+      ];
+
+  /// Replaces each sized item name in [raw] with one placeholder word, so
+  /// its size is read as part of the name. Returns the text and the
+  /// placeholders' names, for [_restore].
+  (String, Map<String, String>) _protectSizedNames(String raw) {
+    if (_sizedNames.isEmpty) return (raw, const {});
+    final words = raw.split(RegExp(r'\s+'));
+    final keys = [for (final w in words) normalizeArabic(_working(w))];
+    final out = <String>[];
+    final names = <String, String>{};
+    var i = 0;
+    outer:
+    while (i < words.length) {
+      for (final (name, nameAr) in _sizedNames) {
+        if (i + name.length > keys.length) continue;
+        var same = true;
+        for (var k = 0; k < name.length && same; k++) {
+          same = keys[i + k] == name[k];
+        }
+        if (!same) continue;
+        final placeholder = String.fromCharCode(0xE000 + names.length);
+        names[placeholder] = words.sublist(i, i + name.length).join(' ');
+        names['$placeholder:item'] = nameAr;
+        out.add(placeholder);
+        i += name.length;
+        continue outer;
+      }
+      out.add(words[i]);
+      i++;
+    }
+    return (out.join(' '), names);
+  }
+
+  /// [text] with each placeholder back as the words it stood for, or as
+  /// the item's own spelling when [asItem].
+  static String _restore(String text, Map<String, String> names,
+      {bool asItem = false}) {
+    if (names.isEmpty) return text;
+    return text.replaceAllMapped(RegExp('[\uE000-\uE0FF]'), (m) {
+      final p = m[0]!;
+      return (asItem ? names['$p:item'] : null) ?? names[p] ?? p;
+    });
+  }
 
   /// Parses [text], captured at [capturedAt]. Lines are dated with the
   /// capture day (see [captureDay]) until a `d/m` line changes it.
@@ -36,8 +103,9 @@ class ArabicLineParser {
       for (final piece in rawLine.split(_separators)) {
         final raw = piece.trim();
         if (raw.isEmpty) continue;
-        for (final segment in _splitOnWa(raw)) {
-          out.add(_line(segment, date, dateFromText));
+        final (protected, names) = _protectSizedNames(raw);
+        for (final segment in _splitOnWa(protected)) {
+          out.add(_line(segment, date, dateFromText, names));
         }
       }
     }
@@ -51,9 +119,14 @@ class ArabicLineParser {
     return capturedAt.hour < 5 ? DateTime(d.year, d.month, d.day - 1) : d;
   }
 
-  ParsedLine _line(_Segment segment, DateTime date, bool dateFromText) {
+  ParsedLine _line(
+    _Segment segment,
+    DateTime date,
+    bool dateFromText, [
+    Map<String, String> names = const {},
+  ]) {
     final r = _resolve(segment.tokens);
-    final match = catalogue.match(r.name);
+    final match = catalogue.match(_restore(r.name, names, asItem: true));
     var quantityMilli = r.quantityMilli;
     var unit = r.unit;
     var amount = r.amountPiastres;
@@ -86,7 +159,7 @@ class ArabicLineParser {
         flags.contains(ParseFlag.noCategory) ||
         flags.contains(ParseFlag.ambiguousAmount);
     return ParsedLine(
-      rawText: segment.raw,
+      rawText: _restore(segment.raw, names),
       date: date,
       name: match.name,
       itemId: match.itemId,
