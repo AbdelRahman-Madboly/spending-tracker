@@ -71,6 +71,29 @@ void main() {
     expect(built, 1);
   });
 
+  test('a POST carries its body as UTF-8 and is refused when switched off',
+      () async {
+    final refused = gateWith(() => throw StateError('no client may be built'));
+    await expectLater(refused.post(OnlineFeature.gemini, uri, body: '{}'),
+        throwsA(isA<NetworkDisabled>()));
+    expect(built, 0);
+
+    await turnOn(OnlineFeature.gemini);
+    http.Request? seen;
+    final gate = gateWith(() => MockClient((request) async {
+          seen = request;
+          return http.Response.bytes(utf8.encode('{"ok":"تمام"}'), 200);
+        }));
+    final response = await gate.post(OnlineFeature.gemini, uri,
+        headers: {'content-type': 'application/json'},
+        body: '{"text":"عيش"}');
+    expect(response.statusCode, 200);
+    expect(response.body, '{"ok":"تمام"}');
+    expect(seen!.method, 'POST');
+    expect(utf8.decode(seen!.bodyBytes), '{"text":"عيش"}');
+    expect(seen!.headers['content-type'], startsWith('application/json'));
+  });
+
   test('a request that takes too long times out', () async {
     await turnOn(OnlineFeature.productLookup);
     final gate = gateWith(

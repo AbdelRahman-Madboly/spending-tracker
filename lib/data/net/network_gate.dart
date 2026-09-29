@@ -73,4 +73,21 @@ class NetworkGate {
       body: utf8.decode(response.bodyBytes, allowMalformed: true),
     );
   }
+
+  /// A POST of [body] (sent as UTF-8) to [uri] for [feature], for the same
+  /// callers. The body is never logged: a smart request carries the user's
+  /// notes, and its headers carry the key.
+  Future<GateResponse> post(OnlineFeature feature, Uri uri,
+      {Map<String, String> headers = const {},
+      required String body,
+      Duration? timeout}) async {
+    final request = http.Request('POST', uri)
+      ..headers.addAll(headers)
+      ..bodyBytes = utf8.encode(body);
+    final response = await send(feature, request, timeout: timeout);
+    return (
+      statusCode: response.statusCode,
+      body: utf8.decode(response.bodyBytes, allowMalformed: true),
+    );
+  }
 }
