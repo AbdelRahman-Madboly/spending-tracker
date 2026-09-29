@@ -22,6 +22,7 @@ import '../../domain/spending_repository.dart';
 import '../add/add_sheet.dart';
 import '../home/widgets/capture_bar.dart';
 import '../review/review_sheet.dart';
+import 'permission_prompt.dart';
 import 'text_note_sheet.dart';
 import 'voice_capture_controller.dart';
 import 'voice_capture_sheet.dart';
@@ -38,6 +39,7 @@ Future<void> openAddSheet(
   AddSheetAction? initialAction,
   PhotoCaptureService? photoCaptureService,
   BarcodeScanService? barcodeScanService,
+  PermissionService? permissionService,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -51,6 +53,7 @@ Future<void> openAddSheet(
       initialAction: initialAction,
       photoCaptureService: photoCaptureService,
       barcodeScanService: barcodeScanService,
+      permissionService: permissionService,
       onSubmit: (draft) async {
         await repository.saveEntry(draft);
         HapticFeedback.lightImpact();
@@ -78,8 +81,22 @@ Future<void> launchCapture(
   VoiceRecorder Function()? voiceRecorderFactory,
   SpeechRecognitionService? speechRecognition,
   VoicePlayback Function()? playbackFactory,
+  PermissionService? permissionService,
   DateTime Function() clock = DateTime.now,
 }) async {
+  // Camera and microphone are asked for on first use, behind a card that
+  // says why (spec §8); a refusal opens nothing.
+  final permission = switch (action) {
+    CaptureAction.camera || CaptureAction.barcode => AppPermission.camera,
+    CaptureAction.voice => AppPermission.microphone,
+    CaptureAction.text => null,
+  };
+  if (permission != null &&
+      !await ensurePermission(context, permission,
+          service: permissionService)) {
+    return;
+  }
+  if (!context.mounted) return;
   // The review's smart path goes through the same gate as everything else
   // here, so one gate answers for every request a capture can make.
   final gate = networkGate ?? NetworkGate(repository);

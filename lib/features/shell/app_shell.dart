@@ -12,12 +12,14 @@ import '../../domain/spending_repository.dart';
 import '../../domain/statistics.dart';
 import '../../domain/transactions.dart';
 import '../capture/capture_launcher.dart';
+import '../capture/permission_prompt.dart';
 import '../home/home_screen.dart';
 import '../home/widgets/capture_bar.dart';
 import '../settings/import_screen.dart';
 import '../settings/settings_screen.dart';
 import '../statistics/statistics_screen.dart';
 import '../transactions/transactions_screen.dart';
+import 'quick_launch.dart';
 
 /// The four tabs, in their order from the start (right) side.
 enum AppTab { home, transactions, statistics, settings }
@@ -39,11 +41,20 @@ class AppShell extends StatefulWidget {
   /// opened on the import review.
   final ShareInbox? shareInbox;
 
+  /// The launcher quick actions (spec §8); null registers none.
+  final QuickActionsSource? quickActions;
+
+  /// Asks for the camera and the microphone; defaults to
+  /// permission_handler, overridable for widget tests.
+  final PermissionService? permissionService;
+
   const AppShell({
     super.key,
     required this.repository,
     this.clock = DateTime.now,
     this.shareInbox,
+    this.quickActions,
+    this.permissionService,
   });
 
   @override
@@ -88,10 +99,38 @@ class _AppShellState extends State<AppShell>
 
   StreamSubscription<SharedImport>? _shares;
 
+  /// False until the shell's first frame is up: a cold start reports its
+  /// quick action before there is anything to open a sheet over.
+  bool _ready = false;
+  String? _pendingQuickLaunch;
+
   @override
   void initState() {
     super.initState();
     _shares = widget.shareInbox?.shares.listen(_openShared);
+    widget.quickActions?.start(quickLaunchItems, _onQuickLaunch);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ready = true;
+      final pending = _pendingQuickLaunch;
+      _pendingQuickLaunch = null;
+      if (pending != null) _onQuickLaunch(pending);
+    });
+  }
+
+  /// A launcher quick action, on a cold start or a warm one: opens its
+  /// flow over whatever is showing.
+  void _onQuickLaunch(String type) {
+    if (!mounted) return;
+    if (!_ready) {
+      _pendingQuickLaunch = type;
+      return;
+    }
+    if (type == 'add') {
+      _add();
+      return;
+    }
+    final action = quickLaunchCapture(type);
+    if (action != null) _capture(action);
   }
 
   @override
@@ -161,10 +200,12 @@ class _AppShellState extends State<AppShell>
     _select(AppTab.statistics);
   }
 
-  void _add() => openAddSheet(context, widget.repository);
+  void _add() => openAddSheet(context, widget.repository,
+      permissionService: widget.permissionService);
 
-  void _capture(CaptureAction action) =>
-      launchCapture(context, widget.repository, action, clock: widget.clock);
+  void _capture(CaptureAction action) => launchCapture(
+      context, widget.repository, action,
+      permissionService: widget.permissionService, clock: widget.clock);
 
   Future<void> _openSpeedDial() async {
     final action = await showModalBottomSheet<CaptureAction>(

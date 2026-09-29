@@ -8,6 +8,9 @@ import 'package:spending_tracker/data/photo_capture_service.dart';
 import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';
 import 'package:spending_tracker/core/design/app_icons.dart';
+import 'package:spending_tracker/features/capture/permission_prompt.dart';
+
+import '../capture/permission_fakes.dart';
 
 /// The add sheet is keypad first (spec §6.1): type or calculate an amount,
 /// pick a category or an item, save.
@@ -77,6 +80,8 @@ Future<void> _pump(
             initialAction: initialAction,
             photoCaptureService: photos,
             barcodeScanService: scanner,
+            permissionService:
+                FakePermissionService(AppPermissionStatus.granted),
           ),
         ),
       ),

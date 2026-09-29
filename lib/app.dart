@@ -11,6 +11,7 @@ import 'data/db/database.dart';
 import 'data/drift_spending_repository.dart';
 import 'data/import_sources.dart';
 import 'features/shell/app_shell.dart';
+import 'features/shell/quick_launch.dart';
 
 class SpendingApp extends StatefulWidget {
   const SpendingApp({
@@ -142,6 +143,7 @@ class _SpendingAppState extends State<SpendingApp>
               key: ObjectKey(_repository),
               repository: _repository,
               shareInbox: PluginShareInbox(),
+              quickActions: const PluginQuickActionsSource(),
             ),
     );
   }

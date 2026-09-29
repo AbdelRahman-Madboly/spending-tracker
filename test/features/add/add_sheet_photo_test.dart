@@ -8,6 +8,9 @@ import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/data/photo_capture_service.dart';
 import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';
+import 'package:spending_tracker/features/capture/permission_prompt.dart';
+
+import '../capture/permission_fakes.dart';
 
 /// A single transparent 1x1 PNG, valid enough for `Image.file` to decode
 /// without erroring in a widget test.
@@ -104,6 +107,8 @@ void main() {
             repository: FixtureSpendingRepository(),
             onSubmit: onSubmit ?? (_) {},
             photoCaptureService: service,
+            permissionService:
+                FakePermissionService(AppPermissionStatus.granted),
           ),
         ),
       ),
@@ -308,6 +313,8 @@ void main() {
                       repository: FixtureSpendingRepository(),
                       onSubmit: onSubmit ?? (_) {},
                       photoCaptureService: service,
+                      permissionService:
+                          FakePermissionService(AppPermissionStatus.granted),
                     ),
                   ),
                   child: const Text('open'),

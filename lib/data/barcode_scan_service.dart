@@ -146,11 +146,12 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     if (!widget.continuous) {
       if (_handled) return;
       _handled = true;
+      HapticFeedback.mediumImpact();
       Navigator.of(context).pop(code);
       return;
     }
     if (_tally.add(code, widget.clock())) {
-      HapticFeedback.selectionClick();
+      HapticFeedback.mediumImpact();
       setState(() {});
     }
   }
