@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -8,6 +9,7 @@ import 'package:spending_tracker/data/db/pre_migration_backup.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import '../generated_migrations/schema_v2.dart' as v2;
+import '../generated_migrations/schema_v3.dart' as v3;
 
 /// The file copy that runs before drift opens (and so before it migrates)
 /// the database on the phone. The real history lives in that one file, so
@@ -134,7 +136,7 @@ void main() {
 
   test(
       'opening a v2 database file through the app connection leaves a '
-      'pre-migration copy of the v2 data, then migrates the file to v3',
+      'pre-migration copy of the v2 data, then migrates the file to v4',
       () async {
     final old = v2.DatabaseAtV2(NativeDatabase(dbFile));
     await old.into(old.categories).insert(v2.CategoriesCompanion.insert(
@@ -157,12 +159,57 @@ void main() {
     await db.close();
 
     expect(entries.single.amountPiastres, 2500);
-    expect(readUserVersion(dbFile), 3);
+    expect(readUserVersion(dbFile), 4);
 
     final backups = backupsDir.listSync().whereType<File>().toList();
     expect(backups, hasLength(1));
-    expect(p.basename(backups.single.path), startsWith('pre-v3-'));
+    expect(p.basename(backups.single.path), startsWith('pre-v4-'));
     expect(userVersionOf(backups.single), 2);
+    final copy = sqlite.sqlite3.open(backups.single.path);
+    expect(copy.select('SELECT amount_piastres FROM entries').single.columnAt(0),
+        2500);
+    copy.close();
+  });
+
+  test(
+      'opening a v3 database file (what the phone has now) through the app '
+      'connection leaves a pre-v4 copy of the v3 data, then migrates it',
+      () async {
+    final old = v3.DatabaseAtV3(NativeDatabase(dbFile));
+    await old.into(old.categories).insert(v3.CategoriesCompanion.insert(
+        key: 'Drinks', labelAr: 'مشروبات', iconName: 'local_drink'));
+    await old.into(old.items).insert(v3.ItemsCompanion.insert(
+        id: 'milk',
+        nameAr: 'لبن',
+        nameEn: 'Milk',
+        categoryKey: 'Drinks',
+        defaultAmountPiastres: const Value(2500)));
+    await old.into(old.entries).insert(v3.EntriesCompanion.insert(
+          id: 'e1',
+          date: '2026-09-28',
+          amountPiastres: 2500,
+          categoryKey: 'Drinks',
+          itemId: const Value('milk'),
+          createdAt: DateTime(2026, 9, 28).millisecondsSinceEpoch ~/ 1000,
+          updatedAt: DateTime(2026, 9, 28).millisecondsSinceEpoch ~/ 1000,
+        ));
+    await old.close();
+    expect(readUserVersion(dbFile), 3);
+
+    final db = AppDatabase.forTesting(
+      openDatabaseFileWithBackup(dbFile: dbFile, backupsDir: backupsDir),
+    );
+    final item = await db.select(db.items).getSingle();
+    await db.close();
+
+    expect(item.defaultAmountPiastres, 2500);
+    expect(item.unit, isNull);
+    expect(readUserVersion(dbFile), 4);
+
+    final backups = backupsDir.listSync().whereType<File>().toList();
+    expect(backups, hasLength(1));
+    expect(p.basename(backups.single.path), startsWith('pre-v4-'));
+    expect(userVersionOf(backups.single), 3);
     final copy = sqlite.sqlite3.open(backups.single.path);
     expect(copy.select('SELECT amount_piastres FROM entries').single.columnAt(0),
         2500);

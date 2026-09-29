@@ -959,6 +959,25 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _unitMeta = const VerificationMeta('unit');
+  @override
+  late final GeneratedColumn<String> unit = GeneratedColumn<String>(
+    'unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _defaultQuantityMilliMeta =
+      const VerificationMeta('defaultQuantityMilli');
+  @override
+  late final GeneratedColumn<int> defaultQuantityMilli = GeneratedColumn<int>(
+    'default_quantity_milli',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -971,6 +990,8 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
     useCount,
     lastUsedAt,
     archived,
+    unit,
+    defaultQuantityMilli,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1061,6 +1082,21 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta),
       );
     }
+    if (data.containsKey('unit')) {
+      context.handle(
+        _unitMeta,
+        unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
+      );
+    }
+    if (data.containsKey('default_quantity_milli')) {
+      context.handle(
+        _defaultQuantityMilliMeta,
+        defaultQuantityMilli.isAcceptableOrUnknown(
+          data['default_quantity_milli']!,
+          _defaultQuantityMilliMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1110,6 +1146,14 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         DriftSqlType.bool,
         data['${effectivePrefix}archived'],
       )!,
+      unit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit'],
+      ),
+      defaultQuantityMilli: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}default_quantity_milli'],
+      ),
     );
   }
 
@@ -1130,6 +1174,16 @@ class Item extends DataClass implements Insertable<Item> {
   final int useCount;
   final DateTime? lastUsedAt;
   final bool archived;
+
+  /// A key of `entryUnitLabels` (`liter`, `kg`, `g`, ...) when the product
+  /// is sold loose by that unit, like milk by the litre at the market. Then
+  /// [defaultAmountPiastres] is the price of one unit. Null for a product
+  /// sold by the piece or pack.
+  final String? unit;
+
+  /// How much of [unit] is usually bought, in milli-units (2000 is two
+  /// litres). Only meaningful when [unit] is set.
+  final int? defaultQuantityMilli;
   const Item({
     required this.id,
     required this.nameAr,
@@ -1141,6 +1195,8 @@ class Item extends DataClass implements Insertable<Item> {
     required this.useCount,
     this.lastUsedAt,
     required this.archived,
+    this.unit,
+    this.defaultQuantityMilli,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1163,6 +1219,12 @@ class Item extends DataClass implements Insertable<Item> {
       map['last_used_at'] = Variable<DateTime>(lastUsedAt);
     }
     map['archived'] = Variable<bool>(archived);
+    if (!nullToAbsent || unit != null) {
+      map['unit'] = Variable<String>(unit);
+    }
+    if (!nullToAbsent || defaultQuantityMilli != null) {
+      map['default_quantity_milli'] = Variable<int>(defaultQuantityMilli);
+    }
     return map;
   }
 
@@ -1186,6 +1248,10 @@ class Item extends DataClass implements Insertable<Item> {
           ? const Value.absent()
           : Value(lastUsedAt),
       archived: Value(archived),
+      unit: unit == null && nullToAbsent ? const Value.absent() : Value(unit),
+      defaultQuantityMilli: defaultQuantityMilli == null && nullToAbsent
+          ? const Value.absent()
+          : Value(defaultQuantityMilli),
     );
   }
 
@@ -1207,6 +1273,10 @@ class Item extends DataClass implements Insertable<Item> {
       useCount: serializer.fromJson<int>(json['useCount']),
       lastUsedAt: serializer.fromJson<DateTime?>(json['lastUsedAt']),
       archived: serializer.fromJson<bool>(json['archived']),
+      unit: serializer.fromJson<String?>(json['unit']),
+      defaultQuantityMilli: serializer.fromJson<int?>(
+        json['defaultQuantityMilli'],
+      ),
     );
   }
   @override
@@ -1223,6 +1293,8 @@ class Item extends DataClass implements Insertable<Item> {
       'useCount': serializer.toJson<int>(useCount),
       'lastUsedAt': serializer.toJson<DateTime?>(lastUsedAt),
       'archived': serializer.toJson<bool>(archived),
+      'unit': serializer.toJson<String?>(unit),
+      'defaultQuantityMilli': serializer.toJson<int?>(defaultQuantityMilli),
     };
   }
 
@@ -1237,6 +1309,8 @@ class Item extends DataClass implements Insertable<Item> {
     int? useCount,
     Value<DateTime?> lastUsedAt = const Value.absent(),
     bool? archived,
+    Value<String?> unit = const Value.absent(),
+    Value<int?> defaultQuantityMilli = const Value.absent(),
   }) => Item(
     id: id ?? this.id,
     nameAr: nameAr ?? this.nameAr,
@@ -1252,6 +1326,10 @@ class Item extends DataClass implements Insertable<Item> {
     useCount: useCount ?? this.useCount,
     lastUsedAt: lastUsedAt.present ? lastUsedAt.value : this.lastUsedAt,
     archived: archived ?? this.archived,
+    unit: unit.present ? unit.value : this.unit,
+    defaultQuantityMilli: defaultQuantityMilli.present
+        ? defaultQuantityMilli.value
+        : this.defaultQuantityMilli,
   );
   Item copyWithCompanion(ItemsCompanion data) {
     return Item(
@@ -1273,6 +1351,10 @@ class Item extends DataClass implements Insertable<Item> {
           ? data.lastUsedAt.value
           : this.lastUsedAt,
       archived: data.archived.present ? data.archived.value : this.archived,
+      unit: data.unit.present ? data.unit.value : this.unit,
+      defaultQuantityMilli: data.defaultQuantityMilli.present
+          ? data.defaultQuantityMilli.value
+          : this.defaultQuantityMilli,
     );
   }
 
@@ -1288,7 +1370,9 @@ class Item extends DataClass implements Insertable<Item> {
           ..write('barcode: $barcode, ')
           ..write('useCount: $useCount, ')
           ..write('lastUsedAt: $lastUsedAt, ')
-          ..write('archived: $archived')
+          ..write('archived: $archived, ')
+          ..write('unit: $unit, ')
+          ..write('defaultQuantityMilli: $defaultQuantityMilli')
           ..write(')'))
         .toString();
   }
@@ -1305,6 +1389,8 @@ class Item extends DataClass implements Insertable<Item> {
     useCount,
     lastUsedAt,
     archived,
+    unit,
+    defaultQuantityMilli,
   );
   @override
   bool operator ==(Object other) =>
@@ -1319,7 +1405,9 @@ class Item extends DataClass implements Insertable<Item> {
           other.barcode == this.barcode &&
           other.useCount == this.useCount &&
           other.lastUsedAt == this.lastUsedAt &&
-          other.archived == this.archived);
+          other.archived == this.archived &&
+          other.unit == this.unit &&
+          other.defaultQuantityMilli == this.defaultQuantityMilli);
 }
 
 class ItemsCompanion extends UpdateCompanion<Item> {
@@ -1333,6 +1421,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
   final Value<int> useCount;
   final Value<DateTime?> lastUsedAt;
   final Value<bool> archived;
+  final Value<String?> unit;
+  final Value<int?> defaultQuantityMilli;
   final Value<int> rowid;
   const ItemsCompanion({
     this.id = const Value.absent(),
@@ -1345,6 +1435,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.useCount = const Value.absent(),
     this.lastUsedAt = const Value.absent(),
     this.archived = const Value.absent(),
+    this.unit = const Value.absent(),
+    this.defaultQuantityMilli = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ItemsCompanion.insert({
@@ -1358,6 +1450,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.useCount = const Value.absent(),
     this.lastUsedAt = const Value.absent(),
     this.archived = const Value.absent(),
+    this.unit = const Value.absent(),
+    this.defaultQuantityMilli = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        nameAr = Value(nameAr),
@@ -1374,6 +1468,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Expression<int>? useCount,
     Expression<DateTime>? lastUsedAt,
     Expression<bool>? archived,
+    Expression<String>? unit,
+    Expression<int>? defaultQuantityMilli,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1388,6 +1484,9 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       if (useCount != null) 'use_count': useCount,
       if (lastUsedAt != null) 'last_used_at': lastUsedAt,
       if (archived != null) 'archived': archived,
+      if (unit != null) 'unit': unit,
+      if (defaultQuantityMilli != null)
+        'default_quantity_milli': defaultQuantityMilli,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1403,6 +1502,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Value<int>? useCount,
     Value<DateTime?>? lastUsedAt,
     Value<bool>? archived,
+    Value<String?>? unit,
+    Value<int?>? defaultQuantityMilli,
     Value<int>? rowid,
   }) {
     return ItemsCompanion(
@@ -1417,6 +1518,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       useCount: useCount ?? this.useCount,
       lastUsedAt: lastUsedAt ?? this.lastUsedAt,
       archived: archived ?? this.archived,
+      unit: unit ?? this.unit,
+      defaultQuantityMilli: defaultQuantityMilli ?? this.defaultQuantityMilli,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1456,6 +1559,12 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     if (archived.present) {
       map['archived'] = Variable<bool>(archived.value);
     }
+    if (unit.present) {
+      map['unit'] = Variable<String>(unit.value);
+    }
+    if (defaultQuantityMilli.present) {
+      map['default_quantity_milli'] = Variable<int>(defaultQuantityMilli.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1475,6 +1584,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
           ..write('useCount: $useCount, ')
           ..write('lastUsedAt: $lastUsedAt, ')
           ..write('archived: $archived, ')
+          ..write('unit: $unit, ')
+          ..write('defaultQuantityMilli: $defaultQuantityMilli, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6600,6 +6711,8 @@ typedef $$ItemsTableCreateCompanionBuilder =
       Value<int> useCount,
       Value<DateTime?> lastUsedAt,
       Value<bool> archived,
+      Value<String?> unit,
+      Value<int?> defaultQuantityMilli,
       Value<int> rowid,
     });
 typedef $$ItemsTableUpdateCompanionBuilder =
@@ -6614,6 +6727,8 @@ typedef $$ItemsTableUpdateCompanionBuilder =
       Value<int> useCount,
       Value<DateTime?> lastUsedAt,
       Value<bool> archived,
+      Value<String?> unit,
+      Value<int?> defaultQuantityMilli,
       Value<int> rowid,
     });
 
@@ -6720,6 +6835,16 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
 
   ColumnFilters<bool> get archived => $composableBuilder(
     column: $table.archived,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get defaultQuantityMilli => $composableBuilder(
+    column: $table.defaultQuantityMilli,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6844,6 +6969,16 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get defaultQuantityMilli => $composableBuilder(
+    column: $table.defaultQuantityMilli,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$CategoriesTableOrderingComposer get categoryKey {
     final $$CategoriesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6927,6 +7062,14 @@ class $$ItemsTableAnnotationComposer
 
   GeneratedColumn<bool> get archived =>
       $composableBuilder(column: $table.archived, builder: (column) => column);
+
+  GeneratedColumn<String> get unit =>
+      $composableBuilder(column: $table.unit, builder: (column) => column);
+
+  GeneratedColumn<int> get defaultQuantityMilli => $composableBuilder(
+    column: $table.defaultQuantityMilli,
+    builder: (column) => column,
+  );
 
   $$CategoriesTableAnnotationComposer get categoryKey {
     final $$CategoriesTableAnnotationComposer composer = $composerBuilder(
@@ -7042,6 +7185,8 @@ class $$ItemsTableTableManager
                 Value<int> useCount = const Value.absent(),
                 Value<DateTime?> lastUsedAt = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
+                Value<int?> defaultQuantityMilli = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ItemsCompanion(
                 id: id,
@@ -7054,6 +7199,8 @@ class $$ItemsTableTableManager
                 useCount: useCount,
                 lastUsedAt: lastUsedAt,
                 archived: archived,
+                unit: unit,
+                defaultQuantityMilli: defaultQuantityMilli,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7068,6 +7215,8 @@ class $$ItemsTableTableManager
                 Value<int> useCount = const Value.absent(),
                 Value<DateTime?> lastUsedAt = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
+                Value<int?> defaultQuantityMilli = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ItemsCompanion.insert(
                 id: id,
@@ -7080,6 +7229,8 @@ class $$ItemsTableTableManager
                 useCount: useCount,
                 lastUsedAt: lastUsedAt,
                 archived: archived,
+                unit: unit,
+                defaultQuantityMilli: defaultQuantityMilli,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -49,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// The schema this build writes. Also the target the pre-migration
   /// backup compares the on-disk `user_version` against.
-  static const latestSchemaVersion = 3;
+  static const latestSchemaVersion = 4;
 
   @override
   int get schemaVersion => latestSchemaVersion;
@@ -89,6 +89,11 @@ class AppDatabase extends _$AppDatabase {
         // documents/backups before drift opened it (see
         // [openDatabaseFileWithBackup]).
         //
+        // v3 -> v4 adds two nullable columns to items (the unit a loose
+        // product is sold by and the quantity usually bought). Nothing is
+        // rewritten: existing products keep a null unit and behave exactly
+        // as before.
+        //
         // Every step runs in one transaction. SQLite DDL is transactional,
         // so a failure half-way leaves the file exactly on its old version
         // instead of with some columns added, which would make the next
@@ -103,6 +108,10 @@ class AppDatabase extends _$AppDatabase {
             }
             if (from < 3) {
               await _migrateToV3(m);
+            }
+            if (from < 4) {
+              await m.addColumn(items, items.unit);
+              await m.addColumn(items, items.defaultQuantityMilli);
             }
           });
         },

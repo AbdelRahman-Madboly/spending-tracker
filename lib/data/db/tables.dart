@@ -29,6 +29,19 @@ class Items extends Table {
   DateTimeColumn get lastUsedAt => dateTime().nullable()();
   BoolColumn get archived => boolean().withDefault(const Constant(false))();
 
+  // v4 columns, nullable so every product that already exists keeps
+  // behaving as before.
+
+  /// A key of `entryUnitLabels` (`liter`, `kg`, `g`, ...) when the product
+  /// is sold loose by that unit, like milk by the litre at the market. Then
+  /// [defaultAmountPiastres] is the price of one unit. Null for a product
+  /// sold by the piece or pack.
+  TextColumn get unit => text().nullable()();
+
+  /// How much of [unit] is usually bought, in milli-units (2000 is two
+  /// litres). Only meaningful when [unit] is set.
+  IntColumn get defaultQuantityMilli => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
