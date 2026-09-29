@@ -389,6 +389,15 @@ void main() {
       expect(lines.map((l) => l.amountPiastres), [2000, 3000]);
     });
 
+    test('a و glued to ب splits like "و ب"', () {
+      for (final text in ['عيش ب 40 وب 20 لبن', 'عيش بـ٤٠ وبـ٢٠ لبن']) {
+        final lines = parse(text);
+        expect(lines, hasLength(2), reason: '"$text" gave $lines');
+        expectLine(lines[0], name: 'عيش', amount: 4000);
+        expectLine(lines[1], name: 'لبن', amount: 2000);
+      }
+    });
+
     test('و inside a number phrase never splits', () {
       expectLine(one('سجاير خمسة و عشرين'), name: 'سجاير', amount: 2500);
     });
@@ -448,6 +457,17 @@ void main() {
     test('an impossible date is not a date line', () {
       final lines = parse('٣٢/١٣\nشاي ١٠');
       expect(lines.last.date, DateTime(2026, 9, 29));
+    });
+
+    test('an impossible d/m line is not read as a price', () {
+      final line = parse('31/9\nشاي ١٠').first;
+      expect(line.amountPiastres, isNull, reason: '$line');
+      expect(line.name, isEmpty, reason: '$line');
+      expect(line.flags, contains(ParseFlag.noAmount));
+    });
+
+    test('a d/m inside a line is neither the price nor the name', () {
+      expectLine(one('عيش ٥ ٢٧/٩'), name: 'عيش', amount: 500);
     });
   });
 

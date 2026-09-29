@@ -2,15 +2,7 @@ import 'package:equatable/equatable.dart';
 
 /// How far the review sheet can trust a parsed value (spec §6). `low` lines
 /// are highlighted and cannot be saved with blanks.
-enum ParseConfidence {
-  low,
-  medium,
-  high;
-
-  /// The weaker of the two.
-  ParseConfidence min(ParseConfidence other) =>
-      index <= other.index ? this : other;
-}
+enum ParseConfidence { low, medium, high }
 
 /// Why a line came out the way it did, so the review sheet can say which
 /// field to check.

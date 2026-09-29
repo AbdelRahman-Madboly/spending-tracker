@@ -186,6 +186,7 @@ enum _Kind {
   fraction, // نص, ربع, تلت
   half, // ونص, و نص, وربع
   conj, // و, وكمان
+  date, // 27/9 inside a line, or a d/m line that is no real day
 }
 
 class _Token {
@@ -347,6 +348,16 @@ List<_Token> _tokens(List<String> rawWords) {
       continue;
     }
 
+    // "٢٧/٩" inside a line, or a whole line like "31/9" that failed the
+    // calendar check in [_dateLine]: a date, never two numbers and a name
+    // word "/". The digit split above has already set the slash apart.
+    final date = _dateAt(keys, i);
+    if (date > 0) {
+      out.add(_Token(_Kind.date, texts.sublist(i, i + date).join(), raw));
+      i += date;
+      continue;
+    }
+
     final read = readNumberWords(texts, i);
     if (read != null) {
       final previous = out.isEmpty ? null : out.last.kind;
@@ -386,6 +397,15 @@ List<_Token> _tokens(List<String> rawWords) {
       }
       continue;
     }
+    // "وب ٢٠" and "وبـ٢٠" (the digits already split off): a و glued to
+    // the price marker is "و ب", so [ArabicLineParser._splitOnWa] can
+    // split there and [_resolve] still sees the ب before the price.
+    if (key == 'وب') {
+      out.add(_Token(_Kind.conj, 'و', raw));
+      out.add(_Token(_Kind.marker, 'ب', raw));
+      i++;
+      continue;
+    }
     if (key.startsWith('و') && _halves.containsKey(key.substring(1))) {
       out.add(_Token(_Kind.half, text, raw, milli: _halves[key.substring(1)]));
       i++;
@@ -417,6 +437,19 @@ List<_Token> _tokens(List<String> rawWords) {
     i++;
   }
   return out;
+}
+
+final _dayOrMonth = RegExp(r'^\d{1,2}$');
+final _year = RegExp(r'^(\d{2}|\d{4})$');
+
+/// How many working words at [i] spell `d/m` or `d/m/y`, or 0.
+int _dateAt(List<String> keys, int i) {
+  bool at(int j, RegExp shape) => j < keys.length && shape.hasMatch(keys[j]);
+  bool slash(int j) => j < keys.length && keys[j] == '/';
+  if (!at(i, _dayOrMonth) || !slash(i + 1) || !at(i + 2, _dayOrMonth)) {
+    return 0;
+  }
+  return slash(i + 3) && at(i + 4, _year) ? 5 : 3;
 }
 
 int _milli(String digits) {
@@ -638,9 +671,11 @@ _Resolved _resolve(List<_Token> tokens) {
 
   if (unitPrice != null) {
     if (total == null) {
-      total = ((unitPrice * (quantity ?? 1000)) / 1000).round();
+      // Integer rounding to the nearest piastre and milli-unit: money
+      // never goes through a double.
+      total = (unitPrice * (quantity ?? 1000) + 500) ~/ 1000;
     } else if (quantity == null && unitPrice > 0) {
-      quantity = ((total * 1000) / unitPrice).round();
+      quantity = (total * 1000 + unitPrice ~/ 2) ~/ unitPrice;
     }
   }
 

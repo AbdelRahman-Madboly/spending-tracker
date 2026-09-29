@@ -135,6 +135,11 @@ const Map<String, String> _keywords = {
   'مكوه': 'Laundry',
 };
 
+/// Keywords that count only as the whole name, never as one word of a
+/// longer one: كريم alone is the Careem ride app, but "كريم شعر" is hair
+/// cream. The Latin "careem" has no such double meaning.
+const Set<String> _wholeNameOnly = {'كريم'};
+
 /// The items, aliases and subcategories names are matched against
 /// (spec §6.5 step 8).
 class ParserCatalogue {
@@ -207,6 +212,7 @@ class ParserCatalogue {
     }
 
     final word = words
+        .where((w) => !_wholeNameOnly.contains(w))
         .map((w) => _keywordToSubcategory[w])
         .nonNulls
         .firstOrNull;

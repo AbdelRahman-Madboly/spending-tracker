@@ -103,6 +103,12 @@ void main() {
       expect(catalogue.match('كيس عيش بلدي').subcategoryKey, 'Groceries');
     });
 
+    test('كريم is the ride app only as the whole name, not cream', () {
+      expect(catalogue.match('كريم').subcategoryKey, 'Taxi');
+      expect(catalogue.match('كريم شعر').subcategoryKey, isNot('Taxi'));
+      expect(catalogue.match('careem').subcategoryKey, 'Taxi');
+    });
+
     test('a keyword whose subcategory is missing from the catalogue is '
         'ignored', () {
       final bare = ParserCatalogue(items: const [], subcategories: const []);

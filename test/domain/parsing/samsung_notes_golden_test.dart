@@ -16,7 +16,9 @@ import 'parser_catalogue_fixture.dart';
 /// one name, and without the "(٣ أشخاص)" the import appended to its
 /// descriptions: the parser returns the count as quantity and unit instead.
 /// Quantity is checked except where the import inferred it from the price
-/// (flag `quantity_inferred`), because then the text states none.
+/// (flag `quantity_inferred`), because then the text states none. Rows the
+/// import skips (`skip: true`, a duplicate) are still checked: skipping is
+/// the import's decision, and the parser must read the line all the same.
 void main() {
   final parser = ArabicLineParser(parserCatalogueFixture());
   final json =
@@ -59,7 +61,6 @@ void main() {
 
       for (var i = 0; i < expected.length; i++) {
         final row = expected[i];
-        if (row['skip'] == true) continue;
         test('${row['ref']}: ${row['rawText']}', () {
           final line = lines[i];
           expect(line.amountPiastres, row['amountPiastres'], reason: '$line');
