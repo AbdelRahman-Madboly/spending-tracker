@@ -196,13 +196,27 @@ class ProductCatalog {
   /// file order, optionally only those filed under [categoryKey].
   List<CatalogueProduct> search(String query, {String? categoryKey}) {
     final key = normalizeArabic(query);
+    // Each product's text is normalised once, on the first search, not on
+    // every keystroke.
+    final texts = _searchTexts ??= [for (final p in products) _searchText(p)];
     return [
-      for (final p in products)
+      for (final (i, p) in products.indexed)
         if ((categoryKey == null || p.categoryKey == categoryKey) &&
-            (key.isEmpty || productMatches(key, p)))
+            (key.isEmpty || texts[i].contains(key)))
           p,
     ];
   }
+
+  List<String>? _searchTexts;
+
+  /// The product's names, brand and barcode, normalised, one per line so
+  /// a query never matches across two of them.
+  static String _searchText(CatalogueProduct p) => [
+        normalizeArabic(p.nameAr),
+        normalizeArabic(p.nameEn),
+        normalizeArabic(p.brand),
+        p.barcode,
+      ].join('\n');
 
   /// Whether [normalizedQuery] (already through [normalizeArabic]) is in
   /// [p]'s names, brand or barcode.

@@ -73,6 +73,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   bool _loaded = false;
   ProductCatalog _catalog = ProductCatalog.empty;
+
+  /// The categories the catalogue files products under, in first-use order.
+  Set<String>? _catalogueCategoryKeys;
   List<QuickPickItem> _items = const [];
   List<QuickPickItem> _archivedItems = const [];
   List<CategoryView> _categories = const [];
@@ -103,6 +106,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     if (!mounted) return;
     setState(() {
       _catalog = catalog;
+      _catalogueCategoryKeys ??= {
+        for (final p in catalog.products) p.categoryKey,
+      };
       _items = [...items]..sort((a, b) => a.nameAr.compareTo(b.nameAr));
       _archivedItems = archivedItems;
       _categories = categories;
@@ -288,7 +294,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   /// The categories the filter row offers on the tab showing.
   List<CategoryView> get _filterCategories {
     if (_tab == _Tab.mine) return _categories;
-    final keys = <String>{for (final p in _catalog.products) p.categoryKey};
+    final keys = {...?_catalogueCategoryKeys};
     return [
       for (final c in _categories)
         if (keys.remove(c.key)) c,
