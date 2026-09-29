@@ -196,6 +196,56 @@ void main() {
       expect(linked.uncertain, isEmpty);
     });
 
+    const cowMilk = QuickPickItem(
+      id: 'milk',
+      nameAr: 'لبن بقري سايب',
+      categoryKey: 'Drinks',
+      subcategoryKey: 'Milk',
+      defaultAmountPiastres: 2500,
+      unit: 'liter',
+      defaultQuantityMilli: 2000,
+    );
+
+    test('linking a product sold by the litre prices the line per litre, at '
+        'its usual quantity when none was said', () {
+      final line = ReviewLine.fromParsed(
+          _parsed(name: 'لبن', amount: null, flags: {ParseFlag.noAmount}),
+          id: 'a');
+      final linked = line.withItem(cowMilk);
+      expect(linked.unit, 'liter');
+      expect(linked.quantityMilli, 2000);
+      expect(linked.unitPricePiastres, 2500);
+      expect(linked.amountPiastres, 5000);
+      expect(linked.uncertain, isNot(contains(ReviewField.amount)));
+      // The amount now follows the quantity: three litres is 75.
+      expect(linked.withQuantity(3000).amountPiastres, 7500);
+      final saved = linked.toCaptureLineOrNull()!;
+      expect(saved.quantityMilli, 2000);
+      expect(saved.unit, 'liter');
+      expect(saved.unitPricePiastres, 2500);
+      expect(saved.amountPiastres, 5000);
+    });
+
+    test('linking a litre product keeps a stated quantity, and a total paid',
+        () {
+      final line = ReviewLine.fromParsed(
+          _parsed(name: 'لبن', amount: 6000, quantity: 2000), id: 'a');
+      final linked = line.withItem(cowMilk);
+      expect(linked.quantityMilli, 2000);
+      expect(linked.unit, 'liter');
+      expect(linked.amountPiastres, 6000);
+    });
+
+    test('linking a piece product leaves quantity and price alone', () {
+      final line = ReviewLine.fromParsed(_parsed(amount: 3000), id: 'a');
+      final linked = line.withItem(const QuickPickItem(
+          id: 'i2', nameAr: 'إندومي', categoryKey: 'Food',
+          defaultAmountPiastres: 1000));
+      expect(linked.amountPiastres, 3000);
+      expect(linked.unit, isNull);
+      expect(linked.unitPricePiastres, isNull);
+    });
+
     test('a new subcategory unlinks an item filed elsewhere', () {
       final linked = base.withItem(const QuickPickItem(
           id: 'i9', nameAr: 'عصير', categoryKey: 'Drinks',

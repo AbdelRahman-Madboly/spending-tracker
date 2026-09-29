@@ -5,6 +5,7 @@ import '../core/quantity.dart';
 import 'models.dart';
 import 'parsing/parsed_line.dart';
 import 'photo_reading.dart';
+import 'unit_pricing.dart';
 
 /// A field of a review line the user can be asked to check (spec §6.7:
 /// "`low` fields get a warning outline and an icon").
@@ -272,17 +273,39 @@ class ReviewLine extends Equatable {
       );
 
   /// Links [item]: the line takes its name, category and subcategory, and
-  /// the doubts about name and category are settled.
+  /// the doubts about name and category are settled. A product sold by a
+  /// unit also gives the line its unit and price per unit (see
+  /// [priceByUnit]), so the amount follows the quantity from then on.
   ReviewLine withItem(QuickPickItem item) {
+    final unit = item.unit;
+    final priced = unit == null
+        ? null
+        : priceByUnit(
+            unit: unit,
+            itemUnitPricePiastres: item.suggestedAmountPiastres,
+            usualQuantityMilli: item.defaultQuantityMilli,
+            quantityMilli: quantityMilli,
+            quantityStated: quantityMilli != 1000,
+            amountPiastres: amountPiastres,
+            unitPricePiastres: unitPricePiastres,
+          );
     return _copy(
       name: item.nameAr,
       itemId: item.id,
       linkedInReview: true,
       categoryKey: item.categoryKey,
       subcategoryKey: item.subcategoryKey,
+      quantityMilli: priced?.quantityMilli,
+      unit: priced == null ? _keep : priced.unit,
+      amountPiastres: priced == null ? _keep : priced.amountPiastres,
+      unitPricePiastres: priced == null ? _keep : priced.unitPricePiastres,
       uncertain: {...uncertain}
         ..remove(ReviewField.name)
-        ..remove(ReviewField.category),
+        ..remove(ReviewField.category)
+        ..removeAll([
+          if (priced?.amountPiastres != null && amountPiastres == null)
+            ReviewField.amount,
+        ]),
     );
   }
 

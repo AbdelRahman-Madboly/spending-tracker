@@ -4,6 +4,7 @@ import 'parsing/parsed_line.dart';
 import 'product_catalog.dart';
 import 'review.dart';
 import 'spending_repository.dart';
+import 'unit_pricing.dart';
 
 /// Counts the products passed in front of the scanner in continuous mode
 /// (spec §6.3).
@@ -64,6 +65,34 @@ Future<List<ParsedLine>> barcodeLines(
     final item = await repository.itemByBarcode(code);
     if (item != null) {
       final price = item.suggestedAmountPiastres;
+      if (item.unit case final unit?) {
+        // Sold by the litre or kilo: a scan is the usual quantity, and
+        // scanning it again says how many units.
+        final priced = priceByUnit(
+          unit: unit,
+          itemUnitPricePiastres: price,
+          usualQuantityMilli: item.defaultQuantityMilli,
+          quantityMilli: quantityMilli,
+          quantityStated: count > 1,
+        );
+        lines.add(ParsedLine(
+          rawText: code,
+          date: day,
+          name: item.nameAr,
+          itemId: item.id,
+          categoryKey: item.categoryKey,
+          subcategoryKey: item.subcategoryKey,
+          quantityMilli: priced.quantityMilli,
+          unit: priced.unit,
+          amountPiastres: priced.amountPiastres,
+          unitPricePiastres: priced.unitPricePiastres,
+          confidence:
+              price == null ? ParseConfidence.medium : ParseConfidence.high,
+          flags: {if (price == null) ParseFlag.noAmount},
+          barcode: code,
+        ));
+        continue;
+      }
       lines.add(ParsedLine(
         rawText: code,
         date: day,

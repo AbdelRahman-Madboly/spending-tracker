@@ -40,6 +40,8 @@ enum ParseFlag {
 /// Unit keys (spec §6.5 step 5). Stored in English, shown in Arabic.
 abstract final class ParsedUnit {
   static const kg = 'kg';
+  static const gram = 'g';
+  static const liter = 'liter';
   static const bag = 'bag';
   static const box = 'box';
   static const bottle = 'bottle';

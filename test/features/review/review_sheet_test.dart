@@ -7,6 +7,7 @@ import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/data/photo_capture_service.dart';
 import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/domain/parsing/parsed_line.dart';
+import 'package:spending_tracker/features/add/widgets/category_strip.dart';
 import 'package:spending_tracker/features/review/review_sheet.dart';
 
 import '../transactions/attachment_strip_test.dart' show FakeVoicePlayback;
@@ -568,6 +569,65 @@ void main() {
     testWidgets('a capture with words shows no typing field', (tester) async {
       await _open(tester, _text('طماطم ب 30'));
       expect(find.byKey(const Key('review-type-text')), findsNothing);
+    });
+  });
+
+  group('a line of a product sold by the litre', () {
+    Future<(_Harness, QuickPickItem)> withMilk() async {
+      final h = _Harness();
+      final milk = await h.repo.createItem(
+        nameAr: 'لبن بقري سايب',
+        categoryKey: 'Drinks',
+        subcategoryKey: 'Milk',
+        defaultAmountPiastres: 2500,
+        unit: 'liter',
+        defaultQuantityMilli: 2000,
+      );
+      return (h, milk);
+    }
+
+    String field(WidgetTester tester, int line, String key) => tester
+        .widget<TextField>(_inLine(line, find.byKey(Key(key))))
+        .controller!
+        .text;
+
+    testWidgets('is priced per litre from the quantity said, and saving '
+        'records the litres and the price per litre', (tester) async {
+      final (h, milk) = await withMilk();
+      await _open(tester, _text('3 لتر لبن بقري سايب'), harness: h);
+      expect(field(tester, 0, 'line-quantity'), '3');
+      expect(field(tester, 0, 'line-amount'), '75');
+      expect(
+          tester
+              .widget<SelectableChip>(
+                  _inLine(0, find.byKey(const Key('unit-liter'))))
+              .selected,
+          isTrue);
+
+      // Changing the litres changes the total at 25 a litre.
+      await tester.enterText(
+          _inLine(0, find.byKey(const Key('line-quantity'))), '1.5');
+      await tester.pumpAndSettle();
+      expect(field(tester, 0, 'line-amount'), '37.50');
+
+      await _tap(tester, find.byKey(const Key('review-save')));
+      final saved = (await _saved(h.repo)).single;
+      final record = (await h.repo.entry(saved.id))!;
+      expect(record.itemId, milk.id);
+      expect(record.quantityMilli, 1500);
+      expect(record.unit, 'liter');
+      expect(record.unitPricePiastres, 2500);
+      expect(record.amountPiastres, 3750);
+    });
+
+    testWidgets('linking the product in review prices the line per litre',
+        (tester) async {
+      final (h, milk) = await withMilk();
+      await _open(tester, _text('لبن من السوق'), harness: h);
+      await _tap(tester, _inLine(0, find.byKey(const Key('category-Drinks'))));
+      await _tap(tester, _inLine(0, find.byKey(Key('item-${milk.id}'))));
+      expect(field(tester, 0, 'line-quantity'), '2');
+      expect(field(tester, 0, 'line-amount'), '50');
     });
   });
 }

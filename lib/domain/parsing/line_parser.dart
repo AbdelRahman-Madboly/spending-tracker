@@ -1,4 +1,5 @@
 import '../../core/arabic_text.dart';
+import '../unit_pricing.dart';
 import 'catalogue_matcher.dart';
 import 'number_words.dart';
 import 'parsed_line.dart';
@@ -53,10 +54,32 @@ class ArabicLineParser {
   ParsedLine _line(_Segment segment, DateTime date, bool dateFromText) {
     final r = _resolve(segment.tokens);
     final match = catalogue.match(r.name);
+    var quantityMilli = r.quantityMilli;
+    var unit = r.unit;
+    var amount = r.amountPiastres;
+    var unitPrice = r.unitPricePiastres;
+    // A product sold loose by a unit (milk by the litre) prices the line
+    // per unit: "2 لتر لبن" is two litres at its price a litre.
+    final itemUnit = match.item?.unit;
+    if (itemUnit != null) {
+      final priced = priceByUnit(
+        unit: itemUnit,
+        itemUnitPricePiastres: match.item!.unitPricePiastres,
+        usualQuantityMilli: match.item!.usualQuantityMilli,
+        quantityMilli: r.quantityMilli,
+        quantityStated: r.quantityStated,
+        amountPiastres: r.amountPiastres,
+        unitPricePiastres: r.unitPricePiastres,
+      );
+      quantityMilli = priced.quantityMilli;
+      unit = priced.unit;
+      amount = priced.amountPiastres;
+      unitPrice = priced.unitPricePiastres;
+    }
     final flags = <ParseFlag>{...r.flags};
     if (dateFromText) flags.add(ParseFlag.dateFromText);
     if (match.fuzzy) flags.add(ParseFlag.fuzzyMatch);
-    if (r.amountPiastres == null) flags.add(ParseFlag.noAmount);
+    if (amount == null) flags.add(ParseFlag.noAmount);
     if (match.categoryKey == null) flags.add(ParseFlag.noCategory);
     final weak =
         flags.contains(ParseFlag.noAmount) ||
@@ -69,10 +92,10 @@ class ArabicLineParser {
       itemId: match.itemId,
       categoryKey: match.categoryKey,
       subcategoryKey: match.subcategoryKey,
-      quantityMilli: r.quantityMilli,
-      unit: r.unit,
-      amountPiastres: r.amountPiastres,
-      unitPricePiastres: r.unitPricePiastres,
+      quantityMilli: quantityMilli,
+      unit: unit,
+      amountPiastres: amount,
+      unitPricePiastres: unitPrice,
       confidence: weak ? ParseConfidence.low : match.confidence,
       flags: flags,
     );
@@ -244,6 +267,15 @@ const Map<String, (String, int?, bool)> _units = {
   'كغ': (ParsedUnit.kg, null, false),
   'kg': (ParsedUnit.kg, null, false),
   'كيلوين': (ParsedUnit.kg, 2000, false),
+  'لتر': (ParsedUnit.liter, null, false),
+  'ليتر': (ParsedUnit.liter, null, false),
+  'لترات': (ParsedUnit.liter, null, true),
+  'لترين': (ParsedUnit.liter, 2000, false),
+  'liter': (ParsedUnit.liter, null, false),
+  'litre': (ParsedUnit.liter, null, false),
+  'جرام': (ParsedUnit.gram, null, false),
+  'جرامات': (ParsedUnit.gram, null, true),
+  'غرام': (ParsedUnit.gram, null, false),
   'كيس': (ParsedUnit.bag, null, false),
   'اكياس': (ParsedUnit.bag, null, true),
   'كيسين': (ParsedUnit.bag, 2000, false),
@@ -521,6 +553,7 @@ class _Resolved {
   _Resolved({
     required this.name,
     required this.quantityMilli,
+    this.quantityStated = false,
     this.unit,
     this.amountPiastres,
     this.unitPricePiastres,
@@ -529,6 +562,10 @@ class _Resolved {
 
   final String name;
   final int quantityMilli;
+
+  /// False when the text said nothing about how much, and [quantityMilli]
+  /// is the one it means by default.
+  final bool quantityStated;
   final String? unit;
   final int? amountPiastres;
   final int? unitPricePiastres;
@@ -682,6 +719,7 @@ _Resolved _resolve(List<_Token> tokens) {
   return _Resolved(
     name: _name(tokens),
     quantityMilli: quantity ?? 1000,
+    quantityStated: quantity != null,
     unit: unit,
     amountPiastres: total,
     unitPricePiastres: unitPrice,

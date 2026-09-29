@@ -14,7 +14,15 @@ Future<ParserCatalogue> loadParserCatalogue(SpendingRepository repo) async {
   return ParserCatalogue(
     items: [
       for (final i in items)
-        CatalogueItem(i.id, i.nameAr, i.categoryKey, i.subcategoryKey),
+        CatalogueItem(
+          i.id,
+          i.nameAr,
+          i.categoryKey,
+          i.subcategoryKey,
+          unit: i.unit,
+          unitPricePiastres: i.defaultAmountPiastres,
+          usualQuantityMilli: i.defaultQuantityMilli,
+        ),
     ],
     subcategories: [
       for (final s in subcategories)

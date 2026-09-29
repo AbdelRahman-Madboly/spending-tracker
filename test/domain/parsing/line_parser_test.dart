@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/domain/parsing/catalogue_matcher.dart';
 import 'package:spending_tracker/domain/parsing/line_parser.dart';
 import 'package:spending_tracker/domain/parsing/parsed_line.dart';
 
@@ -499,6 +500,91 @@ void main() {
       expect(line.quantityMilli, 3000);
       expect(line.confidence, ParseConfidence.low);
       expect(line.flags, contains(ParseFlag.ambiguousAmount));
+    });
+  });
+
+  group('products sold by the litre or the gram', () {
+    final milkParser = ArabicLineParser(ParserCatalogue(
+      items: const [
+        CatalogueItem('cow', 'لبن بقري سايب', 'Drinks', 'Milk',
+            unit: 'liter', unitPricePiastres: 2500, usualQuantityMilli: 2000),
+        CatalogueItem('buffalo', 'لبن جاموسي سايب', 'Drinks', 'Milk',
+            unit: 'liter'),
+      ],
+      subcategories: const [CatalogueSubcategory('Milk', 'Drinks', 'لبن')],
+    ));
+    ParsedLine milk(String text) {
+      final lines = milkParser.parse(text, capturedAt: afternoon);
+      expect(lines, hasLength(1), reason: '"$text" gave $lines');
+      return lines.single;
+    }
+
+    test('لتر and جرام are units', () {
+      expectLine(one('2 لتر زيت ب 150'),
+          name: 'زيت', amount: 15000, quantityMilli: 2000, unit: 'liter');
+      expectLine(one('نص لتر عصير ب 20'),
+          name: 'عصير', amount: 2000, quantityMilli: 500, unit: 'liter');
+      expectLine(one('لترين مياه ب 16'),
+          name: 'مياه', amount: 1600, quantityMilli: 2000, unit: 'liter');
+      expectLine(one('250 جرام جبنة ب 40'),
+          name: 'جبنة', amount: 4000, quantityMilli: 250000, unit: 'g');
+    });
+
+    test('"2 لتر لبن بقري سايب" is priced at 25 a litre', () {
+      final line = milk('2 لتر لبن بقري سايب');
+      expect(line.itemId, 'cow');
+      expectLine(line,
+          name: 'لبن بقري سايب',
+          amount: 5000,
+          quantityMilli: 2000,
+          unit: 'liter',
+          unitPrice: 2500);
+      expect(line.flags, isNot(contains(ParseFlag.noAmount)));
+    });
+
+    test('the product alone is its usual 2 litres', () {
+      expectLine(milk('لبن بقري سايب'),
+          name: 'لبن بقري سايب',
+          amount: 5000,
+          quantityMilli: 2000,
+          unit: 'liter',
+          unitPrice: 2500);
+    });
+
+    test('"نص لتر" of it is 12.50', () {
+      expectLine(milk('نص لتر لبن بقري سايب'),
+          name: 'لبن بقري سايب',
+          amount: 1250,
+          quantityMilli: 500,
+          unit: 'liter',
+          unitPrice: 2500);
+    });
+
+    test('"2 لتر لبن بقري سايب ب 25" reads 25 as the price of a litre', () {
+      expectLine(milk('2 لتر لبن بقري سايب ب 25'),
+          name: 'لبن بقري سايب',
+          amount: 5000,
+          quantityMilli: 2000,
+          unit: 'liter',
+          unitPrice: 2500);
+    });
+
+    test('a different price is the total paid', () {
+      expectLine(milk('2 لتر لبن بقري سايب ب 60'),
+          name: 'لبن بقري سايب',
+          amount: 6000,
+          quantityMilli: 2000,
+          unit: 'liter');
+    });
+
+    test('a product with no price yet keeps asking for the amount', () {
+      final line = milk('3 لتر لبن جاموسي سايب');
+      expectLine(line,
+          name: 'لبن جاموسي سايب',
+          amount: null,
+          quantityMilli: 3000,
+          unit: 'liter');
+      expect(line.flags, contains(ParseFlag.noAmount));
     });
   });
 }

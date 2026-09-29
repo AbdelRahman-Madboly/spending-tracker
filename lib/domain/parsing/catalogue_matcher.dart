@@ -9,13 +9,23 @@ class CatalogueItem {
     this.id,
     this.nameAr,
     this.categoryKey,
-    this.subcategoryKey,
-  );
+    this.subcategoryKey, {
+    this.unit,
+    this.unitPricePiastres,
+    this.usualQuantityMilli,
+  });
 
   final String id;
   final String nameAr;
   final String categoryKey;
   final String? subcategoryKey;
+
+  /// Set for a product sold loose by a unit (milk by the litre): a line
+  /// matching it is priced per unit at [unitPricePiastres], and at
+  /// [usualQuantityMilli] when the text gave no quantity.
+  final String? unit;
+  final int? unitPricePiastres;
+  final int? usualQuantityMilli;
 }
 
 /// A subcategory as the parser sees it: its label doubles as a keyword.
@@ -36,6 +46,7 @@ class CatalogueMatch {
     this.subcategoryKey,
     required this.confidence,
     this.fuzzy = false,
+    this.item,
   });
 
   /// The name to show: the item's spelling when the whole name matched an
@@ -48,6 +59,9 @@ class CatalogueMatch {
 
   /// True when the item was found by edit distance, not spelling.
   final bool fuzzy;
+
+  /// The matched item, when [itemId] is set.
+  final CatalogueItem? item;
 }
 
 /// Everyday words that name a subcategory without being a catalogue item
@@ -240,6 +254,7 @@ class ParserCatalogue {
     subcategoryKey: item.subcategoryKey,
     confidence: high ? ParseConfidence.high : ParseConfidence.medium,
     fuzzy: fuzzy,
+    item: item,
   );
 
   /// The nearest item name or alias within the allowed distance: one edit

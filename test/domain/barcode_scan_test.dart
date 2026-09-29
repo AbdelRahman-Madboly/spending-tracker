@@ -45,6 +45,24 @@ void main() {
 
     setUp(() => repo = FixtureSpendingRepository());
 
+    test('a known code of a product sold by the litre is its usual '
+        'quantity at its price a litre', () async {
+      final milk = await repo.createItem(
+          nameAr: 'لبن بقري سايب',
+          categoryKey: 'Drinks',
+          defaultAmountPiastres: 2500,
+          barcode: '6220001',
+          unit: 'liter',
+          defaultQuantityMilli: 2000);
+      final line =
+          (await barcodeLines(['6220001'], repository: repo, day: day)).single;
+      expect(line.itemId, milk.id);
+      expect(line.unit, 'liter');
+      expect(line.quantityMilli, 2000);
+      expect(line.unitPricePiastres, 2500);
+      expect(line.amountPiastres, 5000);
+    });
+
     test('a known code is its item at the price it was last bought at',
         () async {
       final item = await repo.createItem(

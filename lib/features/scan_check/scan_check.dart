@@ -21,6 +21,7 @@ import '../../domain/parsing/parsed_line.dart';
 import '../../domain/product_catalog.dart';
 import '../../domain/scan_check.dart';
 import '../../domain/spending_repository.dart';
+import '../../domain/unit_pricing.dart';
 import '../add/widgets/category_strip.dart' show SelectableChip;
 import '../capture/permission_prompt.dart';
 import '../products/product_editor.dart' show barcodeTakenMessage;
@@ -156,14 +157,29 @@ Future<void> scanAndCheck(
         final keys =
             await _categoryFor(repository, catalog, decision!, categories);
         if (!context.mounted) return;
+        final item = decision.finding.item;
+        // A product sold by the litre or kilo: the card's price is per
+        // unit, and the line is the usual quantity of it.
+        final priced = item?.unit == null
+            ? null
+            : priceByUnit(
+                unit: item!.unit!,
+                itemUnitPricePiastres: decision.pricePiastres,
+                usualQuantityMilli: item.defaultQuantityMilli,
+                quantityMilli: 1000,
+                quantityStated: false,
+              );
         final line = ParsedLine(
           rawText: scanned,
           date: ArabicLineParser.captureDay(capturedAt),
           name: decision.name,
-          itemId: decision.finding.item?.id,
+          itemId: item?.id,
           categoryKey: keys.categoryKey,
           subcategoryKey: keys.subcategoryKey,
-          amountPiastres: decision.pricePiastres,
+          quantityMilli: priced?.quantityMilli ?? 1000,
+          unit: priced?.unit,
+          unitPricePiastres: priced?.unitPricePiastres,
+          amountPiastres: priced?.amountPiastres ?? decision.pricePiastres,
           confidence: ParseConfidence.medium,
           flags: {
             if (keys.categoryKey == null) ParseFlag.noCategory,

@@ -356,6 +356,24 @@ void main() {
       expect(repo.purchases, 0);
     });
 
+    testWidgets('سجل كمصروف on a product sold by the litre opens review on '
+        'its usual litres at its price a litre', (tester) async {
+      await repo.createItem(
+          nameAr: 'لبن بقري سايب',
+          categoryKey: 'Drinks',
+          defaultAmountPiastres: 2500,
+          barcode: '6220000000002',
+          unit: 'liter',
+          defaultQuantityMilli: 2000);
+      await run(tester, ['6220000000002']);
+      await tapKey(tester, 'scan-record');
+      expect(find.byType(ReviewSheet), findsOneWidget);
+      String field(String key) =>
+          tester.widget<TextField>(find.byKey(Key(key))).controller!.text;
+      expect(field('line-quantity'), '2');
+      expect(field('line-amount'), '50');
+    });
+
     testWidgets('امسح تاني scans the next product', (tester) async {
       await run(tester, ['5449000000996', '6221007012345']);
       await tapKey(tester, 'scan-again');
