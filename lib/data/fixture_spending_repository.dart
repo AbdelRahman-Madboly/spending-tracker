@@ -405,6 +405,8 @@ class FixtureSpendingRepository implements SpendingRepository {
       nameAr: nameAr,
       categoryKey: categoryKey,
       defaultAmountPiastres: defaultAmountPiastres,
+      unit: _items[index].unit,
+      defaultQuantityMilli: _items[index].defaultQuantityMilli,
     );
     _controller.add(null);
   }
@@ -417,6 +419,8 @@ class FixtureSpendingRepository implements SpendingRepository {
     String? subcategoryKey,
     int? defaultAmountPiastres,
     String? barcode,
+    String? unit,
+    int? defaultQuantityMilli,
   }) async {
     if (barcode != null) {
       final holder = await itemByBarcode(barcode);
@@ -433,6 +437,8 @@ class FixtureSpendingRepository implements SpendingRepository {
       subcategoryKey: subcategoryKey,
       defaultAmountPiastres: defaultAmountPiastres,
       barcode: barcode,
+      unit: unit,
+      defaultQuantityMilli: unit == null ? null : defaultQuantityMilli,
     );
     _controller.add(null);
   }
@@ -515,7 +521,11 @@ class FixtureSpendingRepository implements SpendingRepository {
           subcategoryKey: i.subcategoryKey,
           defaultAmountPiastres: i.defaultAmountPiastres,
           barcode: i.barcode,
-          lastAmountPiastres: _lastAmounts[i.id],
+          unit: i.unit,
+          defaultQuantityMilli: i.defaultQuantityMilli,
+          // A product sold by a unit is suggested at its price per unit.
+          lastAmountPiastres:
+              i.unit != null ? _lastUnitPrices[i.id] : _lastAmounts[i.id],
         ),
     ];
   }
@@ -631,6 +641,9 @@ class FixtureSpendingRepository implements SpendingRepository {
           categoryKey: categoryKey,
           subcategoryKey: _items[i].subcategoryKey,
           defaultAmountPiastres: _items[i].defaultAmountPiastres,
+          barcode: _items[i].barcode,
+          unit: _items[i].unit,
+          defaultQuantityMilli: _items[i].defaultQuantityMilli,
         );
       }
     }
@@ -737,6 +750,8 @@ class FixtureSpendingRepository implements SpendingRepository {
     String? subcategoryKey,
     int? defaultAmountPiastres,
     String? barcode,
+    String? unit,
+    int? defaultQuantityMilli,
   }) async {
     if (barcode != null && await itemByBarcode(barcode) != null) {
       throw DuplicateBarcodeException(barcode);
@@ -748,6 +763,8 @@ class FixtureSpendingRepository implements SpendingRepository {
       subcategoryKey: subcategoryKey,
       defaultAmountPiastres: defaultAmountPiastres,
       barcode: barcode,
+      unit: unit,
+      defaultQuantityMilli: unit == null ? null : defaultQuantityMilli,
     );
     _items.insert(0, item);
     return item;
@@ -764,6 +781,8 @@ class FixtureSpendingRepository implements SpendingRepository {
           subcategoryKey: i.subcategoryKey,
           defaultAmountPiastres: i.defaultAmountPiastres,
           barcode: i.barcode,
+          unit: i.unit,
+          defaultQuantityMilli: i.defaultQuantityMilli,
           lastAmountPiastres: _lastUnitPrices[i.id],
         );
       }
@@ -788,6 +807,8 @@ class FixtureSpendingRepository implements SpendingRepository {
           subcategoryKey: i.subcategoryKey,
           defaultAmountPiastres: i.defaultAmountPiastres,
           barcode: barcode,
+          unit: i.unit,
+          defaultQuantityMilli: i.defaultQuantityMilli,
         );
       }
       return linked;
@@ -831,6 +852,9 @@ class FixtureSpendingRepository implements SpendingRepository {
       description: draft.description ?? '',
       paymentMethod: draft.paymentMethod ?? 'Cash',
       source: draft.source,
+      quantityMilli: draft.quantityMilli,
+      unit: draft.unit,
+      unitPricePiastres: draft.unitPricePiastres,
     );
     _createdAt[id] = DateTime.now();
     final photoPath = draft.photoPath;
@@ -843,7 +867,24 @@ class FixtureSpendingRepository implements SpendingRepository {
         createdAt: DateTime.now(),
       ));
     }
-    _recordUse(draft.itemId, draft.amountPiastres ?? 0);
+    _recordUse(draft.itemId, draft.amountPiastres ?? 0,
+        quantityMilli: draft.quantityMilli,
+        unitPricePiastres: draft.unitPricePiastres);
+    final unitPrice = draft.unitPricePiastres;
+    final index = _items.indexWhere((i) => i.id == draft.itemId);
+    if (unitPrice != null && index != -1) {
+      final i = _items[index];
+      _items[index] = QuickPickItem(
+        id: i.id,
+        nameAr: i.nameAr,
+        categoryKey: i.categoryKey,
+        subcategoryKey: i.subcategoryKey,
+        barcode: i.barcode,
+        defaultAmountPiastres: unitPrice,
+        unit: i.unit,
+        defaultQuantityMilli: i.defaultQuantityMilli,
+      );
+    }
     _settings[lastPaymentMethodSettingKey] = draft.paymentMethod ?? 'Cash';
     _controller.add(null);
   }
@@ -1075,6 +1116,8 @@ class FixtureSpendingRepository implements SpendingRepository {
       subcategoryKey: i.subcategoryKey,
       barcode: i.barcode,
       defaultAmountPiastres: capturedUnitPrice(line),
+      unit: i.unit,
+      defaultQuantityMilli: i.defaultQuantityMilli,
     );
   }
 

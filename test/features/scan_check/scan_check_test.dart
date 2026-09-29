@@ -320,6 +320,27 @@ void main() {
       expect(repo.purchases, 0);
     });
 
+    testWidgets('احفظ التعديل on a product sold by the litre keeps it sold '
+        'by the litre', (tester) async {
+      final mine = await repo.createItem(
+          nameAr: 'لبن بقري سايب',
+          categoryKey: 'Drinks',
+          defaultAmountPiastres: 2500,
+          barcode: '6220000000001',
+          unit: 'liter',
+          defaultQuantityMilli: 2000);
+      await run(tester, ['6220000000001']);
+      await tapKey(tester, 'scan-edit');
+      await tester.enterText(find.byKey(const Key('scan-price')), '27');
+      await tapKey(tester, 'scan-save');
+
+      final item = await repo.itemByBarcode('6220000000001');
+      expect(item!.id, mine.id);
+      expect(item.defaultAmountPiastres, 2700);
+      expect(item.unit, 'liter');
+      expect(item.defaultQuantityMilli, 2000);
+    });
+
     testWidgets('سجل كمصروف needs a price, then opens review with the one '
         'line', (tester) async {
       await run(tester, ['1234567890123'], lookup: _Lookup('Nutella'));

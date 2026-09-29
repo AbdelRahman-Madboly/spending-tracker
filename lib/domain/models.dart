@@ -305,6 +305,17 @@ class QuickPickItem extends Equatable {
   /// the price of one, since a scan multiplies it by the count scanned.
   final int? lastAmountPiastres;
 
+  /// A key of [entryUnitLabels] when the product is sold loose by that
+  /// unit (milk by the litre, tomatoes by the kilo). Then
+  /// [defaultAmountPiastres] and [lastAmountPiastres] are prices of one
+  /// unit, and adding it asks how much was bought. Null for a product
+  /// sold by the piece or pack, which behaves as it always has.
+  final String? unit;
+
+  /// How much of [unit] is usually bought, in milli-units (2000 is two
+  /// litres). Only meaningful when [unit] is set.
+  final int? defaultQuantityMilli;
+
   const QuickPickItem({
     required this.id,
     required this.nameAr,
@@ -313,7 +324,11 @@ class QuickPickItem extends Equatable {
     this.subcategoryKey,
     this.barcode,
     this.lastAmountPiastres,
+    this.unit,
+    this.defaultQuantityMilli,
   });
+
+  bool get isSoldByUnit => unit != null;
 
   /// The amount a tap on this item fills in: the last price paid, else the
   /// catalogue's default (spec §6.1: prices drift, the last one is the best
@@ -330,8 +345,16 @@ class QuickPickItem extends Equatable {
         subcategoryKey,
         barcode,
         lastAmountPiastres,
+        unit,
+        defaultQuantityMilli,
       ];
 }
+
+/// What [quantityMilli] of something at [unitPricePiastres] a unit costs,
+/// rounded to the piastre the way [unitPriceOf] rounds back: two litres at
+/// 25 is 50, 0.75 of a kilo at 30 is 22.50.
+int totalForQuantity(int unitPricePiastres, int quantityMilli) =>
+    (unitPricePiastres * quantityMilli + 500) ~/ 1000;
 
 class DraftEntry extends Equatable {
   final int? amountPiastres;
@@ -345,6 +368,13 @@ class DraftEntry extends Equatable {
   final EntrySource source;
   final double confidence;
 
+  /// Set for a product bought loose by a unit: how much (milli-units), of
+  /// which unit, at what price per unit. [amountPiastres] is then the
+  /// total. Saving makes [unitPricePiastres] the item's price per unit.
+  final int? quantityMilli;
+  final String? unit;
+  final int? unitPricePiastres;
+
   const DraftEntry({
     this.amountPiastres,
     this.itemId,
@@ -356,6 +386,9 @@ class DraftEntry extends Equatable {
     this.voiceNotePath,
     required this.source,
     this.confidence = 1.0,
+    this.quantityMilli,
+    this.unit,
+    this.unitPricePiastres,
   });
 
   bool get isComplete => amountPiastres != null && categoryKey != null;
@@ -374,6 +407,9 @@ class DraftEntry extends Equatable {
         voiceNotePath: voiceNotePath,
         source: source,
         confidence: confidence,
+        quantityMilli: quantityMilli,
+        unit: unit,
+        unitPricePiastres: unitPricePiastres,
       );
 
   DraftEntry copyWith({
@@ -394,6 +430,9 @@ class DraftEntry extends Equatable {
         voiceNotePath: voiceNotePath,
         source: source,
         confidence: confidence,
+        quantityMilli: quantityMilli,
+        unit: unit,
+        unitPricePiastres: unitPricePiastres,
       );
 
   @override
@@ -404,7 +443,10 @@ class DraftEntry extends Equatable {
         categoryKey,
         subcategoryKey,
         paymentMethod,
-        source
+        source,
+        quantityMilli,
+        unit,
+        unitPricePiastres,
       ];
 }
 

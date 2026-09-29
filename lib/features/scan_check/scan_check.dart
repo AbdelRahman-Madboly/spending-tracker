@@ -252,6 +252,10 @@ Future<void> _saveProduct(
         subcategoryKey: keys.subcategoryKey,
         defaultAmountPiastres: decision.pricePiastres,
         barcode: item.barcode ?? code,
+        // The card edits name, price and category only; how the product
+        // is sold stays as the editor set it.
+        unit: item.unit,
+        defaultQuantityMilli: item.defaultQuantityMilli,
       );
     }
   } on DuplicateBarcodeException catch (e) {

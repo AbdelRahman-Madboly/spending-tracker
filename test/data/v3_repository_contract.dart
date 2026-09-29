@@ -1079,6 +1079,157 @@ void runV3RepositoryContract(
       ));
       expect(await repo.setting(lastPaymentMethodSettingKey), isNull);
     });
+      group('products sold by a unit', () {
+        Future<QuickPickItem> cowMilk({int? price = 2500}) => repo.createItem(
+              nameAr: 'لبن بقري سايب',
+              categoryKey: 'Drinks',
+              subcategoryKey: 'Milk',
+              defaultAmountPiastres: price,
+              unit: 'liter',
+              defaultQuantityMilli: 2000,
+            );
+
+        Future<void> buyTwoLitres(QuickPickItem milk,
+                {int unitPrice = 2500}) =>
+            repo.saveEntry(DraftEntry(
+              amountPiastres: unitPrice * 2,
+              itemId: milk.id,
+              description: milk.nameAr,
+              categoryKey: milk.categoryKey,
+              subcategoryKey: milk.subcategoryKey,
+              quantityMilli: 2000,
+              unit: 'liter',
+              unitPricePiastres: unitPrice,
+              source: EntrySource.quickPick,
+            ));
+
+        test('createItem keeps the unit and the usual quantity', () async {
+          final milk = await cowMilk();
+          expect(milk.unit, 'liter');
+          expect(milk.defaultQuantityMilli, 2000);
+          expect(milk.isSoldByUnit, isTrue);
+          final saved =
+              (await repo.allItems()).firstWhere((i) => i.id == milk.id);
+          expect(saved.unit, 'liter');
+          expect(saved.defaultQuantityMilli, 2000);
+          expect(saved.defaultAmountPiastres, 2500);
+          final inCategory = (await repo.itemsInCategory('Drinks', 50))
+              .firstWhere((i) => i.id == milk.id);
+          expect(inCategory.unit, 'liter');
+        });
+
+        test('an item made without a unit is sold by the piece as before',
+            () async {
+          final item = await repo.createItem(
+              nameAr: 'لبن بخيرو 1 لتر', categoryKey: 'Drinks');
+          expect(item.unit, isNull);
+          expect(item.defaultQuantityMilli, isNull);
+          expect(item.isSoldByUnit, isFalse);
+        });
+
+        test('updateProduct sets the unit and the usual quantity, and a null '
+            'unit makes it a piece product again', () async {
+          final item = await repo.createItem(
+              nameAr: 'لبن', categoryKey: 'Drinks', defaultAmountPiastres: 2500);
+          await repo.updateProduct(
+            itemId: item.id,
+            nameAr: 'لبن بقري سايب',
+            categoryKey: 'Drinks',
+            defaultAmountPiastres: 2500,
+            unit: 'liter',
+            defaultQuantityMilli: 2000,
+          );
+          var saved = (await repo.allItems()).firstWhere((i) => i.id == item.id);
+          expect(saved.unit, 'liter');
+          expect(saved.defaultQuantityMilli, 2000);
+
+          await repo.updateProduct(
+              itemId: item.id,
+              nameAr: 'لبن',
+              categoryKey: 'Drinks',
+              defaultAmountPiastres: 2500);
+          saved = (await repo.allItems()).firstWhere((i) => i.id == item.id);
+          expect(saved.unit, isNull);
+          expect(saved.defaultQuantityMilli, isNull);
+        });
+
+        test('saveEntry stores the quantity, unit and unit price of a loose '
+            'purchase', () async {
+          final milk = await cowMilk();
+          await buyTwoLitres(milk);
+          final entry = (await repo.watchTransactions().first)
+              .firstWhere((t) => t.itemNameAr == milk.nameAr);
+          final record = (await repo.entry(entry.id))!;
+          expect(record.amountPiastres, 5000);
+          expect(record.quantityMilli, 2000);
+          expect(record.unit, 'liter');
+          expect(record.unitPricePiastres, 2500);
+        });
+
+        test('saveEntry learns the price per unit paid, and the usual '
+            'quantity stays', () async {
+          final milk = await cowMilk();
+          await buyTwoLitres(milk, unitPrice: 2700);
+          final saved =
+              (await repo.allItems()).firstWhere((i) => i.id == milk.id);
+          expect(saved.defaultAmountPiastres, 2700);
+          expect(saved.defaultQuantityMilli, 2000);
+          expect(saved.unit, 'liter');
+        });
+
+        test('saveEntry with no unit price leaves the default price alone',
+            () async {
+          final item = await repo.createItem(
+              nameAr: 'عيش', categoryKey: 'Food', defaultAmountPiastres: 500);
+          await repo.saveEntry(DraftEntry(
+            amountPiastres: 1000,
+            itemId: item.id,
+            categoryKey: 'Food',
+            source: EntrySource.quickPick,
+          ));
+          final saved =
+              (await repo.allItems()).firstWhere((i) => i.id == item.id);
+          expect(saved.defaultAmountPiastres, 500);
+        });
+
+        test('recentItems suggests the price per unit for a unit product',
+            () async {
+          final milk = await cowMilk();
+          await buyTwoLitres(milk, unitPrice: 2600);
+          final recent =
+              (await repo.recentItems(50)).firstWhere((i) => i.id == milk.id);
+          expect(recent.unit, 'liter');
+          expect(recent.defaultQuantityMilli, 2000);
+          expect(recent.lastAmountPiastres, 2600);
+          expect(recent.suggestedAmountPiastres, 2600);
+        });
+
+        test('a reviewed line of a unit product teaches its price per unit',
+            () async {
+          final milk = await cowMilk();
+          await repo.saveCapture(CaptureDraft(
+            kind: CaptureKind.text,
+            date: DateTime(2026, 9, 28),
+            lines: [
+              CaptureLine(
+                amountPiastres: 7800,
+                categoryKey: 'Drinks',
+                itemId: milk.id,
+                description: milk.nameAr,
+                quantityMilli: 3000,
+                unit: 'liter',
+                unitPricePiastres: 2600,
+              ),
+            ],
+          ));
+          final saved =
+              (await repo.allItems()).firstWhere((i) => i.id == milk.id);
+          expect(saved.defaultAmountPiastres, 2600);
+          expect(saved.defaultQuantityMilli, 2000);
+          expect(saved.unit, 'liter');
+        });
+      });
+
       group('products', () {
       Future<QuickPickItem> pasta() => repo.createItem(
           nameAr: 'مكرونة',

@@ -13,7 +13,9 @@ abstract class SpendingRepository {
   Stream<List<EntryView>> watchEntriesForDay(DateTime day);
   Future<List<QuickPickItem>> topItems(int limit);
   /// Saves one entry dated today and remembers its payment method under
-  /// [lastPaymentMethodSettingKey] for the next add.
+  /// [lastPaymentMethodSettingKey] for the next add. A draft carrying a
+  /// [DraftEntry.unitPricePiastres] (a loose purchase by the litre or kilo)
+  /// makes that the linked item's price per unit; its usual quantity stays.
   Future<void> saveEntry(DraftEntry draft);
 
   /// Up to [limit] items for the add sheet's recent chips, ranked by
@@ -46,12 +48,18 @@ abstract class SpendingRepository {
 
   /// Throws [DuplicateBarcodeException] when [barcode] is already held by
   /// another non-archived item.
+  ///
+  /// With [unit] the product is sold loose by that unit, and
+  /// [defaultAmountPiastres] is its price per unit; [defaultQuantityMilli]
+  /// is how much is usually bought.
   Future<QuickPickItem> createItem({
     required String nameAr,
     required String categoryKey,
     String? subcategoryKey,
     int? defaultAmountPiastres,
     String? barcode,
+    String? unit,
+    int? defaultQuantityMilli,
   });
 
   /// The non-archived item previously learned for [barcode], or null if
@@ -126,9 +134,9 @@ abstract class SpendingRepository {
   });
 
   /// Writes everything the Products screen edits on an item: its Arabic
-  /// name, category, subcategory, default price and barcode, each as
-  /// given (a null subcategory, price or barcode clears it). Never touches
-  /// a past entry.
+  /// name, category, subcategory, default price, barcode, unit and usual
+  /// quantity, each as given (a null subcategory, price, barcode, unit or
+  /// quantity clears it). Never touches a past entry.
   ///
   /// Throws [DuplicateBarcodeException] and writes nothing when [barcode]
   /// is held by another non-archived item: a scan must resolve to one item.
@@ -139,6 +147,8 @@ abstract class SpendingRepository {
     String? subcategoryKey,
     int? defaultAmountPiastres,
     String? barcode,
+    String? unit,
+    int? defaultQuantityMilli,
   });
 
   /// What one of [itemId] cost each time it was bought: one point per live

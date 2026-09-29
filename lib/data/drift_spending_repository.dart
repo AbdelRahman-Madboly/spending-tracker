@@ -226,9 +226,20 @@ class DriftSpendingRepository implements SpendingRepository {
             (t) => OrderingTerm.desc(t.rowId),
           ]))
         .get();
+    final soldByUnit = {for (final i in top) if (i.unit != null) i.id};
     final lastAmount = <String, int>{};
     for (final e in lastEntries) {
-      lastAmount.putIfAbsent(e.itemId!, () => e.amountPiastres);
+      // A product sold by the litre or kilo is suggested at its price per
+      // unit: the quantity step multiplies it by what is bought this time.
+      lastAmount.putIfAbsent(
+          e.itemId!,
+          () => soldByUnit.contains(e.itemId)
+              ? unitPriceOf(
+                  amountPiastres: e.amountPiastres,
+                  quantityMilli: e.quantityMilli,
+                  unitPricePiastres: e.unitPricePiastres,
+                )
+              : e.amountPiastres);
     }
     return [
       for (final i in top)
@@ -239,6 +250,8 @@ class DriftSpendingRepository implements SpendingRepository {
           subcategoryKey: i.subcategoryKey,
           defaultAmountPiastres: i.defaultAmountPiastres,
           barcode: i.barcode,
+          unit: i.unit,
+          defaultQuantityMilli: i.defaultQuantityMilli,
           lastAmountPiastres: lastAmount[i.id],
         ),
     ];
@@ -289,6 +302,8 @@ class DriftSpendingRepository implements SpendingRepository {
               subcategoryKey: i.subcategoryKey,
               defaultAmountPiastres: i.defaultAmountPiastres,
               barcode: i.barcode,
+              unit: i.unit,
+              defaultQuantityMilli: i.defaultQuantityMilli,
             ))
         .toList();
   }
@@ -333,6 +348,8 @@ class DriftSpendingRepository implements SpendingRepository {
     String? subcategoryKey,
     int? defaultAmountPiastres,
     String? barcode,
+    String? unit,
+    int? defaultQuantityMilli,
   }) async {
     if (barcode != null && await itemByBarcode(barcode) != null) {
       throw DuplicateBarcodeException(barcode);
@@ -348,6 +365,8 @@ class DriftSpendingRepository implements SpendingRepository {
           subcategoryKey: Value(subcategoryKey),
           defaultAmountPiastres: Value(defaultAmountPiastres),
           barcode: Value(barcode),
+          unit: Value(unit),
+          defaultQuantityMilli: Value(unit == null ? null : defaultQuantityMilli),
         ));
     return QuickPickItem(
       id: id,
@@ -356,6 +375,8 @@ class DriftSpendingRepository implements SpendingRepository {
       subcategoryKey: subcategoryKey,
       defaultAmountPiastres: defaultAmountPiastres,
       barcode: barcode,
+      unit: unit,
+      defaultQuantityMilli: unit == null ? null : defaultQuantityMilli,
     );
   }
 
@@ -390,6 +411,8 @@ class DriftSpendingRepository implements SpendingRepository {
       subcategoryKey: row.subcategoryKey,
       defaultAmountPiastres: row.defaultAmountPiastres,
       barcode: row.barcode,
+      unit: row.unit,
+      defaultQuantityMilli: row.defaultQuantityMilli,
       lastAmountPiastres: last == null
           ? null
           : unitPriceOf(
@@ -424,6 +447,9 @@ class DriftSpendingRepository implements SpendingRepository {
             source: Value(draft.source.name),
             createdAt: now,
             updatedAt: now,
+            quantityMilli: Value(draft.quantityMilli),
+            unit: Value(draft.unit),
+            unitPricePiastres: Value(draft.unitPricePiastres),
           ));
       // Since v3 a photo is an attachment row; entries.photoPath is only
       // read for rows written before v3 (and was backfilled then).
@@ -436,7 +462,8 @@ class DriftSpendingRepository implements SpendingRepository {
           now: now,
         );
       }
-      await _bumpItemUse(draft.itemId, now);
+      await _bumpItemUse(draft.itemId, now,
+          unitPricePiastres: draft.unitPricePiastres);
       await _db.into(_db.appSettings).insertOnConflictUpdate(
           AppSettingsCompanion.insert(
               key: lastPaymentMethodSettingKey,
@@ -634,6 +661,8 @@ class DriftSpendingRepository implements SpendingRepository {
               subcategoryKey: i.subcategoryKey,
               defaultAmountPiastres: i.defaultAmountPiastres,
               barcode: i.barcode,
+              unit: i.unit,
+              defaultQuantityMilli: i.defaultQuantityMilli,
             ))
         .toList();
   }
@@ -646,6 +675,8 @@ class DriftSpendingRepository implements SpendingRepository {
     String? subcategoryKey,
     int? defaultAmountPiastres,
     String? barcode,
+    String? unit,
+    int? defaultQuantityMilli,
   }) async {
     await _db.transaction(() async {
       if (barcode != null) {
@@ -661,6 +692,10 @@ class DriftSpendingRepository implements SpendingRepository {
           subcategoryKey: Value(subcategoryKey),
           defaultAmountPiastres: Value(defaultAmountPiastres),
           barcode: Value(barcode),
+          unit: Value(unit),
+          // A usual quantity means nothing for a piece product.
+          defaultQuantityMilli:
+              Value(unit == null ? null : defaultQuantityMilli),
         ),
       );
     });
@@ -892,6 +927,8 @@ class DriftSpendingRepository implements SpendingRepository {
               subcategoryKey: i.subcategoryKey,
               defaultAmountPiastres: i.defaultAmountPiastres,
               barcode: i.barcode,
+              unit: i.unit,
+              defaultQuantityMilli: i.defaultQuantityMilli,
             ))
         .toList();
   }
