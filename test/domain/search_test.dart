@@ -18,6 +18,24 @@ void main() {
       expect(normalizeForSearch('۱۲'), '12');
     });
 
+    test('drops the invisible direction marks and zero-width joiners', () {
+      // An Arabic keyboard puts a left-to-right mark before an English
+      // word typed into a right-to-left field; the manual pack carries
+      // right-to-left marks before "30W".
+      expect(normalizeForSearch('\u200EUdemy\u200E'), 'udemy');
+      expect(normalizeForSearch('شاحن \u200F30W'), 'شاحن 30w');
+      expect(
+        normalizeForSearch(
+          '\u061C\u202Bتا\u200Cكسي\u202C\u2066\u2069\uFEFF\u200B',
+        ),
+        'تاكسي',
+      );
+    });
+
+    test('treats a no-break space as a space', () {
+      expect(normalizeForSearch('Schweppes\u00A0soda'), 'schweppes soda');
+    });
+
     test('makes the spellings of one word meet from either side', () {
       expect(normalizeForSearch('إندومى'), normalizeForSearch('اندومي'));
     });
@@ -38,6 +56,23 @@ void main() {
     test('every word of the query must be found, in any field', () {
       expect(matchesSearch('طماطم كيلو', ['طماطم', 'اتنين كيلو']), isTrue);
       expect(matchesSearch('طماطم خيار', ['طماطم', 'اتنين كيلو']), isFalse);
+    });
+
+    test('a query typed with direction marks still finds Latin text', () {
+      expect(
+        matchesSearch('\u200EUdemy', ['Udemy Personal Plan (سنوي)']),
+        isTrue,
+      );
+      expect(matchesSearch('Taxi\u200E', ['Taxi']), isTrue);
+      expect(
+        matchesSearch('\u200Fschweppes\u00A0soda', ['Schweppes soda']),
+        isTrue,
+      );
+      expect(
+        matchesSearch('Zolo 30W', ['شاحن Anker Zolo 1C \u200F30W']),
+        isTrue,
+      );
+      expect(matchesSearch('\u200E', ['شاي']), isTrue);
     });
 
     test('no field holding the query means no match', () {
