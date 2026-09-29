@@ -1031,9 +1031,9 @@ void main() {
       expect(current.start, DateTime(2026, 9, 4));
       expect(current.salaryPiastres, 800000);
       expect(current.spentPiastres, 2000);
-      // One gap of 31 days: the projected end is 31 days on, inclusive.
-      expect(current.lengthDays, 31);
-      expect(current.end, DateTime(2026, 10, 4));
+      // The current period runs one calendar month: 4 Sep to 3 Oct.
+      expect(current.lengthDays, 30);
+      expect(current.end, DateTime(2026, 10, 3));
 
       final past = periods.last;
       expect(past.isCurrent, isFalse);
@@ -1068,6 +1068,41 @@ void main() {
       expect(periods, hasLength(1));
       expect(periods.single.start, isNull);
       expect(periods.single.salaryPiastres, 0);
+    });
+
+    test('an early salary still gives a whole calendar month', () async {
+      await seedSalary(id: 'jul', datePaid: '2026-07-06');
+      await seedSalary(id: 'aug', datePaid: '2026-08-02');
+      await seedSalary(id: 'sep', datePaid: '2026-09-04');
+      await seedSalary(id: 'sep2', datePaid: '2026-09-23');
+
+      final current = (await repo.watchPeriods().first).first;
+
+      expect(current.start, DateTime(2026, 9, 23));
+      expect(current.end, DateTime(2026, 10, 22));
+      expect(current.lengthDays, 30);
+    });
+
+    test('a month-end salary ends the day before the same day next month',
+        () async {
+      await seedSalary(id: 'jan', datePaid: '2027-01-31');
+
+      final current = (await repo.watchPeriods().first).first;
+
+      // 31 Jan + 1 month clamps to 28 Feb, so the period ends 27 Feb.
+      expect(current.end, DateTime(2027, 2, 27));
+    });
+
+    test('watchPeriods switches to a salary recorded while watching',
+        () async {
+      await seedSalary(id: 'old', datePaid: '2026-09-04');
+      final seen = <DateTime?>[];
+      final sub = repo.watchPeriods().listen((p) => seen.add(p.first.start));
+      await pumpEventQueue();
+      await seedSalary(id: 'new', datePaid: '2026-09-23');
+      await pumpEventQueue();
+      await sub.cancel();
+      expect(seen.last, DateTime(2026, 9, 23));
     });
 
     test('watchPeriods updates when an entry is saved', () async {

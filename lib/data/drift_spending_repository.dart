@@ -38,16 +38,38 @@ class DriftSpendingRepository implements SpendingRepository {
 
   @override
   Stream<List<PeriodSummary>> watchPeriods() {
-    final periodsStream = _db.select(_db.salaryPeriods).watch();
-    // asyncExpand switches to a fresh `entries` stream whenever the salary
-    // periods change, but otherwise keeps forwarding entry-table updates
-    // straight through — so this reacts to both tables without a second
-    // stream-combining dependency.
-    return periodsStream.asyncExpand((periods) {
-      return _db.select(_db.entries).watch().map((allEntries) {
-        return _periodsFor(periods, allEntries);
-      });
-    });
+    // Recomputed whenever either table changes. Both queries are live
+    // streams that never complete, so they are merged by hand rather than
+    // with asyncExpand, which would wait forever on the first entries
+    // stream and never see a salary recorded later (an import, say).
+    final controller = StreamController<List<PeriodSummary>>();
+    List<SalaryPeriod>? periods;
+    List<Entry>? entries;
+    void emit() {
+      if (periods != null && entries != null) {
+        controller.add(_periodsFor(periods!, entries!));
+      }
+    }
+
+    final subs = <StreamSubscription<Object?>>[];
+    controller
+      ..onListen = () {
+        subs
+          ..add(_db.select(_db.salaryPeriods).watch().listen((p) {
+            periods = p;
+            emit();
+          }, onError: controller.addError))
+          ..add(_db.select(_db.entries).watch().listen((e) {
+            entries = e;
+            emit();
+          }, onError: controller.addError));
+      }
+      ..onCancel = () async {
+        for (final sub in subs) {
+          await sub.cancel();
+        }
+      };
+    return controller.stream;
   }
 
   /// Whole calendar days from [from] to [to] (`YYYY-MM-DD` strings),
@@ -94,7 +116,7 @@ class DriftSpendingRepository implements SpendingRepository {
       final period = distinct[i];
       final start = DateTime.parse(period.datePaid);
       if (i == 0) {
-        final length = _periodLengthDays(distinct);
+        final length = _periodLengthDays(start);
         final elapsed = DateTime.now().difference(start).inDays;
         result.add(PeriodSummary(
           salaryPiastres: period.amountPiastres,
@@ -121,22 +143,17 @@ class DriftSpendingRepository implements SpendingRepository {
     return result;
   }
 
-  /// Median gap (in days) between the last three salary payments, clamped
-  /// to a sane 25-35 day range. Falls back to 30 when there isn't enough
-  /// history yet to compute a gap.
-  int _periodLengthDays(List<SalaryPeriod> sortedDesc) {
-    if (sortedDesc.length < 2) return 30;
-    final lastThree = sortedDesc.take(3).toList();
-    final gaps = <int>[];
-    for (var i = 0; i < lastThree.length - 1; i++) {
-      gaps.add(_daysBetween(lastThree[i + 1].datePaid, lastThree[i].datePaid));
-    }
-    gaps.sort();
-    final mid = gaps.length ~/ 2;
-    final median = gaps.length.isOdd
-        ? gaps[mid]
-        : ((gaps[mid - 1] + gaps[mid]) / 2).round();
-    return median.clamp(25, 35);
+  /// The current period runs one calendar month from its salary: 4 Sep
+  /// to 3 Oct, 23 Sep to 22 Oct. A month-end salary clamps to the shorter
+  /// month (31 Jan runs to 27 Feb). An early or late salary never shortens
+  /// or stretches the period it starts.
+  static int _periodLengthDays(DateTime start) {
+    final lastDay = DateTime(start.year, start.month + 2, 0).day;
+    final next = DateTime.utc(
+        start.year, start.month + 1, start.day.clamp(1, lastDay));
+    return next
+        .difference(DateTime.utc(start.year, start.month, start.day))
+        .inDays;
   }
 
   @override
