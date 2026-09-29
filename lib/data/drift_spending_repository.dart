@@ -853,6 +853,15 @@ class DriftSpendingRepository implements SpendingRepository {
     // external id) rolls back the group, the earlier lines and the
     // attachments with it, so a capture is never half-saved.
     await _db.transaction(() async {
+      final seenReferences = <String>{};
+      for (final line in draft.lines) {
+        final reference = line.reference;
+        if (reference != null &&
+            (await referenceExists(reference) ||
+                !seenReferences.add(reference))) {
+          throw DuplicateReferenceException(reference);
+        }
+      }
       if (draftId == null) {
         await _db.into(_db.captureGroups).insert(CaptureGroupsCompanion.insert(
               id: groupId,
@@ -1195,6 +1204,15 @@ class DriftSpendingRepository implements SpendingRepository {
   Future<void> archiveRecurringBill(String id) async {
     await (_db.update(_db.recurringBills)..where((t) => t.id.equals(id)))
         .write(const RecurringBillsCompanion(archived: Value(true)));
+  }
+
+  @override
+  Future<bool> referenceExists(String reference) async {
+    final row = await (_db.select(_db.entries)
+          ..where((t) => t.reference.equals(reference) & t.deletedAt.isNull())
+          ..limit(1))
+        .getSingleOrNull();
+    return row != null;
   }
 
   @override

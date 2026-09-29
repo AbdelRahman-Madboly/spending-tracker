@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/barcode_scan_service.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/data/photo_capture_service.dart';
+import 'package:spending_tracker/data/text_recognition_service.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';
 import 'package:spending_tracker/features/capture/capture_launcher.dart';
 import 'package:spending_tracker/features/home/widgets/capture_bar.dart';
@@ -13,14 +16,25 @@ import 'voice_fakes.dart';
 
 class _Photos implements PhotoCaptureService {
   int camera = 0;
+  PhotoCaptureResult next =
+      const PhotoCaptureResult(PhotoCaptureOutcome.cancelled);
   @override
   Future<PhotoCaptureResult> captureFromCamera() async {
     camera++;
-    return const PhotoCaptureResult(PhotoCaptureOutcome.cancelled);
+    return next;
   }
 
   @override
+  Future<File> resolve(String relativePath) async => File('/docs/$relativePath');
+
+  @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _Recognizer implements TextRecognitionService {
+  String text = '';
+  @override
+  Future<String> recognize(String absolutePath) async => text;
 }
 
 class _Scanner implements BarcodeScanService {
@@ -47,8 +61,12 @@ void main() {
     FakeVoiceRecorder? voiceRecorder,
     FakeSpeechRecognition? speechRecognition,
     FixtureSpendingRepository? repository,
+    PhotoCaptureResult? photo,
+    String photoText = '',
   }) async {
     photos = _Photos();
+    if (photo != null) photos.next = photo;
+    final recognizer = _Recognizer()..text = photoText;
     scanner = _Scanner();
     recorder = voiceRecorder ?? FakeVoiceRecorder();
     speech = speechRecognition ?? FakeSpeechRecognition();
@@ -68,6 +86,7 @@ void main() {
                   repo,
                   action,
                   photoCaptureService: photos,
+                  textRecognition: recognizer,
                   barcodeScanService: scanner,
                   voiceRecorderFactory: () => recorder,
                   speechRecognition: speech,
@@ -84,15 +103,6 @@ void main() {
     await tester.tap(find.text('go'));
     await tester.pumpAndSettle();
   }
-
-  testWidgets('camera opens the add sheet straight into the camera', (
-    tester,
-  ) async {
-    await run(tester, CaptureAction.camera);
-    expect(find.byType(AddSheet), findsOneWidget);
-    expect(photos.camera, 1);
-    expect(scanner.calls, 0);
-  });
 
   testWidgets('barcode opens the add sheet straight into the scanner', (
     tester,
@@ -113,6 +123,42 @@ void main() {
       (await repo.watchTransactions().first)
           .where((t) => t.captureGroupId != null)
           .toList();
+
+  group('camera', () {
+    testWidgets('takes a photo and reviews what it reads as a photo capture',
+        (tester) async {
+      await run(tester, CaptureAction.camera,
+          photo: const PhotoCaptureResult(
+              PhotoCaptureOutcome.attached, 'attachments/2026-09/p1.jpg'),
+          photoText: 'Carrefour\nTotal 228.00 EGP');
+
+      expect(photos.camera, 1);
+      expect(find.byType(AddSheet), findsNothing);
+      expect(find.byKey(const Key('review-sheet')), findsOneWidget);
+      expect(tester.widget<Text>(find.byKey(const Key('review-total'))).data,
+          '228');
+      expect(find.byKey(const Key('photo-gallery')), findsOneWidget);
+
+      await tap(tester, find.byKey(const Key('review-later')));
+      final draft = (await repo.watchDraftCaptures().first).single;
+      expect(draft.kind, CaptureKind.photo);
+      expect(draft.attachments.single.path, 'attachments/2026-09/p1.jpg');
+    });
+
+    testWidgets('backing out of the camera opens nothing', (tester) async {
+      await run(tester, CaptureAction.camera);
+      expect(photos.camera, 1);
+      expect(find.byKey(const Key('review-sheet')), findsNothing);
+    });
+
+    testWidgets('a refused camera says so', (tester) async {
+      await run(tester, CaptureAction.camera,
+          photo:
+              const PhotoCaptureResult(PhotoCaptureOutcome.permissionDenied));
+      expect(find.byKey(const Key('photo-permission-denied')), findsOneWidget);
+      expect(find.byKey(const Key('review-sheet')), findsNothing);
+    });
+  });
 
   group('voice', () {
     testWidgets('records with a live timer and transcript, then reviews the '

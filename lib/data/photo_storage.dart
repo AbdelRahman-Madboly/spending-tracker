@@ -2,46 +2,63 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-/// Copies a picked image into the app's documents directory under a
-/// `photos/` subfolder and hands back a path RELATIVE to that directory.
+/// Copies a picked photo or document into the app's documents directory
+/// under `attachments/<yyyy-MM>/` (spec §5) and hands back a path RELATIVE
+/// to that directory.
 ///
 /// Only a relative path is ever stored on an entry — Android can reassign
 /// the app's data directory on restore, which would silently break an
-/// absolute path saved today.
+/// absolute path saved today. Photos attached before v3 live under
+/// `photos/`; they are relative paths too and resolve the same way.
 class PhotoStorage {
-  const PhotoStorage(this.documentsDirectory);
+  const PhotoStorage(this.documentsDirectory, {this.clock = DateTime.now});
 
   final Directory documentsDirectory;
 
-  static const String subfolder = 'photos';
+  /// Picks the month folder a new file goes into.
+  final DateTime Function() clock;
 
-  /// Copies [source] into `<documentsDirectory>/photos/` under a
+  /// Copies [source] into this month's attachments folder under a
   /// generated, collision-free filename and returns the path of the copy
-  /// relative to [documentsDirectory] (e.g. `photos/172...-0.jpg`).
-  Future<String> importPhoto(File source) async {
-    final targetDir = Directory(p.join(documentsDirectory.path, subfolder));
+  /// relative to [documentsDirectory] (e.g. `attachments/2026-09/172...jpg`).
+  Future<String> importPhoto(File source) =>
+      _import(source, fallbackExtension: '.jpg');
+
+  /// As [importPhoto], for a document (a PDF invoice): the file is kept as
+  /// it is, with its own extension in lower case.
+  Future<String> importFile(File source) =>
+      _import(source, fallbackExtension: '');
+
+  Future<String> _import(File source, {required String fallbackExtension}) async {
+    final now = clock();
+    final month = now.month.toString().padLeft(2, '0');
+    final folder = p.join('attachments', '${now.year}-$month');
+    final targetDir = Directory(p.join(documentsDirectory.path, folder));
     await targetDir.create(recursive: true);
 
-    var extension = p.extension(source.path);
-    if (extension.isEmpty) extension = '.jpg';
-    final filename =
-        '${DateTime.now().microsecondsSinceEpoch}$extension';
-    final destination = File(p.join(targetDir.path, filename));
+    var extension = p.extension(source.path).toLowerCase();
+    if (extension.isEmpty) extension = fallbackExtension;
+    // Two files in the same microsecond (a multi-pick) would collide on the
+    // clock alone: step past any name already taken.
+    var stamp = DateTime.now().microsecondsSinceEpoch;
+    var destination = File(p.join(targetDir.path, '$stamp$extension'));
+    while (await destination.exists()) {
+      stamp++;
+      destination = File(p.join(targetDir.path, '$stamp$extension'));
+    }
 
     await source.copy(destination.path);
-    return p.join(subfolder, filename);
+    return p.join(folder, '$stamp$extension');
   }
 
-  /// Resolves a relative path previously returned by [importPhoto] (as
-  /// stored in `DraftEntry.photoPath`) back into the absolute [File] it
-  /// lives at right now.
+  /// Resolves a relative path previously returned by [importPhoto] or
+  /// [importFile] back into the absolute [File] it lives at right now.
   File resolve(String relativePath) =>
       File(p.join(documentsDirectory.path, relativePath));
 
-  /// Deletes a previously imported photo, if it still exists. Used to
-  /// clean up a photo that was attached during an add-sheet session but
-  /// never ended up in a saved entry — safe to call even when the file is
-  /// already gone.
+  /// Deletes a previously imported file, if it still exists. Used to clean
+  /// up a photo that was attached during a sheet but never ended up saved,
+  /// or one refused as a duplicate — safe to call when the file is gone.
   Future<void> delete(String relativePath) async {
     final file = resolve(relativePath);
     if (await file.exists()) {

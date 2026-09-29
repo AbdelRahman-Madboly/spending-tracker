@@ -13,8 +13,8 @@ typedef ResolveAttachmentFile = Future<File> Function(String relativePath);
 
 /// The top of the entry detail sheet (spec §4.4): a swipeable photo
 /// gallery that opens full screen with pinch zoom, a play bar and the
-/// transcript for each voice note, and a card for each text note. Draws
-/// nothing when there are no attachments.
+/// transcript for each voice note, a card for each text note and one for
+/// each file (a PDF invoice). Draws nothing when there are no attachments.
 class AttachmentStrip extends StatelessWidget {
   final List<AttachmentView> attachments;
   final ResolveAttachmentFile resolveFile;
@@ -49,7 +49,9 @@ class AttachmentStrip extends StatelessWidget {
               playbackFactory: playbackFactory,
             )
           else if (a.kind == AttachmentKind.text && (a.text ?? '').isNotEmpty)
-            _TextNoteCard(attachment: a),
+            _TextNoteCard(attachment: a)
+          else if (a.kind == AttachmentKind.file && a.path != null)
+            _FileCard(attachment: a),
       ],
     );
   }
@@ -408,6 +410,46 @@ class _TextNoteCard extends StatelessWidget {
           Icon(AppIcons.textNote, size: 20, color: palette.textSecondary),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: Text(attachment.text!, style: AppText.body)),
+        ],
+      ),
+    );
+  }
+}
+
+/// A kept document. It shows the name it was picked by, which a file
+/// attachment keeps in its text; the stored name is only an id.
+class _FileCard extends StatelessWidget {
+  final AttachmentView attachment;
+
+  const _FileCard({required this.attachment});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final name = (attachment.text ?? '').trim().isNotEmpty
+        ? attachment.text!.trim()
+        : attachment.path!.split('/').last;
+    return Container(
+      key: Key('attachment-file-${attachment.id}'),
+      margin: const EdgeInsetsDirectional.only(bottom: AppSpacing.ms),
+      padding: const EdgeInsetsDirectional.all(AppSpacing.ms),
+      constraints: const BoxConstraints(minHeight: 48),
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+      ),
+      child: Row(
+        children: [
+          Icon(AppIcons.pdf, size: 20, color: palette.textSecondary),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.body,
+            ),
+          ),
         ],
       ),
     );

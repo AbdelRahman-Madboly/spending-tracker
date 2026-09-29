@@ -41,6 +41,11 @@ abstract class PhotoCaptureService {
   Future<PhotoCaptureResult> captureFromCamera();
   Future<PhotoCaptureResult> pickFromGallery();
 
+  /// Several photos from the gallery in one go (spec §6.2: several photos
+  /// per capture). Each is copied into app storage; an empty list means the
+  /// user backed out.
+  Future<List<String>> pickManyFromGallery();
+
   /// Resolves a relative path previously returned in a [PhotoCaptureResult]
   /// back into the absolute file it lives at right now, for display.
   Future<File> resolve(String relativePath);
@@ -52,6 +57,12 @@ abstract class PhotoCaptureService {
   /// exists.
   Future<void> delete(String relativePath);
 }
+
+/// Spec §6.2: photos are stored downscaled to 1600px on the long edge at
+/// JPEG quality 85. image_picker does the scaling (it keeps the aspect
+/// ratio inside both bounds), so there is no image package to carry.
+const double photoMaxEdge = 1600;
+const int photoJpegQuality = 85;
 
 class ImagePickerPhotoCaptureService implements PhotoCaptureService {
   ImagePickerPhotoCaptureService({ImagePicker? picker})
@@ -69,7 +80,12 @@ class ImagePickerPhotoCaptureService implements PhotoCaptureService {
     if (!status.isGranted) {
       return const PhotoCaptureResult(PhotoCaptureOutcome.permissionDenied);
     }
-    final picked = await _picker.pickImage(source: ImageSource.camera);
+    final picked = await _picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: photoMaxEdge,
+      maxHeight: photoMaxEdge,
+      imageQuality: photoJpegQuality,
+    );
     return _importIfPicked(picked);
   }
 
@@ -78,8 +94,27 @@ class ImagePickerPhotoCaptureService implements PhotoCaptureService {
     // No explicit permission request: on the Android versions this app
     // targets, image_picker's gallery source uses the system photo picker,
     // which needs no runtime permission at all.
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: photoMaxEdge,
+      maxHeight: photoMaxEdge,
+      imageQuality: photoJpegQuality,
+    );
     return _importIfPicked(picked);
+  }
+
+  @override
+  Future<List<String>> pickManyFromGallery() async {
+    final picked = await _picker.pickMultiImage(
+      maxWidth: photoMaxEdge,
+      maxHeight: photoMaxEdge,
+      imageQuality: photoJpegQuality,
+    );
+    if (picked.isEmpty) return const [];
+    final storage = PhotoStorage(await getApplicationDocumentsDirectory());
+    return [
+      for (final file in picked) await storage.importPhoto(File(file.path)),
+    ];
   }
 
   Future<PhotoCaptureResult> _importIfPicked(XFile? picked) async {

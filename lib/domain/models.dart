@@ -435,6 +435,18 @@ class DuplicateBarcodeException implements Exception {
   String toString() => 'DuplicateBarcodeException: $barcode';
 }
 
+/// Thrown by `SpendingRepository.saveCapture` when a line's payment
+/// reference is already on a live entry, or on two lines of one capture
+/// (spec §6.2: an InstaPay transfer is recorded once).
+class DuplicateReferenceException implements Exception {
+  const DuplicateReferenceException(this.reference);
+
+  final String reference;
+
+  @override
+  String toString() => 'DuplicateReferenceException: $reference';
+}
+
 /// One line of a capture, written as one `entries` row.
 class CaptureLine extends Equatable {
   final int amountPiastres;

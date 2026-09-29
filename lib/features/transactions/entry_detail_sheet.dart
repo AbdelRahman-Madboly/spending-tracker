@@ -5,6 +5,7 @@ import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../core/quantity.dart';
+import '../../data/document_picker_service.dart';
 import '../../data/photo_capture_service.dart';
 import '../../data/voice_playback.dart';
 import '../../domain/models.dart';
@@ -36,6 +37,7 @@ Future<EntryDetailResult?> showEntryDetail(
   required String entryId,
   DateTime Function() clock = DateTime.now,
   PhotoCaptureService? photoCaptureService,
+  DocumentPickerService? documentPicker,
   VoicePlayback Function()? playbackFactory,
 }) => showModalBottomSheet<EntryDetailResult>(
   context: context,
@@ -52,6 +54,7 @@ Future<EntryDetailResult?> showEntryDetail(
       entryId: entryId,
       clock: clock,
       photoCaptureService: photoCaptureService,
+      documentPicker: documentPicker,
       playbackFactory: playbackFactory,
     ),
   ),
@@ -71,6 +74,9 @@ class EntryDetailSheet extends StatefulWidget {
   /// resolves every attachment's relative path for display.
   final PhotoCaptureService? photoCaptureService;
 
+  /// Picks a PDF to keep as a file; defaults to the system document picker.
+  final DocumentPickerService? documentPicker;
+
   /// Defaults to just_audio, created only when a voice note is played.
   final VoicePlayback Function()? playbackFactory;
 
@@ -80,6 +86,7 @@ class EntryDetailSheet extends StatefulWidget {
     required this.entryId,
     this.clock = DateTime.now,
     this.photoCaptureService,
+    this.documentPicker,
     this.playbackFactory,
   });
 
@@ -93,6 +100,10 @@ class _EntryDetailSheetState extends State<EntryDetailSheet> {
   PhotoCaptureService? _photoCaptureService;
   PhotoCaptureService get _photos => _photoCaptureService ??=
       widget.photoCaptureService ?? ImagePickerPhotoCaptureService();
+
+  DocumentPickerService? _documentPicker;
+  DocumentPickerService get _documents =>
+      _documentPicker ??= widget.documentPicker ?? FilePickerDocumentService();
 
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   final _name = TextEditingController();
@@ -435,6 +446,7 @@ class _EntryDetailSheetState extends State<EntryDetailSheet> {
               ('camera', AppIcons.camera, 'صورة بالكاميرا'),
               ('gallery', AppIcons.gallery, 'صورة من المعرض'),
               ('text', AppIcons.textNote, 'ملاحظة مكتوبة'),
+              ('pdf', AppIcons.pdf, 'ملف PDF'),
             ])
               ListTile(
                 key: Key('attach-$key'),
@@ -455,6 +467,16 @@ class _EntryDetailSheetState extends State<EntryDetailSheet> {
         final text = await _askText();
         if (text != null && text.isNotEmpty) {
           attachment = DraftAttachment(kind: AttachmentKind.text, text: text);
+        }
+      case 'pdf':
+        // The name it was picked by is what the card shows (spec §6.2).
+        final picked = await _documents.pickPdf();
+        if (picked != null) {
+          attachment = DraftAttachment(
+            kind: AttachmentKind.file,
+            path: picked.relativePath,
+            text: picked.name,
+          );
         }
       default:
         final result = choice == 'camera'

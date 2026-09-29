@@ -165,6 +165,60 @@ void runV3RepositoryContract(
       expect(await repo.knownExternalIds(), contains('sn-001'));
     });
 
+    CaptureDraft transfer(String reference, {DateTime? date}) => CaptureDraft(
+          kind: CaptureKind.photo,
+          date: date ?? DateTime(2026, 9, 21),
+          paymentMethod: 'InstaPay',
+          lines: [
+            CaptureLine(
+              amountPiastres: 50000,
+              categoryKey: 'Food',
+              description: 'تحويل إنستاباي',
+              reference: reference,
+            ),
+          ],
+        );
+
+    test('a payment reference already recorded is refused, saving nothing',
+        () async {
+      await repo.saveCapture(transfer('512345678901'));
+      final before = await repo.spentInMonth(2026, 9);
+      expect(await repo.referenceExists('512345678901'), isTrue);
+      expect(await repo.referenceExists('999'), isFalse);
+
+      await expectLater(
+          repo.saveCapture(transfer('512345678901', date: DateTime(2026, 9, 22))),
+          throwsA(isA<DuplicateReferenceException>()
+              .having((e) => e.reference, 'reference', '512345678901')));
+
+      expect(await repo.spentInMonth(2026, 9), before);
+      expect(await repo.watchEntriesForDay(DateTime(2026, 9, 22)).first,
+          isEmpty);
+    });
+
+    test("a deleted entry's reference can be recorded again", () async {
+      await repo.saveCapture(transfer('77'));
+      final id = (await repo.watchEntriesForDay(DateTime(2026, 9, 21)).first)
+          .single
+          .id;
+      await repo.deleteEntries([id]);
+
+      expect(await repo.referenceExists('77'), isFalse);
+      await repo.saveCapture(transfer('77'));
+    });
+
+    test('one capture cannot carry the same reference twice', () async {
+      final line = transfer('88').lines.single;
+      await expectLater(
+          repo.saveCapture(CaptureDraft(
+            kind: CaptureKind.photo,
+            date: DateTime(2026, 9, 21),
+            lines: [line, line],
+          )),
+          throwsA(isA<DuplicateReferenceException>()));
+      expect(await repo.referenceExists('88'), isFalse);
+    });
+
     test('saveEntry stores an attached photo as a photo attachment',
         () async {
       await repo.saveEntry(const DraftEntry(

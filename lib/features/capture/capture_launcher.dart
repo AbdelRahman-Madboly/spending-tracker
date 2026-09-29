@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import '../../core/design/tokens.dart';
 import '../../data/barcode_scan_service.dart';
 import '../../data/photo_capture_service.dart';
+import '../../data/document_picker_service.dart';
 import '../../data/speech_recognition_service.dart';
+import '../../data/text_recognition_service.dart';
 import '../../data/voice_playback.dart';
 import '../../data/voice_recorder.dart';
 import '../../domain/models.dart';
@@ -22,9 +24,9 @@ import 'voice_capture_sheet.dart';
 /// streams then slide the new row in.
 ///
 /// [initialAction] starts the camera, gallery or scanner as soon as the
-/// sheet is up: how the capture bar's camera and barcode buttons reach the
-/// photo and barcode capture the sheet already has, until Phase C gives
-/// them flows of their own. The services are injectable for widget tests.
+/// sheet is up: how the capture bar's barcode button reaches the scan the
+/// sheet already has, until the barcode flow of its own (spec §6.3). The
+/// services are injectable for widget tests.
 Future<void> openAddSheet(
   BuildContext context,
   SpendingRepository repository, {
@@ -53,15 +55,18 @@ Future<void> openAddSheet(
   );
 }
 
-/// Runs one capture bar action. Camera and barcode open the add sheet
-/// straight into their capture; voice records and transcribes (spec §6.4)
-/// and text takes a typed note (spec §6.5), and both end in the review
-/// sheet. The platform services are injectable for widget tests.
+/// Runs one capture bar action. Camera takes a photo and reads it (spec
+/// §6.2), voice records and transcribes (spec §6.4) and text takes a typed
+/// note (spec §6.5); all three end in the review sheet. Barcode still opens
+/// the add sheet straight into the scanner. The platform services are
+/// injectable for widget tests.
 Future<void> launchCapture(
   BuildContext context,
   SpendingRepository repository,
   CaptureAction action, {
   PhotoCaptureService? photoCaptureService,
+  TextRecognitionService? textRecognition,
+  DocumentPickerService? documentPicker,
   BarcodeScanService? barcodeScanService,
   VoiceRecorder Function()? voiceRecorderFactory,
   SpeechRecognitionService? speechRecognition,
@@ -70,13 +75,20 @@ Future<void> launchCapture(
 }) async {
   switch (action) {
     case CaptureAction.camera:
+      await capturePhoto(
+        context,
+        repository,
+        photoCaptureService: photoCaptureService,
+        textRecognition: textRecognition,
+        documentPicker: documentPicker,
+        playbackFactory: playbackFactory,
+        clock: clock,
+      );
     case CaptureAction.barcode:
       await openAddSheet(
         context,
         repository,
-        initialAction: action == CaptureAction.camera
-            ? AddSheetAction.camera
-            : AddSheetAction.barcode,
+        initialAction: AddSheetAction.barcode,
         photoCaptureService: photoCaptureService,
         barcodeScanService: barcodeScanService,
       );
@@ -106,6 +118,46 @@ void _say(BuildContext context, String message, Key key) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(key: key, content: Text(message)));
+}
+
+/// Takes a photo (spec §6.2) and reviews what it reads: an InstaPay
+/// screenshot's amount, date and reference, a receipt's total or the
+/// products on a package. More photos, from the camera or the gallery, and
+/// PDFs are added in review. The photo is kept whatever it reads as.
+Future<void> capturePhoto(
+  BuildContext context,
+  SpendingRepository repository, {
+  PhotoCaptureService? photoCaptureService,
+  TextRecognitionService? textRecognition,
+  DocumentPickerService? documentPicker,
+  VoicePlayback Function()? playbackFactory,
+  DateTime Function() clock = DateTime.now,
+}) async {
+  final photos = photoCaptureService ?? ImagePickerPhotoCaptureService();
+  final capturedAt = clock();
+  final result = await photos.captureFromCamera();
+  if (!context.mounted) return;
+  if (result.outcome == PhotoCaptureOutcome.permissionDenied) {
+    _say(context, 'محتاج إذن الكاميرا عشان أصور. اسمح بيه من إعدادات التطبيق.',
+        const Key('photo-permission-denied'));
+    return;
+  }
+  final path = result.relativePath;
+  if (path == null) return;
+  await showReviewSheet(
+    context,
+    repository: repository,
+    request: ReviewRequest(
+      kind: CaptureKind.photo,
+      capturedAt: capturedAt,
+      attachments: [DraftAttachment(kind: AttachmentKind.photo, path: path)],
+    ),
+    clock: clock,
+    photoCaptureService: photos,
+    textRecognition: textRecognition,
+    documentPicker: documentPicker,
+    playbackFactory: playbackFactory,
+  );
 }
 
 /// Records a voice note (spec §6.4), then reviews what was heard with the

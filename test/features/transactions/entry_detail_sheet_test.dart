@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/data/document_picker_service.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/data/photo_capture_service.dart';
 import 'package:spending_tracker/domain/models.dart';
@@ -15,6 +16,9 @@ import 'attachment_strip_test.dart' show FakeVoicePlayback;
 DateTime _now() => DateTime(2026, 9, 6, 12);
 
 class _Photos implements PhotoCaptureService {
+  @override
+  Future<List<String>> pickManyFromGallery() async => const [];
+
   @override
   Future<PhotoCaptureResult> captureFromCamera() async =>
       const PhotoCaptureResult(PhotoCaptureOutcome.attached, 'photos/new.jpg');
@@ -29,6 +33,12 @@ class _Photos implements PhotoCaptureService {
 
   @override
   Future<void> delete(String relativePath) async {}
+}
+
+class _Documents implements DocumentPickerService {
+  @override
+  Future<PickedDocument?> pickPdf() async => const PickedDocument(
+      relativePath: 'attachments/2026-09/d1.pdf', name: 'Packing slip.pdf');
 }
 
 /// Every write the sheet's actions make fails, as a full disk would.
@@ -98,6 +108,7 @@ Future<_Harness> _open(
                   entryId: entryId,
                   clock: _now,
                   photoCaptureService: _Photos(),
+                  documentPicker: _Documents(),
                   playbackFactory: FakeVoicePlayback.new,
                 ),
               ),
@@ -284,6 +295,18 @@ void main() {
     expect(photos.single.kind, AttachmentKind.photo);
     expect(photos.single.path, 'photos/new.jpg');
     expect(find.byKey(const Key('photo-gallery')), findsOneWidget);
+  });
+
+  testWidgets('إضافة مرفق adds a PDF as a file', (tester) async {
+    final h = await _open(tester);
+    await _tapVisible(tester, find.byKey(const Key('detail-add-attachment')));
+    await tester.tap(find.byKey(const Key('attach-pdf')));
+    await tester.pumpAndSettle();
+    final files = await h.repo.attachmentsForEntry('1');
+    expect(files.single.kind, AttachmentKind.file);
+    expect(files.single.path, 'attachments/2026-09/d1.pdf');
+    expect(files.single.text, 'Packing slip.pdf');
+    expect(find.text('Packing slip.pdf'), findsOneWidget);
   });
 
   testWidgets('حذف soft-deletes and hands the id back for the undo', (

@@ -101,6 +101,29 @@ void main() {
     expect(find.text('مع أحمد'), findsOneWidget);
   });
 
+  testWidgets('a PDF shows as a card with the name it was picked by',
+      (tester) async {
+    await _pump(tester, [
+      AttachmentView(
+        id: 'f',
+        kind: AttachmentKind.file,
+        path: 'attachments/2026-09/123.pdf',
+        text: 'Invoice 12.pdf',
+        createdAt: _created,
+      ),
+      AttachmentView(
+        id: 'g',
+        kind: AttachmentKind.file,
+        path: 'attachments/2026-09/456.pdf',
+        createdAt: _created,
+      ),
+    ]);
+    expect(find.byKey(const Key('attachment-file-f')), findsOneWidget);
+    expect(find.text('Invoice 12.pdf'), findsOneWidget);
+    // With no name kept, the stored file name stands in.
+    expect(find.text('456.pdf'), findsOneWidget);
+  });
+
   testWidgets('photos form a gallery that opens full screen with zoom', (
     tester,
   ) async {

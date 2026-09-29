@@ -129,6 +129,8 @@ abstract final class AppIcons {
   static const duplicate = Symbols.content_copy_rounded;
   static const repeat = Symbols.event_repeat_rounded;
   static const attach = Symbols.attach_file_rounded;
+  static const pdf = Symbols.picture_as_pdf_rounded;
+  static const reference = Symbols.tag_rounded;
   static const play = Symbols.play_arrow_rounded;
   static const pause = Symbols.pause_rounded;
   static const stop = Symbols.stop_rounded;

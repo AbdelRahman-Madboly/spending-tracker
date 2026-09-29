@@ -5,12 +5,16 @@ import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../core/quantity.dart';
+import '../../data/document_picker_service.dart';
 import '../../data/photo_capture_service.dart';
+import '../../data/text_recognition_service.dart';
 import '../../data/voice_playback.dart';
 import '../../domain/models.dart';
+import '../../domain/parsing/catalogue_matcher.dart';
 import '../../domain/parsing/line_parser.dart';
 import '../../domain/parsing/parsed_line.dart';
 import '../../domain/parsing/repository_catalogue.dart';
+import '../../domain/photo_reading.dart';
 import '../../domain/review.dart';
 import '../../domain/spending_repository.dart';
 import '../../domain/transactions.dart';
@@ -95,9 +99,11 @@ Future<ReviewOutcome> showReviewSheet(
   required ReviewRequest request,
   DateTime Function() clock = DateTime.now,
   PhotoCaptureService? photoCaptureService,
+  TextRecognitionService? textRecognition,
+  DocumentPickerService? documentPicker,
   VoicePlayback Function()? playbackFactory,
 }) async {
-  final latest = _ReviewSnapshot();
+  final latest = _ReviewSnapshot(request.attachments);
   final messenger = ScaffoldMessenger.maybeOf(context);
   final outcome = await showModalBottomSheet<ReviewOutcome>(
     context: context,
@@ -114,11 +120,14 @@ Future<ReviewOutcome> showReviewSheet(
         request: request,
         clock: clock,
         photoCaptureService: photoCaptureService,
+        textRecognition: textRecognition,
+        documentPicker: documentPicker,
         playbackFactory: playbackFactory,
         onChanged: (lines, date) {
           latest.lines = lines;
           latest.date = date;
         },
+        onAttachmentsChanged: (attachments) => latest.attachments = attachments,
         onTyped: (text) => latest.typed = text,
       ),
     ),
@@ -138,7 +147,13 @@ Future<ReviewOutcome> showReviewSheet(
 }
 
 class _ReviewSnapshot {
+  _ReviewSnapshot(this.attachments);
+
   List<ReviewLine> lines = const [];
+
+  /// The capture's new attachments as they stand: photos and files added in
+  /// review, less a photo refused as a transfer already recorded.
+  List<DraftAttachment> attachments;
   DateTime? date;
 
   /// What was typed for a capture that came with no words.
@@ -158,7 +173,7 @@ Future<void> _keepAsDraft(SpendingRepository repository,
       : typed.isNotEmpty
           ? typed
           : reviewDraftText(latest.lines);
-  if (text.trim().isEmpty && request.attachments.isEmpty) return;
+  if (text.trim().isEmpty && latest.attachments.isEmpty) return;
   final day = latest.date ?? ArabicLineParser.captureDay(request.capturedAt);
   await repository.saveCapture(CaptureDraft(
     kind: request.kind,
@@ -167,7 +182,7 @@ Future<void> _keepAsDraft(SpendingRepository repository,
     cleanText: request.cleanText,
     parsedBy: request.parsedBy,
     lines: const [],
-    attachments: _withTypedTranscript(request.attachments, typed),
+    attachments: _withTypedTranscript(latest.attachments, typed),
     isDraft: true,
   ));
 }
@@ -200,6 +215,11 @@ class ReviewSheet extends StatefulWidget {
   final ReviewRequest request;
   final DateTime Function() clock;
   final PhotoCaptureService? photoCaptureService;
+
+  /// Reads a photo capture's photos (spec §6.2). Defaults to ML Kit's
+  /// offline Latin model.
+  final TextRecognitionService? textRecognition;
+  final DocumentPickerService? documentPicker;
   final VoicePlayback Function()? playbackFactory;
 
   /// Told the lines and date after every change, so whoever opened the
@@ -210,15 +230,21 @@ class ReviewSheet extends StatefulWidget {
   /// same reason.
   final ValueChanged<String>? onTyped;
 
+  /// Told the capture's new attachments whenever they change.
+  final ValueChanged<List<DraftAttachment>>? onAttachmentsChanged;
+
   const ReviewSheet({
     super.key,
     required this.repository,
     required this.request,
     this.clock = DateTime.now,
     this.photoCaptureService,
+    this.textRecognition,
+    this.documentPicker,
     this.playbackFactory,
     this.onChanged,
     this.onTyped,
+    this.onAttachmentsChanged,
   });
 
   @override
@@ -233,7 +259,25 @@ class _ReviewSheetState extends State<ReviewSheet> {
   PhotoCaptureService get _photos => _photoCaptureService ??=
       widget.photoCaptureService ?? ImagePickerPhotoCaptureService();
 
+  TextRecognitionService? _textRecognition;
+  TextRecognitionService get _recognizer => _textRecognition ??=
+      widget.textRecognition ?? MlKitTextRecognitionService();
+
+  DocumentPickerService? _documentPicker;
+  DocumentPickerService get _documents => _documentPicker ??=
+      widget.documentPicker ?? FilePickerDocumentService();
+
   final _messenger = GlobalKey<ScaffoldMessengerState>();
+
+  /// The capture's new attachments: the ones it came with, plus photos and
+  /// files added here.
+  late List<DraftAttachment> _attachments = _request.attachments;
+
+  /// Photos being read right now; the sheet says so while it is non-zero.
+  int _reading = 0;
+
+  /// The catalogue photos are matched against, once loaded.
+  ParserCatalogue? _catalogue;
 
   bool _loaded = false;
   bool _saving = false;
@@ -267,7 +311,9 @@ class _ReviewSheetState extends State<ReviewSheet> {
   void initState() {
     super.initState();
     _date = _request.date ?? ArabicLineParser.captureDay(_request.capturedAt);
-    _asksForText = _request.lines == null &&
+    // A photo capture has its photos to read instead of words to type.
+    _asksForText = _request.kind != CaptureKind.photo &&
+        _request.lines == null &&
         (_request.cleanText ?? _request.rawText ?? '').trim().isEmpty;
     _typed.addListener(() => widget.onTyped?.call(_typed.text));
     _load();
@@ -322,19 +368,38 @@ class _ReviewSheetState extends State<ReviewSheet> {
     final payment = await _repo.setting(lastPaymentMethodSettingKey);
     var parsed = _request.lines;
     String? parsedBy = _request.parsedBy;
+    String? photoPayment;
     if (parsed == null) {
       final text = _request.cleanText ?? _request.rawText ?? '';
-      final parser = ArabicLineParser(await loadParserCatalogue(_repo));
+      final catalogue = await loadParserCatalogue(_repo);
+      _catalogue = catalogue;
+      final parser = ArabicLineParser(catalogue);
       _parser = parser;
-      parsed = parser.parse(text, capturedAt: _request.capturedAt);
-      parsedBy ??= 'local';
+      if (_request.kind == CaptureKind.photo && text.trim().isEmpty) {
+        // A photo capture with no words, new or kept for later: read its
+        // photos, the ones the draft holds and the ones just taken.
+        _items = items;
+        final read = await _readPhotos([
+          for (final a in _request.savedAttachments)
+            if (a.kind == AttachmentKind.photo && a.path != null) a.path!,
+          for (final a in _request.attachments)
+            if (a.kind == AttachmentKind.photo && a.path != null) a.path!,
+        ]);
+        parsed = read.lines;
+        if (read.instaPay) photoPayment = 'InstaPay';
+      } else {
+        parsed = parser.parse(text, capturedAt: _request.capturedAt);
+        parsedBy ??= 'local';
+      }
     }
     if (!mounted) return;
     setState(() {
       _categories = categories;
       _subcategories = subcategories;
       _items = items;
-      if (!_paymentTouched && payment != null) _paymentMethod = payment;
+      if (!_paymentTouched && (photoPayment ?? payment) != null) {
+        _paymentMethod = (photoPayment ?? payment)!;
+      }
       _parsedBy = parsedBy;
       _lines = [for (final p in parsed!) ReviewLine.fromParsed(p, id: _newId())];
       if (_request.date == null && parsed.isNotEmpty) _date = parsed.first.date;
@@ -344,6 +409,133 @@ class _ReviewSheetState extends State<ReviewSheet> {
   }
 
   void _report() => widget.onChanged?.call(_lines, _date);
+
+  void _setAttachments(List<DraftAttachment> attachments) {
+    setState(() => _attachments = attachments);
+    widget.onAttachmentsChanged?.call(attachments);
+  }
+
+  int? _priceOf(String itemId) =>
+      _items.where((i) => i.id == itemId).firstOrNull?.suggestedAmountPiastres;
+
+  /// Reads [paths] one after another into lines (spec §6.2). A photo that
+  /// cannot be read gives no lines and stays as evidence. A transfer whose
+  /// reference is already recorded, or already read in this capture, is
+  /// refused: it says so, and a photo taken for this capture is dropped
+  /// (one kept in a draft stays; it is the draft's).
+  Future<({List<ParsedLine> lines, bool instaPay})> _readPhotos(
+      List<String> paths) async {
+    final catalogue = _catalogue;
+    if (catalogue == null || paths.isEmpty) {
+      return (lines: const <ParsedLine>[], instaPay: false);
+    }
+    setState(() => _reading++);
+    final lines = <ParsedLine>[];
+    var instaPay = false;
+    final refused = <String>[];
+    try {
+      for (final path in paths) {
+        PhotoReading reading;
+        try {
+          final file = await _photos.resolve(path);
+          reading = readPhotoText(await _recognizer.recognize(file.path),
+              now: widget.clock());
+        } catch (_) {
+          continue;
+        }
+        final reference = reading.reference;
+        if (reference != null &&
+            (lines.any((l) => l.reference == reference) ||
+                _lines.any((l) => l.reference == reference) ||
+                await _repo.referenceExists(reference))) {
+          refused.add(path);
+          continue;
+        }
+        instaPay = instaPay || reading.isInstaPay;
+        lines.addAll(photoLines(reading, catalogue,
+            day: ArabicLineParser.captureDay(_request.capturedAt),
+            priceOf: _priceOf));
+      }
+    } finally {
+      if (mounted) setState(() => _reading--);
+    }
+    // Closed while reading: the photos were kept with the draft as they
+    // were, refused one included, and there is no sheet left to say so.
+    if (!mounted) return (lines: const <ParsedLine>[], instaPay: false);
+    if (refused.isNotEmpty) {
+      final dropped = {
+        for (final a in _attachments)
+          if (refused.contains(a.path)) a.path!,
+      };
+      if (dropped.isNotEmpty) {
+        _setAttachments(
+            [for (final a in _attachments) if (!dropped.contains(a.path)) a]);
+        for (final path in dropped) {
+          _photos.delete(path);
+        }
+      }
+      _sayDuplicate();
+    }
+    return (lines: lines, instaPay: instaPay);
+  }
+
+  void _sayDuplicate() => _say('العملية دي متسجلة قبل كده',
+      key: const Key('review-duplicate-reference'));
+
+  /// Adds photos to the capture. A photo capture reads them into more
+  /// lines; any other capture keeps them as evidence only, since its lines
+  /// already came from its words.
+  Future<void> _addPhotos(List<String> paths) async {
+    if (paths.isEmpty) return;
+    _setAttachments([
+      ..._attachments,
+      for (final path in paths)
+        DraftAttachment(kind: AttachmentKind.photo, path: path),
+    ]);
+    if (_request.kind != CaptureKind.photo) return;
+    final read = await _readPhotos(paths);
+    if (!mounted) return;
+    setState(() {
+      _lines = [
+        ..._lines,
+        for (final p in read.lines) ReviewLine.fromParsed(p, id: _newId()),
+      ];
+      if (read.instaPay && !_paymentTouched) _paymentMethod = 'InstaPay';
+    });
+    _report();
+  }
+
+  Future<void> _addFromCamera() async {
+    final result = await _photos.captureFromCamera();
+    if (result.outcome == PhotoCaptureOutcome.permissionDenied) {
+      _say('محتاج إذن الكاميرا عشان أصور', key: const Key('review-camera-denied'));
+    }
+    final path = result.relativePath;
+    if (path != null) await _addPhotos([path]);
+  }
+
+  Future<void> _addFromGallery() async =>
+      _addPhotos(await _photos.pickManyFromGallery());
+
+  Future<void> _addPdf() async {
+    final PickedDocument? picked;
+    try {
+      picked = await _documents.pickPdf();
+    } catch (_) {
+      _say('ما قدرتش أفتح الملف، جرب تاني', key: const Key('review-pdf-failed'));
+      return;
+    }
+    if (picked == null || !mounted) return;
+    // A file attachment's text is the name it was picked by: the stored
+    // file is renamed to its id, and the name is what the user knows it by.
+    _setAttachments([
+      ..._attachments,
+      DraftAttachment(
+          kind: AttachmentKind.file,
+          path: picked.relativePath,
+          text: picked.name),
+    ]);
+  }
 
   void _update(ReviewLine line) {
     setState(() {
@@ -403,12 +595,14 @@ class _ReviewSheetState extends State<ReviewSheet> {
         cleanText: _request.cleanText,
         parsedBy: _parsedBy,
         lines: lines,
-        attachments: _withTypedTranscript(_request.attachments,
-            _asksForText ? _typed.text.trim() : ''),
+        attachments: _withTypedTranscript(
+            _attachments, _asksForText ? _typed.text.trim() : ''),
         draftId: _request.draftId,
       ));
       if (outcome == ReviewOutcome.saved) HapticFeedback.lightImpact();
       if (mounted) Navigator.of(context).pop(outcome);
+    } on DuplicateReferenceException {
+      if (mounted) _sayDuplicate();
     } catch (_) {
       if (mounted) {
         _say('الحفظ ما نفعش، جرب تاني', key: const Key('review-save-failed'));
@@ -430,7 +624,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
     final now = widget.clock();
     return [
       ..._request.savedAttachments,
-      for (final (i, a) in _request.attachments.indexed)
+      for (final (i, a) in _attachments.indexed)
         AttachmentView(
           id: 'new-$i',
           kind: a.kind,
@@ -450,7 +644,11 @@ class _ReviewSheetState extends State<ReviewSheet> {
       child: Scaffold(
         key: const Key('review-sheet'),
         backgroundColor: Colors.transparent,
-        body: _loaded ? _buildBody(context) : const SizedBox.shrink(),
+        body: _loaded
+            ? _buildBody(context)
+            : _reading > 0
+                ? const _ReadingPhotos()
+                : const SizedBox.shrink(),
         bottomNavigationBar: _loaded ? _buildFooter(context) : null,
       ),
     );
@@ -529,6 +727,23 @@ class _ReviewSheetState extends State<ReviewSheet> {
                   widget.playbackFactory ?? JustAudioVoicePlayback.new,
             ),
           ],
+          label('مرفقات'),
+          _EvidenceButtons(
+            enabled: !_saving && _reading == 0,
+            onCamera: _addFromCamera,
+            onGallery: _addFromGallery,
+            onPdf: _addPdf,
+          ),
+          if (_reading > 0)
+            Padding(
+              key: const Key('review-reading'),
+              padding: const EdgeInsetsDirectional.only(top: AppSpacing.sm),
+              child: Semantics(
+                liveRegion: true,
+                label: 'بقرا الصورة',
+                child: const LinearProgressIndicator(),
+              ),
+            ),
           if (_asksForText) ...[
             label('اكتب اللي اتقال'),
             TextField(
@@ -674,7 +889,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
               key: const Key('review-save'),
               style:
                   FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-              onPressed: ready && !_saving ? _save : null,
+              onPressed: ready && !_saving && _reading == 0 ? _save : null,
               child: Text('حفظ ${_lines.length} مصروف'),
             ),
             Row(
@@ -701,6 +916,73 @@ class _ReviewSheetState extends State<ReviewSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// What the sheet shows while a photo capture's photos are read, before
+/// there are lines to show.
+class _ReadingPhotos extends StatelessWidget {
+  const _ReadingPhotos();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return Center(
+      key: const Key('review-reading'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: AppSpacing.ms),
+          Text('بقرا الصورة…',
+              style: AppText.body.copyWith(color: palette.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Camera, gallery and PDF: more evidence for the capture (spec §6.2:
+/// several photos per capture, invoices as files). Labelled buttons, not
+/// bare icons, each at least 48dp.
+class _EvidenceButtons extends StatelessWidget {
+  final bool enabled;
+  final VoidCallback onCamera;
+  final VoidCallback onGallery;
+  final VoidCallback onPdf;
+
+  const _EvidenceButtons({
+    required this.enabled,
+    required this.onCamera,
+    required this.onGallery,
+    required this.onPdf,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget button(Key key, IconData icon, String text, VoidCallback onTap) =>
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm),
+          child: OutlinedButton.icon(
+            key: key,
+            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+            onPressed: enabled ? onTap : null,
+            icon: Icon(icon, size: 20),
+            label: Text(text),
+          ),
+        );
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          button(const Key('review-add-camera'), AppIcons.camera, 'صورة',
+              onCamera),
+          button(const Key('review-add-gallery'), AppIcons.gallery,
+              'من المعرض', onGallery),
+          button(const Key('review-add-pdf'), AppIcons.pdf, 'ملف PDF', onPdf),
+        ],
       ),
     );
   }
@@ -945,6 +1227,28 @@ class _LineCardState extends State<_LineCard> {
               ),
             ],
           ),
+          if (line.reference case final reference?)
+            Padding(
+              key: const Key('line-reference'),
+              padding: const EdgeInsetsDirectional.only(top: AppSpacing.sm),
+              child: Row(
+                children: [
+                  Icon(AppIcons.reference,
+                      size: 16, color: palette.textSecondary),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text('رقم العملية',
+                      style: AppText.caption
+                          .copyWith(color: palette.textSecondary)),
+                  const SizedBox(width: AppSpacing.xs),
+                  Flexible(
+                    child: Text(reference,
+                        textDirection: TextDirection.ltr,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.caption),
+                  ),
+                ],
+              ),
+            ),
           if (warnCategory)
             Padding(
               padding: const EdgeInsetsDirectional.only(top: AppSpacing.sm),

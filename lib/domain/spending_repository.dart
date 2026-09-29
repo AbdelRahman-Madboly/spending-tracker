@@ -242,7 +242,14 @@ abstract class SpendingRepository {
   /// updated, each [CaptureLine.aliasToLearn] is learned, and the payment
   /// method is remembered for the next add. A draft or a note teaches
   /// nothing, since nobody has checked it yet.
+  ///
+  /// A line whose [CaptureLine.reference] is already on a live entry, or on
+  /// another line of the same capture, throws [DuplicateReferenceException]
+  /// and nothing is saved (spec §6.2).
   Future<String> saveCapture(CaptureDraft draft);
+
+  /// Whether a live (not deleted) entry holds the payment [reference].
+  Future<bool> referenceExists(String reference);
 
   /// Draft captures (not reviewed yet), newest first, with their
   /// attachments, updating as captures are saved or reviewed. The

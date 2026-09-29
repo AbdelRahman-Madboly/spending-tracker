@@ -243,4 +243,22 @@ void main() {
     expect(back.map((l) => l.quantityMilli), [2000, 1000, 1000]);
     expect(back.first.unit, 'kg');
   });
+
+  test('a payment reference read off a photo is saved with its line, and '
+      'survives edits', () {
+    final line = ReviewLine.fromParsed(
+      ParsedLine(
+        rawText: 'InstaPay',
+        date: DateTime(2026, 9, 28),
+        name: 'تحويل إنستاباي',
+        amountPiastres: 125000,
+        reference: '512345678901',
+        confidence: ParseConfidence.medium,
+      ),
+      id: 'l0',
+    ).withCategory('Family/Social').withAmount(120000);
+
+    expect(line.reference, '512345678901');
+    expect(line.toCaptureLine().reference, '512345678901');
+  });
 }

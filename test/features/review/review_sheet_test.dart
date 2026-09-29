@@ -15,6 +15,9 @@ DateTime _now() => DateTime(2026, 9, 22, 12);
 
 class _Photos implements PhotoCaptureService {
   @override
+  Future<List<String>> pickManyFromGallery() async => const [];
+
+  @override
   Future<PhotoCaptureResult> captureFromCamera() async =>
       const PhotoCaptureResult(PhotoCaptureOutcome.cancelled);
 

@@ -54,6 +54,7 @@ class ParsedLine extends Equatable {
     this.unitPricePiastres,
     required this.confidence,
     this.flags = const {},
+    this.reference,
   });
 
   /// The text this line was read from, as written, for display.
@@ -80,6 +81,10 @@ class ParsedLine extends Equatable {
   final ParseConfidence confidence;
   final Set<ParseFlag> flags;
 
+  /// A payment reference the capture carried (an InstaPay transaction
+  /// number read off a screenshot). Text never has one.
+  final String? reference;
+
   @override
   List<Object?> get props => [
     rawText,
@@ -94,6 +99,7 @@ class ParsedLine extends Equatable {
     unitPricePiastres,
     confidence,
     flags,
+    reference,
   ];
 
   @override

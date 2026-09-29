@@ -45,6 +45,11 @@ class ReviewLine extends Equatable {
   /// Fields the parser was unsure of and the user has not touched since.
   final Set<ReviewField> uncertain;
 
+  /// The payment reference the capture carried (an InstaPay transaction
+  /// read off a screenshot, spec §6.2). Not editable: it is what makes a
+  /// second copy of the same transfer refusable.
+  final String? reference;
+
   const ReviewLine({
     required this.id,
     required this.name,
@@ -58,6 +63,7 @@ class ReviewLine extends Equatable {
     this.amountPiastres,
     this.unitPricePiastres,
     this.uncertain = const {},
+    this.reference,
   });
 
   /// The line as the parser read it. Its flags say which fields to check:
@@ -76,6 +82,7 @@ class ReviewLine extends Equatable {
       unit: parsed.unit,
       amountPiastres: parsed.amountPiastres,
       unitPricePiastres: parsed.unitPricePiastres,
+      reference: parsed.reference,
       uncertain: {
         if (flags.contains(ParseFlag.fuzzyMatch)) ReviewField.name,
         if (flags.contains(ParseFlag.ambiguousAmount)) ReviewField.quantity,
@@ -131,6 +138,7 @@ class ReviewLine extends Equatable {
             ? this.unitPricePiastres
             : unitPricePiastres as int?,
         uncertain: uncertain ?? this.uncertain,
+        reference: reference,
       );
 
   Set<ReviewField> _settled(ReviewField field) =>
@@ -216,6 +224,7 @@ class ReviewLine extends Equatable {
       quantityMilli: quantityMilli == 1000 && unit == null ? null : quantityMilli,
       unit: unit,
       unitPricePiastres: unitPricePiastres,
+      reference: reference,
       aliasToLearn:
           linkedInReview && itemId != null && captured.isNotEmpty ? captured : null,
     );
@@ -238,6 +247,7 @@ class ReviewLine extends Equatable {
         amountPiastres,
         unitPricePiastres,
         uncertain,
+        reference,
       ];
 }
 

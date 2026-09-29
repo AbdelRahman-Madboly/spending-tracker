@@ -13,7 +13,7 @@ void main() {
     tempRoot = await Directory.systemTemp.createTemp('photo_storage_test');
     documentsDir = Directory(p.join(tempRoot.path, 'app_documents'))
       ..createSync(recursive: true);
-    storage = PhotoStorage(documentsDir);
+    storage = PhotoStorage(documentsDir, clock: () => DateTime(2026, 9, 29, 12));
   });
 
   tearDown(() async {
@@ -28,13 +28,14 @@ void main() {
     return file;
   }
 
-  test('importPhoto copies the source file into a photos/ subfolder',
+  test('importPhoto copies the source file into attachments/<yyyy-MM>/',
       () async {
     final source = await writeSourceFile('picked.jpg', [1, 2, 3, 4]);
 
     final relativePath = await storage.importPhoto(source);
 
-    final expectedDir = Directory(p.join(documentsDir.path, 'photos'));
+    final expectedDir =
+        Directory(p.join(documentsDir.path, 'attachments', '2026-09'));
     expect(await expectedDir.exists(), isTrue);
     final copied = File(p.join(documentsDir.path, relativePath));
     expect(await copied.exists(), isTrue);
@@ -48,7 +49,8 @@ void main() {
     final relativePath = await storage.importPhoto(source);
 
     expect(p.isAbsolute(relativePath), isFalse);
-    expect(relativePath, startsWith('photos${p.separator}'));
+    expect(relativePath,
+        startsWith(p.join('attachments', '2026-09') + p.separator));
   });
 
   test('importPhoto keeps the source file extension', () async {
@@ -77,6 +79,24 @@ void main() {
     final pathB = await storage.importPhoto(sourceB);
 
     expect(pathA, isNot(equals(pathB)));
+  });
+
+  test('a photo stored before v3 under photos/ still resolves', () async {
+    final old = File(p.join(documentsDir.path, 'photos', 'old.jpg'))
+      ..createSync(recursive: true);
+
+    expect(storage.resolve('photos/old.jpg').path, old.path);
+  });
+
+  test('importFile keeps a document as it is, with its extension', () async {
+    final source = await writeSourceFile('Invoice 12.PDF', [5, 6]);
+
+    final relativePath = await storage.importFile(source);
+
+    expect(relativePath,
+        startsWith(p.join('attachments', '2026-09') + p.separator));
+    expect(p.extension(relativePath), '.pdf');
+    expect(await storage.resolve(relativePath).readAsBytes(), [5, 6]);
   });
 
   test('resolve turns a stored relative path back into the absolute file',

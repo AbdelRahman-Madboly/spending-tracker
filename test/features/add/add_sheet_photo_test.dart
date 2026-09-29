@@ -24,6 +24,9 @@ final _onePixelPng = Uint8List.fromList([
 /// permission_handler both use platform channels that don't run under
 /// `flutter test`, so `AddSheet` is exercised through this fake instead.
 class FakePhotoCaptureService implements PhotoCaptureService {
+  @override
+  Future<List<String>> pickManyFromGallery() async => const [];
+
   FakePhotoCaptureService({this.cameraResult, this.galleryResult});
 
   PhotoCaptureResult? cameraResult;

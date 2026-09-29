@@ -842,6 +842,14 @@ class FixtureSpendingRepository implements SpendingRepository {
     }
     final known = await knownExternalIds();
     final seenIds = <String>{};
+    final seenReferences = <String>{};
+    for (final line in draft.lines) {
+      final reference = line.reference;
+      if (reference != null &&
+          (await referenceExists(reference) || !seenReferences.add(reference))) {
+        throw DuplicateReferenceException(reference);
+      }
+    }
     for (final line in draft.lines) {
       if (!_categories.any((c) => c.key == line.categoryKey)) {
         throw ArgumentError.value(line.categoryKey, 'categoryKey');
@@ -1244,6 +1252,10 @@ class FixtureSpendingRepository implements SpendingRepository {
     ));
     _controller.add(null);
   }
+
+  @override
+  Future<bool> referenceExists(String reference) async => _records.values.any(
+      (r) => r.reference == reference && !_deleted.contains(r.id));
 
   @override
   Future<void> deleteEntries(Iterable<String> ids) async {
