@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_flavor.dart';
 import '../../core/design/app_icons.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/design/category_colors.dart';
@@ -8,6 +9,7 @@ import '../../core/money.dart';
 import '../../data/backup/data_transfer.dart';
 import '../../data/gemini_key_store.dart';
 import '../../data/import_sources.dart';
+import '../../data/instapay_identity.dart';
 import '../../data/net/gemini_client.dart';
 import '../../data/net/network_gate.dart';
 import '../../domain/models.dart';
@@ -64,6 +66,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _salaryController = TextEditingController();
+  final _instaPayController = TextEditingController();
   List<CategoryView> _categories = const [];
   Map<String, List<SubcategoryView>> _subcategoriesByCategory = const {};
   List<QuickPickItem> _items = const [];
@@ -89,7 +92,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (_) => ImportScreen(
         repository: widget.repository,
         importer: appImporter(widget.repository),
-        loadBundled: loadBundledPacks,
+        loadBundled:
+            AppFlavor.current.bundlesImportPacks ? loadBundledPacks : null,
         pickFile: pickImportFile,
       ),
     ));
@@ -100,6 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _salaryController.dispose();
+    _instaPayController.dispose();
     super.dispose();
   }
 
@@ -118,6 +123,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final archivedCategories = await widget.repository.archivedCategories();
     final archivedSubcategories =
         await widget.repository.archivedSubcategories();
+    final instaPay = await instaPayIdentity(widget.repository);
     final subcategoriesByCategory = <String, List<SubcategoryView>>{};
     for (final category in categories) {
       subcategoriesByCategory[category.key] =
@@ -126,6 +132,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() {
       _salaryController.text = formatPiastres(summary.salaryPiastres);
+      _instaPayController.text = instaPay;
       _categories = categories;
       _subcategoriesByCategory = subcategoriesByCategory;
       _items = items;
@@ -147,6 +154,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تحديث الراتب')),
+      );
+    }
+  }
+
+  Future<void> _saveInstaPay() async {
+    await widget.repository.setSetting(
+        instaPayIdentitySettingKey, _instaPayController.text.trim());
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ اسمك على InstaPay')),
       );
     }
   }
@@ -312,6 +329,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const EdgeInsetsDirectional.only(bottom: AppSpacing.sm),
                   child: Text(
                     'حفظ الراتب يسجل فترة راتب جديدة بتاريخ اليوم، ولا يغيّر سجل الرواتب السابقة.',
+                    style: AppText.caption
+                        .copyWith(color: palette.textSecondary),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.sm),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          key: const Key('settings-instapay-field'),
+                          controller: _instaPayController,
+                          decoration: const InputDecoration(
+                            labelText: 'اسمك أو حسابك على InstaPay',
+                            hintText: 'Sara Ahmed، sara@instapay',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      FilledButton(
+                        key: const Key('settings-instapay-save'),
+                        onPressed: _saveInstaPay,
+                        child: const Text('حفظ'),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding:
+                      const EdgeInsetsDirectional.only(bottom: AppSpacing.sm),
+                  child: Text(
+                    'بيه نعرف التحويل اللي جالك من اللي بعته في صورة InstaPay. '
+                    'اكتب اسمك زي ما بيظهر للي بيحوّلك وحسابك، وافصل بينهم بفاصلة.',
                     style: AppText.caption
                         .copyWith(color: palette.textSecondary),
                   ),

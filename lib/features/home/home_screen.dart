@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/design/tokens.dart';
 import '../../core/widgets/skeleton.dart';
 import '../../domain/dashboard.dart';
+import '../../data/instapay_identity.dart' show instaPayIdentitySettingKey;
 import '../../domain/import/importer.dart' show importOfferSettingKey;
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
@@ -23,6 +24,7 @@ import 'widgets/range_chart_section.dart';
 import 'widgets/today_section.dart';
 import 'widgets/top_categories_section.dart';
 import 'widgets/upcoming_bills_section.dart';
+import 'widgets/welcome_card.dart';
 
 /// The dashboard (الرئيسية, spec §4.2). Top to bottom, in a fixed order:
 /// period header, hero, capture bar, needs review, today, trend, top
@@ -33,6 +35,10 @@ import 'widgets/upcoming_bills_section.dart';
 /// Every navigation is a callback, so the shell can switch tabs instead of
 /// pushing routes; left null, each falls back to opening its screen or
 /// sheet directly, which is what a lone `HomeScreen` in a test gets.
+/// The `app_settings` key set once the shared build's welcome was saved
+/// or skipped, so it shows only on first run.
+const welcomeDoneSettingKey = 'welcome_done';
+
 class HomeScreen extends StatefulWidget {
   final SpendingRepository repository;
 
@@ -58,6 +64,10 @@ class HomeScreen extends StatefulWidget {
   /// Task 13) until it is done or dismissed.
   final Future<bool> Function()? onImportBundled;
 
+  /// Whether to ask a new user for the salary on first run (the shared
+  /// build), until it is saved or skipped.
+  final bool offerWelcome;
+
   const HomeScreen({
     super.key,
     required this.repository,
@@ -70,6 +80,7 @@ class HomeScreen extends StatefulWidget {
     this.onOpenTransactions,
     this.onOpenDraft,
     this.onImportBundled,
+    this.offerWelcome = false,
   });
 
   @override
@@ -122,6 +133,32 @@ class _HomeScreenState extends State<HomeScreen>
     await _repo.setSetting(importOfferSettingKey, '1');
   }
 
+  /// Whether the welcome shows; false until the setting is read.
+  bool _welcome = false;
+
+  Future<void> _loadWelcome() async {
+    if (!widget.offerWelcome) return;
+    final done = await _repo.setting(welcomeDoneSettingKey);
+    if (mounted) setState(() => _welcome = done == null);
+  }
+
+  Future<void> _closeWelcome() async {
+    setState(() => _welcome = false);
+    await _repo.setSetting(welcomeDoneSettingKey, '1');
+  }
+
+  Future<void> _saveWelcome(WelcomeAnswers answers) async {
+    await _repo.addSalaryPeriod(
+      datePaid: answers.paidOn,
+      amountPiastres: answers.salaryPiastres,
+    );
+    if (answers.instaPayIdentity.isNotEmpty) {
+      await _repo.setSetting(
+          instaPayIdentitySettingKey, answers.instaPayIdentity);
+    }
+    if (mounted) await _closeWelcome();
+  }
+
   Future<void> _importBundled() async {
     final imported = await widget.onImportBundled!();
     if (imported && mounted) await _closeImportOffer();
@@ -131,6 +168,7 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _loadImportOffer();
+    _loadWelcome();
     WidgetsBinding.instance.addObserver(this);
     _setToday();
     _scheduleMidnight();
@@ -354,6 +392,20 @@ class _HomeScreenState extends State<HomeScreen>
                       : _capture(action),
                   onLongPress: (_) => _barcodeMenu(),
                 ),
+                // Like the import offer below: always in the list, so
+                // showing or hiding it never shifts the sections below.
+                if (!_welcome)
+                  const SizedBox.shrink()
+                else
+                  Padding(
+                    padding:
+                        const EdgeInsetsDirectional.only(top: AppSpacing.section),
+                    child: WelcomeCard(
+                      today: widget.clock(),
+                      onSave: _saveWelcome,
+                      onSkip: _closeWelcome,
+                    ),
+                  ),
                 // Always in the list, so showing or hiding it never shifts
                 // the sections below to new slots.
                 if (!_offerImport)

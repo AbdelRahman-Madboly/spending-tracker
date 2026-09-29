@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_flavor.dart';
 import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
@@ -75,6 +76,7 @@ class _RecurringBillsScreenState extends State<RecurringBillsScreen> {
         bills: bills,
         today: widget.clock(),
         dismissed: dismissed,
+        includeSeeds: AppFlavor.current.suggestsSeedBills,
       );
       _askPermission = asked == null;
       _loaded = true;

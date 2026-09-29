@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/core/app_flavor.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/data/import_sources.dart';
 import 'package:spending_tracker/domain/models.dart';
@@ -341,5 +342,24 @@ void main() {
 
     expect(find.byKey(const Key('review-sheet')), findsNothing);
     expect(find.byKey(const Key('needs-review-section')), findsNothing);
+  });
+
+  testWidgets('the shared build never offers the owner September packs',
+      (tester) async {
+    AppFlavor.current = AppFlavor.shared;
+    addTearDown(() => AppFlavor.current = AppFlavor.personal);
+    final repo = FixtureSpendingRepository();
+    tester.view.physicalSize = const Size(1080, 6000);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: AppShell(repository: repo, clock: _today),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(await repo.setting(importOfferSettingKey), isNull);
+    expect(find.byKey(const Key('import-offer')), findsNothing);
   });
 }

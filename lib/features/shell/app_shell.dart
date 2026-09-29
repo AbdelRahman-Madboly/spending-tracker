@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../../core/app_flavor.dart';
 import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../data/import_sources.dart';
@@ -182,7 +183,9 @@ class _AppShellState extends State<AppShell>
           importer: appImporter(widget.repository),
           packs: packs,
           initialFile: file,
-          loadBundled: loadBundledPacks,
+          loadBundled: AppFlavor.current.bundlesImportPacks
+              ? loadBundledPacks
+              : null,
           pickFile: pickImportFile,
           clock: widget.clock,
         ),
@@ -331,7 +334,10 @@ class _AppShellState extends State<AppShell>
       onOpenStatistics: _openStatistics,
       onOpenTransactions: (day) =>
           _openTransactions(TransactionFilter.day(day)),
-      onImportBundled: _importBundled,
+      onImportBundled: AppFlavor.current.bundlesImportPacks
+          ? _importBundled
+          : null,
+      offerWelcome: AppFlavor.current.offersWelcome,
     ),
     AppTab.transactions => TransactionsScreen(
       repository: widget.repository,

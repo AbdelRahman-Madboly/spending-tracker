@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/data/instapay_identity.dart';
+import 'package:spending_tracker/core/app_flavor.dart';
 import 'package:spending_tracker/core/design/app_icons.dart';
 import 'package:spending_tracker/core/design/app_theme.dart';
 import 'package:spending_tracker/core/design/category_colors.dart';
@@ -659,5 +661,45 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(ImportScreen), findsOneWidget);
     expect(find.byKey(const Key('import-bundled')), findsOneWidget);
+  });
+
+  testWidgets('the shared build offers no bundled packs to import',
+      (tester) async {
+    AppFlavor.current = AppFlavor.shared;
+    addTearDown(() => AppFlavor.current = AppFlavor.personal);
+    await pumpSettings(tester, FixtureSpendingRepository());
+    await tester.tap(find.byKey(const Key('settings-import')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ImportScreen), findsOneWidget);
+    expect(find.byKey(const Key('import-bundled')), findsNothing);
+    expect(find.byKey(const Key('import-pick')), findsOneWidget);
+  });
+
+  group('اسمك أو حسابك على InstaPay', () {
+    testWidgets('the personal build shows the owner default until changed',
+        (tester) async {
+      final repo = FixtureSpendingRepository();
+      await pumpSettings(tester, repo);
+      final field = find.byKey(const Key('settings-instapay-field'));
+      expect(tester.widget<TextField>(field).controller!.text,
+          contains('sampleuser@instapay'));
+      expect(await repo.setting(instaPayIdentitySettingKey), isNull);
+    });
+
+    testWidgets('the shared build starts empty and saves what is typed',
+        (tester) async {
+      AppFlavor.current = AppFlavor.shared;
+      addTearDown(() => AppFlavor.current = AppFlavor.personal);
+      final repo = FixtureSpendingRepository();
+      await pumpSettings(tester, repo);
+      final field = find.byKey(const Key('settings-instapay-field'));
+      expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+
+      await tester.enterText(field, 'Sara Ahmed، sara.a@instapay');
+      await tester.tap(find.byKey(const Key('settings-instapay-save')));
+      await tester.pumpAndSettle();
+      expect(await repo.setting(instaPayIdentitySettingKey),
+          'Sara Ahmed، sara.a@instapay');
+    });
   });
 }

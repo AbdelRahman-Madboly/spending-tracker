@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/core/app_flavor.dart';
 import 'package:spending_tracker/core/design/app_theme.dart';
 import 'package:spending_tracker/data/bill_reminders.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
@@ -169,6 +170,17 @@ void main() {
     expect(bill.subcategoryKey, 'HomeInternet');
     expect(bill.nextDue, DateTime(2026, 10, 27));
     expect(find.byKey(const ValueKey('suggestion-$key')), findsNothing);
+  });
+
+  testWidgets('the shared build suggests no home internet plan',
+      (tester) async {
+    AppFlavor.current = AppFlavor.shared;
+    addTearDown(() => AppFlavor.current = AppFlavor.personal);
+    await pump(tester);
+    expect(
+        find.byKey(const ValueKey('suggestion-$homeInternetSuggestionKey')),
+        findsNothing);
+    expect(find.textContaining('باقة إنترنت'), findsNothing);
   });
 
   testWidgets('تجاهل remembers the dismissed suggestion', (tester) async {

@@ -68,7 +68,9 @@ class BillSuggestion {
 
 /// Bills worth offering: the same item (or description) at the same amount
 /// in two or more consecutive calendar months of [history], each due
-/// monthly from its latest payment, plus the home internet plan seed.
+/// monthly from its latest payment, plus the home internet plan seed
+/// when [includeSeeds] (the personal build only: the shared build passes
+/// false).
 ///
 /// Skips anything whose name matches an existing bill, anything in
 /// [dismissed], and the seed once a home internet bill exists or history
