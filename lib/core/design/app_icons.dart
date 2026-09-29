@@ -33,6 +33,7 @@ const Map<String, IconData> _symbolsByName = {
   'subscriptions': Symbols.subscriptions_rounded,
   'code': Symbols.code_rounded,
   'cloud': Symbols.cloud_rounded,
+  'ramen_dining': Symbols.ramen_dining_rounded,
   // The rest of the seeded category and subcategory names (see
   // `_seedSubcategoryRows` in `lib/data/db/database.dart`).
   'local_bar': Symbols.local_bar_rounded,
