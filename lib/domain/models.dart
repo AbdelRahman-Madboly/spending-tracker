@@ -300,7 +300,9 @@ class QuickPickItem extends Equatable {
   final String? barcode;
 
   /// What the item cost the last time it was logged, when it has been
-  /// logged. Only `SpendingRepository.recentItems` fills it in.
+  /// logged. Only `SpendingRepository.recentItems` and
+  /// `SpendingRepository.itemByBarcode` fill it in; the barcode path gives
+  /// the price of one, since a scan multiplies it by the count scanned.
   final int? lastAmountPiastres;
 
   const QuickPickItem({
@@ -519,14 +521,26 @@ class CaptureLine extends Equatable {
 /// amount over its quantity, rounded to the piastre. Saving a capture makes
 /// this the linked item's default price, so "two for 30" suggests 15 next
 /// time, not 30.
-int capturedUnitPrice(CaptureLine line) {
-  final unitPrice = line.unitPricePiastres;
-  if (unitPrice != null) return unitPrice;
-  final quantity = line.quantityMilli;
+int capturedUnitPrice(CaptureLine line) => unitPriceOf(
+      amountPiastres: line.amountPiastres,
+      quantityMilli: line.quantityMilli,
+      unitPricePiastres: line.unitPricePiastres,
+    );
+
+/// The price of one of a line or entry of [amountPiastres] for
+/// [quantityMilli]: [unitPricePiastres] when it was recorded, else the
+/// amount over the quantity, rounded to the piastre.
+int unitPriceOf({
+  required int amountPiastres,
+  int? quantityMilli,
+  int? unitPricePiastres,
+}) {
+  if (unitPricePiastres != null) return unitPricePiastres;
+  final quantity = quantityMilli;
   if (quantity == null || quantity <= 0 || quantity == 1000) {
-    return line.amountPiastres;
+    return amountPiastres;
   }
-  return (line.amountPiastres * 1000 + quantity ~/ 2) ~/ quantity;
+  return (amountPiastres * 1000 + quantity ~/ 2) ~/ quantity;
 }
 
 /// An attachment not saved yet. [path] is relative to the app documents

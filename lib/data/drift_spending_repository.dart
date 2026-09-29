@@ -353,7 +353,9 @@ class DriftSpendingRepository implements SpendingRepository {
           ..limit(1))
         .getSingleOrNull();
     if (row == null) return null;
-    // A scan adds the item at the price it was last bought at (spec §6.3).
+    // A scan adds the item at the price it was last bought at (spec §6.3),
+    // per one: two cans for 40 last time is 20 a can, which barcodeLines
+    // then multiplies by the number scanned.
     final last = await (_db.select(_db.entries)
           ..where((t) => t.itemId.equals(row.id) & t.deletedAt.isNull())
           ..orderBy([
@@ -370,7 +372,13 @@ class DriftSpendingRepository implements SpendingRepository {
       subcategoryKey: row.subcategoryKey,
       defaultAmountPiastres: row.defaultAmountPiastres,
       barcode: row.barcode,
-      lastAmountPiastres: last?.amountPiastres,
+      lastAmountPiastres: last == null
+          ? null
+          : unitPriceOf(
+              amountPiastres: last.amountPiastres,
+              quantityMilli: last.quantityMilli,
+              unitPricePiastres: last.unitPricePiastres,
+            ),
     );
   }
 

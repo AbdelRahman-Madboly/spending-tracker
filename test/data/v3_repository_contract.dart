@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/domain/barcode_scan.dart';
 import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/domain/spending_repository.dart';
 
@@ -887,6 +888,51 @@ void runV3RepositoryContract(
       final found = (await repo.itemByBarcode('6224'))!;
       expect(found.lastAmountPiastres, 2000);
       expect(found.suggestedAmountPiastres, 2000);
+    });
+
+    test('itemByBarcode gives the price of one when the last entry was several',
+        () async {
+      final item = await repo.createItem(
+          nameAr: 'تونة', categoryKey: 'Food', barcode: '6230');
+      await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.barcode,
+        date: DateTime(2026, 9, 22),
+        lines: [
+          CaptureLine(
+              amountPiastres: 4000,
+              categoryKey: 'Food',
+              itemId: item.id,
+              description: 'تونة',
+              quantityMilli: 2000),
+        ],
+      ));
+      // Two for 40 last time: one can is 20, and scanning one suggests 20.
+      expect((await repo.itemByBarcode('6230'))!.suggestedAmountPiastres,
+          2000);
+      final lines = await barcodeLines(['6230'],
+          repository: repo, day: DateTime(2026, 9, 23));
+      expect(lines.single.amountPiastres, 2000);
+    });
+
+    test('itemByBarcode prefers the unit price the last entry recorded',
+        () async {
+      final item = await repo.createItem(
+          nameAr: 'جبنة', categoryKey: 'Food', barcode: '6231');
+      await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.barcode,
+        date: DateTime(2026, 9, 22),
+        lines: [
+          CaptureLine(
+              amountPiastres: 5000,
+              categoryKey: 'Food',
+              itemId: item.id,
+              description: 'جبنة',
+              quantityMilli: 3000,
+              unitPricePiastres: 1700),
+        ],
+      ));
+      expect((await repo.itemByBarcode('6231'))!.suggestedAmountPiastres,
+          1700);
     });
 
     test('a scanned line with no item creates the item that learns its code',

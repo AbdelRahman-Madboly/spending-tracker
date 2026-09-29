@@ -403,10 +403,20 @@ class FixtureSpendingRepository implements SpendingRepository {
   final _useCounts = <String, int>{};
   final _lastAmounts = <String, int>{};
 
-  void _recordUse(String? itemId, int amountPiastres) {
+  /// The price of one of each item's latest entry, for [itemByBarcode]
+  /// (the drift repository works it out from the entry's quantity).
+  final _lastUnitPrices = <String, int>{};
+
+  void _recordUse(String? itemId, int amountPiastres,
+      {int? quantityMilli, int? unitPricePiastres}) {
     if (itemId == null) return;
     _useCounts[itemId] = (_useCounts[itemId] ?? 0) + 1;
     _lastAmounts[itemId] = amountPiastres;
+    _lastUnitPrices[itemId] = unitPriceOf(
+      amountPiastres: amountPiastres,
+      quantityMilli: quantityMilli,
+      unitPricePiastres: unitPricePiastres,
+    );
   }
 
   /// Ranked by use count alone: the fixture has no clock to decay by.
@@ -678,7 +688,7 @@ class FixtureSpendingRepository implements SpendingRepository {
           subcategoryKey: i.subcategoryKey,
           defaultAmountPiastres: i.defaultAmountPiastres,
           barcode: i.barcode,
-          lastAmountPiastres: _lastAmounts[i.id],
+          lastAmountPiastres: _lastUnitPrices[i.id],
         );
       }
     }
@@ -930,7 +940,9 @@ class FixtureSpendingRepository implements SpendingRepository {
       records.add(record);
       _records[record.id] = record;
       _createdAt[record.id] = now;
-      _recordUse(itemId, line.amountPiastres);
+      _recordUse(itemId, line.amountPiastres,
+          quantityMilli: line.quantityMilli,
+          unitPricePiastres: line.unitPricePiastres);
       _learnPrice(itemId, line);
       final alias = line.aliasToLearn;
       if (alias != null && itemId != null && normalizeArabic(alias).isNotEmpty) {
@@ -1369,7 +1381,9 @@ class FixtureSpendingRepository implements SpendingRepository {
     _records[copy.id] = copy;
     _createdAt[copy.id] = DateTime.now();
     _entries.add(_viewOf(copy));
-    _recordUse(copy.itemId, copy.amountPiastres);
+    _recordUse(copy.itemId, copy.amountPiastres,
+        quantityMilli: copy.quantityMilli,
+        unitPricePiastres: copy.unitPricePiastres);
     _controller.add(null);
     return copy.id;
   }
