@@ -112,6 +112,25 @@ void main() {
     expect(await repo.setting(OnlineFeature.gemini.settingKey), 'true');
   });
 
+  testWidgets('the product web search has its own switch under Gemini, '
+      'off until the user turns it on', (tester) async {
+    await pump(tester);
+    final search = feature(OnlineFeature.productWebSearch);
+    expect(
+        find.descendant(
+            of: find.byKey(search),
+            matching: find.text('البحث عن المنتج أونلاين')),
+        findsOneWidget);
+    expect(tester.getTopLeft(find.byKey(search)).dy,
+        greaterThan(tester.getTopLeft(
+            find.byKey(feature(OnlineFeature.geminiAudio))).dy));
+    await tap(tester, master);
+    expect(isOn(tester, search), isFalse);
+    await tap(tester, search);
+    expect(await isOnlineFeatureOn(repo, OnlineFeature.productWebSearch),
+        isTrue);
+  });
+
   testWidgets('a saved switch shows on when the screen opens', (tester) async {
     await repo.setSetting(onlineFeaturesSettingKey, 'true');
     await repo.setSetting(OnlineFeature.geminiAudio.settingKey, 'true');

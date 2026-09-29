@@ -80,6 +80,19 @@ class GeminiClient implements SmartImprover {
     }
   }
 
+  /// The repository the switches and the usage counters live in.
+  SpendingRepository get repository => _repository;
+
+  /// Whether a key is saved. Reads secure storage, so callers check the
+  /// switches first.
+  Future<bool> hasKey() async {
+    try {
+      return await _key() != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<String?> _key() async {
     final key = (await _keys.read())?.trim() ?? '';
     return key.isEmpty ? null : key;
@@ -96,14 +109,48 @@ class GeminiClient implements SmartImprover {
     try {
       final feature = _featureFor(input.kind);
       if (!await isOnlineFeatureOn(_repository, feature)) return null;
+      final catalogue = await loadSmartCatalogue(_repository);
+      return await generate(
+        feature: feature,
+        usage: _usageFeatureFor(input.kind),
+        parts: [
+          {'text': smartPrompt(catalogue, input.kind)},
+          ..._partsOf(input),
+        ],
+        generationConfig: {
+          'responseMimeType': 'application/json',
+          'responseJsonSchema': smartResponseSchema(catalogue),
+        },
+        read: (answer) => readSmartResult(answer, catalogue, day: day),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Sends one `generateContent` request for [feature] with [parts] as the
+  /// user's turn, and gives what [read] makes of the answer's text.
+  ///
+  /// Null when the switch is off, there is no key, the request fails or
+  /// [read] gives null. Every request actually sent is counted under
+  /// [usage], as worked only when [read] gave something.
+  Future<T?> generate<T>({
+    required OnlineFeature feature,
+    required GeminiUsageFeature usage,
+    required List<Map<String, Object?>> parts,
+    Map<String, Object?>? generationConfig,
+    List<Map<String, Object?>>? tools,
+    required T? Function(String answer) read,
+  }) async {
+    try {
+      if (!await isOnlineFeatureOn(_repository, feature)) return null;
       final key = await _key();
       final model = await _model();
       if (key == null || !_modelId.hasMatch(model)) return null;
-      final catalogue = await loadSmartCatalogue(_repository);
       Future<void> count({bool ok = false, String? error, Object? body}) =>
           _usage.record(_eventOf(
               model: model,
-              feature: _usageFeatureFor(input.kind),
+              feature: usage,
               ok: ok,
               error: error,
               body: body));
@@ -115,18 +162,10 @@ class GeminiClient implements SmartImprover {
           headers: {'x-goog-api-key': key, 'content-type': 'application/json'},
           body: jsonEncode({
             'contents': [
-              {
-                'role': 'user',
-                'parts': [
-                  {'text': smartPrompt(catalogue, input.kind)},
-                  ..._partsOf(input),
-                ],
-              },
+              {'role': 'user', 'parts': parts},
             ],
-            'generationConfig': {
-              'responseMimeType': 'application/json',
-              'responseJsonSchema': smartResponseSchema(catalogue),
-            },
+            'tools': ?tools,
+            'generationConfig': ?generationConfig,
           }),
           timeout: timeout,
         );
@@ -151,8 +190,12 @@ class GeminiClient implements SmartImprover {
         body = null;
       }
       final answer = _answerText(body);
-      final result =
-          answer == null ? null : readSmartResult(answer, catalogue, day: day);
+      T? result;
+      try {
+        result = answer == null ? null : read(answer);
+      } catch (_) {
+        result = null;
+      }
       await count(
           ok: result != null,
           error: result == null ? 'bad answer' : null,

@@ -4,7 +4,8 @@ import 'dart:convert';
 enum GeminiUsageFeature {
   rewrite('تحسين نص'),
   photo('صور'),
-  audio('صوت');
+  audio('صوت'),
+  product('منتجات');
 
   const GeminiUsageFeature(this.labelAr);
 

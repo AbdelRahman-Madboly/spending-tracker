@@ -14,6 +14,7 @@ import 'gemini_usage_card.dart';
 const _featureLabels = {
   OnlineFeature.gemini: 'تحسين ذكي بـ Gemini',
   OnlineFeature.geminiAudio: 'فهم الصوت بـ Gemini',
+  OnlineFeature.productWebSearch: 'البحث عن المنتج أونلاين',
   OnlineFeature.productLookup: 'اسم المنتج من الباركود (Open Food Facts)',
   OnlineFeature.onlineSpeech: 'التعرف على الكلام أونلاين',
 };

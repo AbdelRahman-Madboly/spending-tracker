@@ -10,6 +10,10 @@ const onlineFeaturesSettingKey = 'online_features';
 enum OnlineFeature {
   gemini('online_gemini'),
   geminiAudio('online_gemini_audio'),
+
+  /// «امسح واعرف»'s web search for a product by its barcode: a Gemini
+  /// request grounded in Google Search. It also needs [gemini] on.
+  productWebSearch('online_product_web_search'),
   productLookup('online_product_lookup'),
   onlineSpeech('online_speech');
 
