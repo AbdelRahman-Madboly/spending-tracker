@@ -678,5 +678,122 @@ void runV3RepositoryContract(
       expect(await repo.spentBetween(DateTime(2026, 9, 24), DateTime(2026, 9, 24)),
           bread.amountPiastres);
     });
+
+    // ---- the review sheet (C2) ----
+
+    Future<String> keepDraft() => repo.saveCapture(CaptureDraft(
+          kind: CaptureKind.voice,
+          date: DateTime(2026, 9, 22),
+          rawText: 'عيش ب ١٠',
+          lines: const [],
+          isDraft: true,
+          attachments: const [
+            DraftAttachment(
+                kind: AttachmentKind.voice, path: 'attachments/2026-09/d.m4a'),
+          ],
+        ));
+
+    test('saving a reviewed draft turns that draft into the saved capture',
+        () async {
+      final draftId = await keepDraft();
+
+      final savedId = await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.voice,
+        date: DateTime(2026, 9, 22),
+        paymentMethod: 'Card',
+        rawText: 'something else',
+        draftId: draftId,
+        lines: const [
+          CaptureLine(amountPiastres: 1000, categoryKey: 'Food', description: 'عيش'),
+        ],
+        attachments: const [
+          DraftAttachment(kind: AttachmentKind.text, text: 'من الفرن'),
+        ],
+      ));
+
+      expect(savedId, draftId);
+      expect(await repo.watchDraftCaptures().first, isEmpty);
+      final group = (await repo.captureGroup(draftId))!;
+      expect(group.status, CaptureStatus.saved);
+      // The raw text is what was captured, never rewritten by review.
+      expect(group.rawText, 'عيش ب ١٠');
+      expect(group.entries.single.description, 'عيش');
+      expect(group.entries.single.captureGroupId, draftId);
+      expect(group.entries.single.paymentMethod, 'Card');
+      expect(group.attachments.map((a) => a.kind),
+          [AttachmentKind.voice, AttachmentKind.text]);
+    });
+
+    test('a reviewed draft kept as a note leaves Needs review', () async {
+      final draftId = await keepDraft();
+
+      await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.voice,
+        date: DateTime(2026, 9, 22),
+        draftId: draftId,
+        lines: const [],
+      ));
+
+      expect(await repo.watchDraftCaptures().first, isEmpty);
+      final group = (await repo.captureGroup(draftId))!;
+      expect(group.status, CaptureStatus.note);
+      expect(group.attachments, hasLength(1));
+    });
+
+    test('saveCapture refuses a draft id that is not a draft', () async {
+      final saved = await repo.saveCapture(twoLines());
+      final before = await repo.spentInMonth(2026, 9);
+      CaptureDraft onto(String id) => CaptureDraft(
+            kind: CaptureKind.text,
+            date: DateTime(2026, 9, 22),
+            draftId: id,
+            lines: const [
+              CaptureLine(amountPiastres: 100, categoryKey: 'Food'),
+            ],
+          );
+
+      await expectLater(repo.saveCapture(onto(saved)), throwsStateError);
+      await expectLater(repo.saveCapture(onto('no-such-id')), throwsStateError);
+      expect(await repo.spentInMonth(2026, 9), before);
+    });
+
+    test('saveCapture learns aliases, item prices and the payment method',
+        () async {
+      final item = (await repo.allItems()).first;
+      await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.text,
+        date: DateTime(2026, 9, 22),
+        paymentMethod: 'InstaPay',
+        lines: [
+          CaptureLine(
+            amountPiastres: 3000,
+            categoryKey: item.categoryKey,
+            itemId: item.id,
+            description: item.nameAr,
+            quantityMilli: 2000,
+            aliasToLearn: 'انودى',
+          ),
+        ],
+      ));
+
+      expect((await repo.itemAliases())['انودي'], item.id);
+      final updated =
+          (await repo.allItems()).firstWhere((i) => i.id == item.id);
+      // The default is the price of one: 30 for two is 15.
+      expect(updated.defaultAmountPiastres, 1500);
+      expect(await repo.setting(lastPaymentMethodSettingKey), 'InstaPay');
+    });
+
+    test('a draft or a note does not touch the last payment method', () async {
+      await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.text,
+        date: DateTime(2026, 9, 22),
+        paymentMethod: 'Card',
+        rawText: 'x',
+        lines: const [],
+        isDraft: true,
+      ));
+      expect(await repo.setting(lastPaymentMethodSettingKey), isNull);
+    });
   });
 }

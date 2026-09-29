@@ -231,7 +231,17 @@ abstract class SpendingRepository {
   /// ([CaptureDraft.isDraft]) with lines throws [ArgumentError]. Either all of
   /// it is written or, if anything fails (an unknown category, an import
   /// identity already present), none of it is and the error is rethrown.
-  /// Returns the new capture group's id.
+  /// Returns the capture group's id.
+  ///
+  /// With [CaptureDraft.draftId] the capture finishes that draft group in
+  /// place (spec §6.7): the draft leaves Needs review and keeps its id, raw
+  /// text and attachments. Throws [StateError] when that id is not a draft.
+  ///
+  /// Saving lines also does what reviewing teaches (spec §6.7): each linked
+  /// item's use count, last use and default price (the price of one) are
+  /// updated, each [CaptureLine.aliasToLearn] is learned, and the payment
+  /// method is remembered for the next add. A draft or a note teaches
+  /// nothing, since nobody has checked it yet.
   Future<String> saveCapture(CaptureDraft draft);
 
   /// Draft captures (not reviewed yet), newest first, with their

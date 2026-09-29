@@ -457,6 +457,11 @@ class CaptureLine extends Equatable {
   final String? reference;
   final String? note;
 
+  /// The name as it was captured, when the user linked this line to
+  /// [itemId] in review (or accepted a correction by edit distance): saving
+  /// learns it as an alias, so the same words match the item next time.
+  final String? aliasToLearn;
+
   const CaptureLine({
     required this.amountPiastres,
     required this.categoryKey,
@@ -469,6 +474,7 @@ class CaptureLine extends Equatable {
     this.externalId,
     this.reference,
     this.note,
+    this.aliasToLearn,
   });
 
   @override
@@ -484,7 +490,22 @@ class CaptureLine extends Equatable {
         externalId,
         reference,
         note,
+        aliasToLearn,
       ];
+}
+
+/// The price of one of [line]: its unit price when it has one, else its
+/// amount over its quantity, rounded to the piastre. Saving a capture makes
+/// this the linked item's default price, so "two for 30" suggests 15 next
+/// time, not 30.
+int capturedUnitPrice(CaptureLine line) {
+  final unitPrice = line.unitPricePiastres;
+  if (unitPrice != null) return unitPrice;
+  final quantity = line.quantityMilli;
+  if (quantity == null || quantity <= 0 || quantity == 1000) {
+    return line.amountPiastres;
+  }
+  return (line.amountPiastres * 1000 + quantity ~/ 2) ~/ quantity;
 }
 
 /// An attachment not saved yet. [path] is relative to the app documents
@@ -528,6 +549,13 @@ class CaptureDraft extends Equatable {
   /// total before anyone has checked it. Review re-reads the raw text.
   final bool isDraft;
 
+  /// The draft capture group this review finishes, when the review was
+  /// opened from Needs review. Saving then writes into that group instead
+  /// of a new one: its status, lines and [attachments] (which are the ones
+  /// added during review; the draft's own stay linked). Its raw text is
+  /// what was captured and is kept as it is.
+  final String? draftId;
+
   const CaptureDraft({
     required this.kind,
     required this.date,
@@ -538,6 +566,7 @@ class CaptureDraft extends Equatable {
     this.parsedBy,
     this.attachments = const [],
     this.isDraft = false,
+    this.draftId,
   });
 
   /// A draft is `draft`; otherwise a capture with lines is `saved` and one
@@ -559,6 +588,7 @@ class CaptureDraft extends Equatable {
         lines,
         attachments,
         isDraft,
+        draftId,
       ];
 }
 

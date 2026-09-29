@@ -407,7 +407,11 @@ class DriftSpendingRepository implements SpendingRepository {
     });
   }
 
-  Future<void> _bumpItemUse(String? itemId, DateTime now) async {
+  /// Counts one more use of [itemId]. [unitPricePiastres], when given,
+  /// becomes the item's default price: prices drift, the latest is the best
+  /// guess for the next.
+  Future<void> _bumpItemUse(String? itemId, DateTime now,
+      {int? unitPricePiastres}) async {
     if (itemId == null) return;
     final item = await (_db.select(_db.items)
           ..where((t) => t.id.equals(itemId)))
@@ -417,6 +421,9 @@ class DriftSpendingRepository implements SpendingRepository {
       ItemsCompanion(
         useCount: Value(item.useCount + 1),
         lastUsedAt: Value(now),
+        defaultAmountPiastres: unitPricePiastres == null
+            ? const Value.absent()
+            : Value(unitPricePiastres),
       ),
     );
   }
@@ -839,23 +846,41 @@ class DriftSpendingRepository implements SpendingRepository {
       throw ArgumentError('a draft capture must not carry lines');
     }
     final now = DateTime.now();
-    final groupId = _newId();
+    final draftId = draft.draftId;
+    final groupId = draftId ?? _newId();
     final date = _formatDate(draft.date);
     // One transaction: a failure on any line (a foreign key, the unique
     // external id) rolls back the group, the earlier lines and the
     // attachments with it, so a capture is never half-saved.
     await _db.transaction(() async {
-      await _db.into(_db.captureGroups).insert(CaptureGroupsCompanion.insert(
-            id: groupId,
-            kind: draft.kind.name,
-            status: draft.status.name,
-            rawText: Value(draft.rawText),
-            cleanText: Value(draft.cleanText),
-            parsedBy: Value(draft.parsedBy),
-            date: date,
-            createdAt: now,
-            updatedAt: now,
-          ));
+      if (draftId == null) {
+        await _db.into(_db.captureGroups).insert(CaptureGroupsCompanion.insert(
+              id: groupId,
+              kind: draft.kind.name,
+              status: draft.status.name,
+              rawText: Value(draft.rawText),
+              cleanText: Value(draft.cleanText),
+              parsedBy: Value(draft.parsedBy),
+              date: date,
+              createdAt: now,
+              updatedAt: now,
+            ));
+      } else {
+        // Only a draft can be finished: a saved capture already has its
+        // entries, and writing more under it would double them.
+        final updated = await (_db.update(_db.captureGroups)
+              ..where((t) =>
+                  t.id.equals(draftId) &
+                  t.status.equals(CaptureStatus.draft.name)))
+            .write(CaptureGroupsCompanion(
+          status: Value(draft.status.name),
+          cleanText: Value(draft.cleanText),
+          parsedBy: Value(draft.parsedBy),
+          date: Value(date),
+          updatedAt: Value(now),
+        ));
+        if (updated == 0) throw StateError('$draftId is not a draft capture');
+      }
       for (final line in draft.lines) {
         await _db.into(_db.entries).insert(EntriesCompanion.insert(
               id: _newId(),
@@ -877,11 +902,22 @@ class DriftSpendingRepository implements SpendingRepository {
               createdAt: now,
               updatedAt: now,
             ));
-        await _bumpItemUse(line.itemId, now);
+        await _bumpItemUse(line.itemId, now,
+            unitPricePiastres: capturedUnitPrice(line));
+        final alias = line.aliasToLearn;
+        final itemId = line.itemId;
+        if (alias != null && itemId != null && normalizeArabic(alias).isNotEmpty) {
+          await learnAlias(alias, itemId);
+        }
       }
       for (final attachment in draft.attachments) {
         await _insertAttachment(
             captureGroupId: groupId, attachment: attachment, now: now);
+      }
+      if (draft.status == CaptureStatus.saved) {
+        await _db.into(_db.appSettings).insertOnConflictUpdate(
+            AppSettingsCompanion.insert(
+                key: lastPaymentMethodSettingKey, value: draft.paymentMethod));
       }
     });
     return groupId;

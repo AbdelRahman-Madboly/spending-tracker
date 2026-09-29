@@ -835,6 +835,11 @@ class FixtureSpendingRepository implements SpendingRepository {
     }
     // Validate everything first, then write: the fixture's stand-in for the
     // drift repository's single transaction, so a bad line saves nothing.
+    final draftId = draft.draftId;
+    final existing = draftId == null ? null : _groups[draftId];
+    if (draftId != null && existing?.status != CaptureStatus.draft) {
+      throw StateError('$draftId is not a draft capture');
+    }
     final known = await knownExternalIds();
     final seenIds = <String>{};
     for (final line in draft.lines) {
@@ -849,7 +854,7 @@ class FixtureSpendingRepository implements SpendingRepository {
     }
 
     final now = DateTime.now();
-    final groupId = _newId();
+    final groupId = draftId ?? _newId();
     final day = DateTime(draft.date.year, draft.date.month, draft.date.day);
     final records = <EntryRecord>[];
     for (final line in draft.lines) {
@@ -875,6 +880,12 @@ class FixtureSpendingRepository implements SpendingRepository {
       _records[record.id] = record;
       _createdAt[record.id] = now;
       _recordUse(line.itemId, line.amountPiastres);
+      _learnPrice(line);
+      final alias = line.aliasToLearn;
+      final itemId = line.itemId;
+      if (alias != null && itemId != null && normalizeArabic(alias).isNotEmpty) {
+        _aliases[normalizeArabic(alias)] = itemId;
+      }
       _entries.add(EntryView(
         id: record.id,
         displayName: line.description,
@@ -892,17 +903,37 @@ class FixtureSpendingRepository implements SpendingRepository {
     _attachments.addAll(attachments);
     _groups[groupId] = CaptureGroupView(
       id: groupId,
-      kind: draft.kind,
+      kind: existing?.kind ?? draft.kind,
       status: draft.status,
-      rawText: draft.rawText,
+      // A finished draft keeps what was captured.
+      rawText: existing == null ? draft.rawText : existing.rawText,
       cleanText: draft.cleanText,
       parsedBy: draft.parsedBy,
       date: day,
       entries: records,
-      attachments: attachments,
+      attachments: [...?existing?.attachments, ...attachments],
     );
+    if (draft.status == CaptureStatus.saved) {
+      _settings[lastPaymentMethodSettingKey] = draft.paymentMethod;
+    }
     _controller.add(null);
     return groupId;
+  }
+
+  /// The item's default price becomes the price of one on [line], as the
+  /// drift repository's does.
+  void _learnPrice(CaptureLine line) {
+    final index = _items.indexWhere((i) => i.id == line.itemId);
+    if (index == -1) return;
+    final i = _items[index];
+    _items[index] = QuickPickItem(
+      id: i.id,
+      nameAr: i.nameAr,
+      categoryKey: i.categoryKey,
+      subcategoryKey: i.subcategoryKey,
+      barcode: i.barcode,
+      defaultAmountPiastres: capturedUnitPrice(line),
+    );
   }
 
   AttachmentView _attachmentFrom(
