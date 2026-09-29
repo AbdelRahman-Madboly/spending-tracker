@@ -5,6 +5,7 @@ import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
 import '../../core/quantity.dart';
+import '../../data/product_catalog_source.dart';
 import '../../data/document_picker_service.dart';
 import '../../data/gemini_key_store.dart';
 import '../../data/net/gemini_client.dart';
@@ -109,6 +110,7 @@ Future<ReviewOutcome> showReviewSheet(
   VoicePlayback Function()? playbackFactory,
   SmartImprover? smartImprover,
   Future<Uint8List> Function(String path)? readAttachment,
+  ProductCatalogSource? productCatalog,
 }) async {
   final latest = _ReviewSnapshot(request.attachments);
   final messenger = ScaffoldMessenger.maybeOf(context);
@@ -132,6 +134,7 @@ Future<ReviewOutcome> showReviewSheet(
         playbackFactory: playbackFactory,
         smartImprover: smartImprover,
         readAttachment: readAttachment,
+        productCatalog: productCatalog,
         onCleanText: (text) => latest
           ..cleanText = text
           ..editedSinceRewrite = false,
@@ -289,6 +292,10 @@ class ReviewSheet extends StatefulWidget {
   /// the photo service resolves the path to.
   final Future<Uint8List> Function(String path)? readAttachment;
 
+  /// The bundled product catalogue a kept barcode capture's codes are read
+  /// against again. Defaults to the app's own.
+  final ProductCatalogSource? productCatalog;
+
   /// Told the smart rewrite when the user accepts it, so a capture closed
   /// afterwards keeps it as its draft's clean text.
   final ValueChanged<String>? onCleanText;
@@ -320,6 +327,7 @@ class ReviewSheet extends StatefulWidget {
     this.playbackFactory,
     this.smartImprover,
     this.readAttachment,
+    this.productCatalog,
     this.onCleanText,
     this.onChanged,
     this.onTyped,
@@ -534,8 +542,11 @@ class _ReviewSheetState extends State<ReviewSheet> {
       } else if (_request.kind == CaptureKind.barcode) {
         // A barcode capture kept for later: its codes are scanned again,
         // and anything added by hand is parsed from the rest of its text.
+        final catalog =
+            await (widget.productCatalog ?? ProductCatalogSource.shared)
+                .load();
         final kept = await readBarcodeDraft(_request.rawText,
-            repository: _repo, day: _date);
+            repository: _repo, day: _date, catalog: catalog);
         parsed = [
           ...kept.lines,
           if (kept.text.trim().isNotEmpty)
@@ -1782,7 +1793,12 @@ class _LineCardState extends State<_LineCard> {
                   Icon(AppIcons.barcode,
                       size: 16, color: palette.textSecondary),
                   const SizedBox(width: AppSpacing.xs),
-                  Text(line.itemId == null ? 'منتج جديد' : 'باركود',
+                  Text(
+                      line.itemId != null
+                          ? 'باركود'
+                          : line.fromCatalogue
+                              ? 'من الدليل'
+                              : 'منتج جديد',
                       style: AppText.caption
                           .copyWith(color: palette.textSecondary)),
                   const SizedBox(width: AppSpacing.xs),

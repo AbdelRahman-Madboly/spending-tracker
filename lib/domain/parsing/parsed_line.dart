@@ -30,6 +30,11 @@ enum ParseFlag {
   /// An InstaPay transfer that names the user in a way that does not say
   /// which side they were on: kept as an expense, worth a look.
   maybeIncoming,
+
+  /// A scanned product the bundled product catalogue knows (spec §6.3):
+  /// its name, category and price are the catalogue's suggestion until a
+  /// saved line makes it the user's own item.
+  catalogue,
 }
 
 /// Unit keys (spec §6.5 step 5). Stored in English, shown in Arabic.

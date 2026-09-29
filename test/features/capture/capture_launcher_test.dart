@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:spending_tracker/data/barcode_scan_service.dart';
+import 'package:spending_tracker/data/product_catalog_source.dart';
+import 'package:spending_tracker/domain/product_catalog.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/data/gemini_key_store.dart';
 import 'package:spending_tracker/data/net/network_gate.dart';
@@ -97,6 +99,7 @@ void main() {
     List<String> scanned = const [],
     NetworkGate? networkGate,
     GeminiKeyStore? geminiKeyStore,
+    ProductCatalog? catalog,
   }) async {
     photos = _Photos()..error = photoError;
     if (photo != null) photos.next = photo;
@@ -124,6 +127,8 @@ void main() {
                   barcodeScanService: scanner,
                   networkGate: networkGate,
                   geminiKeyStore: geminiKeyStore,
+                  productCatalog: ProductCatalogSource.fixed(
+                      catalog ?? ProductCatalog.empty),
                   voiceRecorderFactory: () => recorder,
                   speechRecognition: speech,
                   playbackFactory: FakeVoicePlayback.new,
@@ -218,6 +223,42 @@ void main() {
       final learned = (await repo.itemByBarcode('9999'))!;
       expect(learned.nameAr, 'عصير جهينة');
       expect(learned.suggestedAmountPiastres, 2500);
+    });
+
+    testWidgets('a code in the bundled catalogue is prefilled, marked as '
+        'from the catalogue, and saving makes it the user\'s item',
+        (tester) async {
+      final catalog = ProductCatalog.parse(
+          File('test/fixtures/catalog/egypt_products_sample.json')
+              .readAsStringSync());
+      await run(tester, CaptureAction.barcode,
+          scanned: ['6221007012345'], catalog: catalog);
+      expect(
+          tester
+              .widget<TextField>(inLine(0, find.byKey(const Key('line-name'))))
+              .controller!
+              .text,
+          'مكرونة ريجينا قلم');
+      expect(
+          tester
+              .widget<TextField>(
+                  inLine(0, find.byKey(const Key('line-amount'))))
+              .controller!
+              .text,
+          '18.50');
+      expect(inLine(0, find.text('من الدليل')), findsOneWidget);
+      expect(
+          tester.widget<FilledButton>(find.byKey(const Key('review-save')))
+              .enabled,
+          isTrue);
+
+      await tap(tester, find.byKey(const Key('review-save')));
+
+      final learned = (await repo.itemByBarcode('6221007012345'))!;
+      expect(learned.nameAr, 'مكرونة ريجينا قلم');
+      expect(learned.categoryKey, 'Pantry');
+      expect(learned.subcategoryKey, 'Pasta');
+      expect(learned.defaultAmountPiastres, 1850);
     });
 
     testWidgets('an unknown code scanned offline and closed unnamed waits in '

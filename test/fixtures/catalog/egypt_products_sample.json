@@ -1,0 +1,22 @@
+{
+  "format": "product-catalog/1",
+  "builtOn": "2026-09-28",
+  "country": "EG",
+  "catalogueAdditions": {
+    "categories": [
+      {"key": "Pantry", "labelAr": "بقالة", "iconName": "local_grocery_store", "colorKey": "Food"}
+    ],
+    "subcategories": [
+      {"key": "Pasta", "categoryKey": "Pantry", "labelAr": "مكرونة", "iconName": "ramen_dining"},
+      {"key": "Nectar", "categoryKey": "Drinks", "labelAr": "عصائر", "iconName": "local_drink"}
+    ]
+  },
+  "products": [
+    {"barcode": "6221007012345", "nameAr": "مكرونة ريجينا قلم", "nameEn": "Regina Penne", "brand": "Regina", "size": "400 جم", "categoryKey": "Pantry", "subcategoryKey": "Pasta", "pricePiastres": 1850, "priceSource": "seoudi", "priceDate": "2026-09-20"},
+    {"barcode": "6223000501234", "nameAr": "عصير جهينة مانجو", "nameEn": "Juhayna Mango Juice", "brand": "جهينة", "size": "1 لتر", "categoryKey": "Drinks", "subcategoryKey": "Nectar", "pricePiastres": null, "priceSource": null, "priceDate": null},
+    {"barcode": "5449000000996", "nameAr": "كوكاكولا كانز", "nameEn": "Coca-Cola Can", "brand": "Coca-Cola", "size": "330 مل", "categoryKey": "Drinks", "subcategoryKey": null, "pricePiastres": 1500, "priceSource": "carrefour", "priceDate": "2026-09-25"},
+    {"barcode": "", "nameAr": "بدون باركود", "nameEn": "", "brand": "", "size": "", "categoryKey": "Food", "subcategoryKey": null, "pricePiastres": 100, "priceSource": null, "priceDate": null},
+    {"barcode": "6220000000001", "nameAr": "", "categoryKey": "Food"},
+    {"barcode": "5449000000996", "nameAr": "نسخة مكررة", "nameEn": "", "brand": "", "size": "", "categoryKey": "Drinks", "subcategoryKey": null, "pricePiastres": 1, "priceSource": null, "priceDate": null}
+  ]
+}

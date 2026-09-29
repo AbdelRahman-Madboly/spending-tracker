@@ -67,6 +67,11 @@ class ReviewLine extends Equatable {
   /// The photo the line was read from, the evidence a salary keeps.
   final String? photoPath;
 
+  /// A scanned product the bundled catalogue filled in (spec §6.3): shown
+  /// as a catalogue suggestion until saving makes it the user's item.
+  /// Kept through every edit.
+  final bool fromCatalogue;
+
   const ReviewLine({
     required this.id,
     required this.name,
@@ -84,6 +89,7 @@ class ReviewLine extends Equatable {
     this.barcode,
     this.transfer,
     this.photoPath,
+    this.fromCatalogue = false,
   });
 
   /// The line as the parser read it. Its flags say which fields to check:
@@ -111,14 +117,19 @@ class ReviewLine extends Equatable {
               ? TransferDirection.uncertain
               : null,
       photoPath: photoPath,
+      fromCatalogue: flags.contains(ParseFlag.catalogue),
       uncertain: {
         if (flags.contains(ParseFlag.fuzzyMatch) ||
             flags.contains(ParseFlag.maybeIncoming) ||
-            _unknownProduct(parsed.barcode, parsed.itemId))
+            (_unknownProduct(parsed.barcode, parsed.itemId) &&
+                !flags.contains(ParseFlag.catalogue)))
           ReviewField.name,
         if (flags.contains(ParseFlag.ambiguousAmount)) ReviewField.quantity,
+        // A catalogue price is a shop's price on the day the catalogue was
+        // built: a good guess, worth a look.
         if (flags.contains(ParseFlag.noAmount) ||
-            flags.contains(ParseFlag.ambiguousAmount))
+            flags.contains(ParseFlag.ambiguousAmount) ||
+            flags.contains(ParseFlag.catalogue))
           ReviewField.amount,
         if (flags.contains(ParseFlag.noCategory)) ReviewField.category,
       },
@@ -183,6 +194,7 @@ class ReviewLine extends Equatable {
         barcode: barcode,
         transfer: transfer,
         photoPath: photoPath,
+        fromCatalogue: fromCatalogue,
       );
 
   Set<ReviewField> _settled(ReviewField field) =>
@@ -256,6 +268,7 @@ class ReviewLine extends Equatable {
         barcode: barcode,
         transfer: transfer,
         photoPath: photoPath,
+        fromCatalogue: fromCatalogue,
       );
 
   /// Links [item]: the line takes its name, category and subcategory, and
@@ -317,6 +330,7 @@ class ReviewLine extends Equatable {
         barcode,
         transfer,
         photoPath,
+        fromCatalogue,
       ];
 }
 

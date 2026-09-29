@@ -13,6 +13,7 @@ import '../../data/net/network_gate.dart';
 import '../../data/net/product_lookup.dart';
 import '../../data/photo_capture_service.dart';
 import '../../data/photo_storage.dart';
+import '../../data/product_catalog_source.dart';
 import '../../data/document_picker_service.dart';
 import '../../data/speech_recognition_service.dart';
 import '../../data/text_recognition_service.dart';
@@ -120,6 +121,7 @@ Future<void> launchCapture(
   BarcodeScanService? barcodeScanService,
   NetworkGate? networkGate,
   GeminiKeyStore? geminiKeyStore,
+  ProductCatalogSource? productCatalog,
   VoiceRecorder Function()? voiceRecorderFactory,
   SpeechRecognitionService? speechRecognition,
   VoicePlayback Function()? playbackFactory,
@@ -187,6 +189,7 @@ Future<void> launchCapture(
         repository,
         scanner: barcodeScanService,
         networkGate: gate,
+        productCatalog: productCatalog,
         photoCaptureService: photoCaptureService,
         playbackFactory: playbackFactory,
         clock: clock,
@@ -425,24 +428,31 @@ Future<void> _reviewPhotos(
 }
 
 /// Scans products one after another (spec §6.3) and reviews them: a code
-/// the app knows is its item at its last price, and any other is a product
-/// to name, which learns the code when saved. With the barcode lookup
-/// switched on, an unknown code is first looked up on Open Food Facts
-/// through [networkGate] for its name.
+/// the app knows is its item at its last price, a code the bundled
+/// [productCatalog] knows is that product as a suggestion, and any other is
+/// a product to name. Either kind learns the code when saved. With the
+/// barcode lookup switched on, a code in neither is first looked up on
+/// Open Food Facts through [networkGate] for its name.
 Future<void> captureBarcode(
   BuildContext context,
   SpendingRepository repository, {
   BarcodeScanService? scanner,
   NetworkGate? networkGate,
+  ProductCatalogSource? productCatalog,
   PhotoCaptureService? photoCaptureService,
   VoicePlayback Function()? playbackFactory,
   DateTime Function() clock = DateTime.now,
 }) async {
   final capturedAt = clock();
+  // Read while the camera is up, so the catalogue is ready when it closes.
+  final catalogSource = productCatalog ?? ProductCatalogSource.shared;
+  final catalogLoading = catalogSource.load();
   final codes = await (scanner ?? MobileScannerBarcodeScanService()).scanMany(
     context,
   );
   if (codes.isEmpty || !context.mounted) return;
+  final catalog = await catalogLoading;
+  if (!context.mounted) return;
   final ProductLookup? lookup =
       await isOnlineFeatureOn(repository, OnlineFeature.productLookup)
       ? OpenFoodFactsLookup(
@@ -458,6 +468,7 @@ Future<void> captureBarcode(
     codes,
     repository: repository,
     day: ArabicLineParser.captureDay(capturedAt),
+    catalog: catalog,
     nameFor: lookup?.nameFor,
   );
   if (!context.mounted) return;
@@ -471,6 +482,7 @@ Future<void> captureBarcode(
       lines: lines,
     ),
     clock: clock,
+    productCatalog: catalogSource,
     photoCaptureService: photoCaptureService,
     playbackFactory: playbackFactory,
   );

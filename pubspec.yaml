@@ -86,6 +86,7 @@ flutter:
     - assets/seed/
     - assets/import/
     - assets/import/evidence/
+    - assets/catalog/
   fonts:
     - family: IBMPlexSansArabic
       fonts:

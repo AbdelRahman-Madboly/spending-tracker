@@ -1,6 +1,7 @@
 import '../core/arabic_text.dart';
 import 'models.dart';
 import 'parsing/parsed_line.dart';
+import 'product_catalog.dart';
 import 'review.dart';
 import 'spending_repository.dart';
 
@@ -39,6 +40,10 @@ class BarcodeTally {
 ///
 /// - A code an item holds is that item at the price it was last bought at
 ///   (else its default price), in its category.
+/// - A code the bundled [catalog] knows is that product: its Arabic name,
+///   its category and subcategory (created from the catalogue's additions
+///   the first time one is needed) and its price when it has one, marked
+///   [ParseFlag.catalogue]. Saving the line makes it the user's item.
 /// - Any other code is a product to name: [nameFor] (the online lookup,
 ///   when it is on) is asked once per code and may fill the name; the
 ///   amount and category are left for review.
@@ -46,6 +51,7 @@ Future<List<ParsedLine>> barcodeLines(
   List<String> codes, {
   required SpendingRepository repository,
   required DateTime day,
+  ProductCatalog? catalog,
   Future<String?> Function(String code)? nameFor,
 }) async {
   final counts = <String, int>{};
@@ -74,6 +80,11 @@ Future<List<ParsedLine>> barcodeLines(
       ));
       continue;
     }
+    if (catalog?.byBarcode(code) case final product?) {
+      lines.add(await _catalogueLine(
+          product, code, count, day, repository, catalog!));
+      continue;
+    }
     String? name;
     try {
       name = await nameFor?.call(code);
@@ -91,6 +102,36 @@ Future<List<ParsedLine>> barcodeLines(
     ));
   }
   return lines;
+}
+
+/// [count] of the catalogue's [product], scanned as [code].
+Future<ParsedLine> _catalogueLine(
+  CatalogueProduct product,
+  String code,
+  int count,
+  DateTime day,
+  SpendingRepository repository,
+  ProductCatalog catalog,
+) async {
+  final keys = await ensureCatalogueCategory(repository, catalog, product);
+  final price = product.pricePiastres;
+  return ParsedLine(
+    rawText: code,
+    date: day,
+    name: product.nameAr,
+    categoryKey: keys.categoryKey,
+    subcategoryKey: keys.subcategoryKey,
+    quantityMilli: count * 1000,
+    amountPiastres: price == null ? null : price * count,
+    unitPricePiastres: count > 1 ? price : null,
+    confidence: ParseConfidence.medium,
+    flags: {
+      ParseFlag.catalogue,
+      if (price == null) ParseFlag.noAmount,
+      if (keys.categoryKey == null) ParseFlag.noCategory,
+    },
+    barcode: code,
+  );
 }
 
 /// Starts a row of a barcode draft's text that holds a scanned code.
@@ -138,6 +179,7 @@ Future<({List<ParsedLine> lines, String text})> readBarcodeDraft(
   String? rawText, {
   required SpendingRepository repository,
   required DateTime day,
+  ProductCatalog? catalog,
 }) async {
   final codes = <String>[];
   final names = <String, String>{};
@@ -157,15 +199,18 @@ Future<({List<ParsedLine> lines, String text})> readBarcodeDraft(
   }
   final text = rest.join('\n');
   if (codes.isEmpty) return (lines: const <ParsedLine>[], text: text);
-  final scanned =
-      await barcodeLines(codes, repository: repository, day: day);
+  final scanned = await barcodeLines(codes,
+      repository: repository, day: day, catalog: catalog);
   final items = names.isEmpty
       ? const <QuickPickItem>[]
       : await repository.allItems();
   final lines = [
     for (final line in scanned)
       switch (names[line.barcode]) {
-        final name? when line.itemId == null => _named(line, name, items),
+        // A catalogue product kept under its own name is still that
+        // product; a name typed over it is the user's.
+        final name? when line.itemId == null && name != line.name =>
+          _named(line, name, items),
         _ => line,
       },
   ];
