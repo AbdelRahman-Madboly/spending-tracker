@@ -25,6 +25,14 @@ const Map<String, IconData> _symbolsByName = {
   'school': Symbols.school_rounded,
   'home': Symbols.home_rounded,
   'category': Symbols.category_rounded,
+  // Categories and subcategories that imports and the bundled product
+  // catalogue create (`catalogueAdditions`).
+  'cleaning_services': Symbols.cleaning_services_rounded,
+  'local_laundry_service': Symbols.local_laundry_service_rounded,
+  'family_restroom': Symbols.family_restroom_rounded,
+  'subscriptions': Symbols.subscriptions_rounded,
+  'code': Symbols.code_rounded,
+  'cloud': Symbols.cloud_rounded,
   // The rest of the seeded category and subcategory names (see
   // `_seedSubcategoryRows` in `lib/data/db/database.dart`).
   'local_bar': Symbols.local_bar_rounded,

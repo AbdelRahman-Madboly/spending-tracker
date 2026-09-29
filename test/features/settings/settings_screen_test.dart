@@ -172,6 +172,14 @@ void main() {
       await tester.tap(find.byKey(const Key('category-dialog-icon-button')));
       await tester.pumpAndSettle();
 
+      // The picker's grid is lazy, so bring the icon into view first.
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('icon-option-pets')),
+        200,
+        scrollable: find.descendant(
+            of: find.byKey(const Key('icon-picker-grid')),
+            matching: find.byType(Scrollable)),
+      );
       expect(find.byKey(const Key('icon-option-pets')), findsOneWidget);
       await tester.tap(find.byKey(const Key('icon-option-pets')));
       await tester.pumpAndSettle();

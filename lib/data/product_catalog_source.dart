@@ -16,18 +16,29 @@ class ProductCatalogSource {
   /// A source that already holds [catalog], for tests.
   ProductCatalogSource.fixed(ProductCatalog catalog)
       : _read = _never,
-        _loading = Future.value(catalog);
+        _fixed = catalog;
 
-  /// The app's one catalogue.
-  static final shared = ProductCatalogSource();
+  /// The app's one catalogue. Tests swap it for a fixed one (see
+  /// test/flutter_test_config.dart) so no widget test reads the 1.5 MB
+  /// bundled file.
+  static ProductCatalogSource shared = ProductCatalogSource();
 
   final Future<String> Function() _read;
+  ProductCatalog? _fixed;
   Future<ProductCatalog>? _loading;
 
   static Future<String> _never() => throw StateError('fixed catalogue');
 
   /// The catalogue, read and indexed the first time it is asked for.
-  Future<ProductCatalog> load() => _loading ??= _load();
+  ///
+  /// A fixed catalogue makes a fresh future on every call rather than one
+  /// held from construction, so a source built outside a test's fake-async
+  /// zone still completes inside it.
+  Future<ProductCatalog> load() {
+    final fixed = _fixed;
+    if (fixed != null) return Future.value(fixed);
+    return _loading ??= _load();
+  }
 
   Future<ProductCatalog> _load() async {
     try {
