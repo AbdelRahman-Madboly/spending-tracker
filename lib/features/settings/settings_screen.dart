@@ -5,11 +5,15 @@ import '../../core/design/app_theme.dart';
 import '../../core/design/category_colors.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
+import '../../data/gemini_key_store.dart';
+import '../../data/net/gemini_client.dart';
+import '../../data/net/network_gate.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../add/widgets/new_item_dialog.dart'
     show showEditItemDialog, showNewItemDialog;
 import 'widgets/category_dialogs.dart';
+import 'widgets/online_settings_section.dart';
 
 /// App name shown in the "about" block and used as the Android launcher
 /// label — kept as one constant so the two never drift apart.
@@ -32,7 +36,18 @@ String _generateKey(String prefix) =>
 class SettingsScreen extends StatefulWidget {
   final SpendingRepository repository;
 
-  const SettingsScreen({super.key, required this.repository});
+  /// Where the Gemini key is saved. Defaults to secure storage.
+  final GeminiKeyStore? geminiKeyStore;
+
+  /// Tests the key. Defaults to one through a [NetworkGate] of its own.
+  final GeminiClient? gemini;
+
+  const SettingsScreen({
+    super.key,
+    required this.repository,
+    this.geminiKeyStore,
+    this.gemini,
+  });
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -47,6 +62,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   List<CategoryView> _archivedCategories = const [];
   List<SubcategoryView> _archivedSubcategories = const [];
   final Set<String> _expandedCategories = {};
+  late final GeminiKeyStore _geminiKeys =
+      widget.geminiKeyStore ?? SecureGeminiKeyStore();
+  late final GeminiClient _gemini = widget.gemini ??
+      GeminiClient(NetworkGate(widget.repository), widget.repository,
+          _geminiKeys);
   bool _showArchivedItems = false;
   bool _loaded = false;
   String? _salaryError;
@@ -560,6 +580,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onPressed: () => _unarchiveSubcategory(subcategory.key),
                     ),
                   ),
+                const Divider(height: AppSpacing.lg),
+                const _SectionHeader('المزايا الأونلاين'),
+                OnlineSettingsSection(
+                  repository: widget.repository,
+                  keyStore: _geminiKeys,
+                  gemini: _gemini,
+                ),
                 if (ThemeModeScope.maybeOf(context) case final themeMode?) ...[
                   const Divider(height: AppSpacing.lg),
                   const _SectionHeader('المظهر'),
