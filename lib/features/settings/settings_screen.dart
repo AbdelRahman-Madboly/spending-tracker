@@ -5,6 +5,7 @@ import '../../core/design/app_theme.dart';
 import '../../core/design/category_colors.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
+import '../../data/backup/data_transfer.dart';
 import '../../data/gemini_key_store.dart';
 import '../../data/net/gemini_client.dart';
 import '../../data/net/network_gate.dart';
@@ -13,6 +14,7 @@ import '../../domain/spending_repository.dart';
 import '../add/widgets/new_item_dialog.dart'
     show showEditItemDialog, showNewItemDialog;
 import 'widgets/category_dialogs.dart';
+import 'widgets/data_settings_section.dart';
 import 'widgets/online_settings_section.dart';
 
 /// App name shown in the "about" block and used as the Android launcher
@@ -42,11 +44,16 @@ class SettingsScreen extends StatefulWidget {
   /// Tests the key. Defaults to one through a [NetworkGate] of its own.
   final GeminiClient? gemini;
 
+  /// Export, backup and restore. Defaults to one over the app's
+  /// [DatabaseHostScope]; with neither, البيانات is not shown.
+  final DataTransfer? dataTransfer;
+
   const SettingsScreen({
     super.key,
     required this.repository,
     this.geminiKeyStore,
     this.gemini,
+    this.dataTransfer,
   });
 
   @override
@@ -81,6 +88,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _salaryController.dispose();
     super.dispose();
+  }
+
+  DataTransfer? _dataTransfer(BuildContext context) {
+    if (widget.dataTransfer case final transfer?) return transfer;
+    final host = DatabaseHostScope.maybeOf(context);
+    if (host == null) return null;
+    final repository = widget.repository;
+    return DataTransfer(host: host, repository: () => repository);
   }
 
   List<SubcategoryView> get _allSubcategories =>
@@ -587,6 +602,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   keyStore: _geminiKeys,
                   gemini: _gemini,
                 ),
+                if (_dataTransfer(context) case final transfer?) ...[
+                  const Divider(height: AppSpacing.lg),
+                  const _SectionHeader('البيانات'),
+                  DataSettingsSection(transfer: transfer),
+                ],
                 if (ThemeModeScope.maybeOf(context) case final themeMode?) ...[
                   const Divider(height: AppSpacing.lg),
                   const _SectionHeader('المظهر'),

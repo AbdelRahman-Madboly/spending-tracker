@@ -178,4 +178,9 @@ abstract final class AppIcons {
   static const themeSystem = Symbols.brightness_auto_rounded;
   static const themeLight = Symbols.light_mode_rounded;
   static const themeDark = Symbols.dark_mode_rounded;
+
+  // Data: export, backup and restore.
+  static const exportSheet = Symbols.table_view_rounded;
+  static const backup = Symbols.backup_rounded;
+  static const restore = Symbols.settings_backup_restore_rounded;
 }
