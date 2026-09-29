@@ -880,6 +880,17 @@ class DriftSpendingRepository implements SpendingRepository {
           updatedAt: Value(now),
         ));
         if (updated == 0) throw StateError('$draftId is not a draft capture');
+        // The raw text is what was captured and stays; a draft captured
+        // with no words (a voice note nobody transcribed) takes the text
+        // typed at review instead.
+        final typed = draft.rawText;
+        if (typed != null && typed.trim().isNotEmpty) {
+          await (_db.update(_db.captureGroups)
+                ..where((t) =>
+                    t.id.equals(draftId) &
+                    (t.rawText.isNull() | t.rawText.trim().equals(''))))
+              .write(CaptureGroupsCompanion(rawText: Value(typed)));
+        }
       }
       for (final line in draft.lines) {
         await _db.into(_db.entries).insert(EntriesCompanion.insert(

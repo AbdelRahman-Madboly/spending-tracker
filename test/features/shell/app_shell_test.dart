@@ -145,16 +145,16 @@ void main() {
       findsOneWidget,
     );
 
-    // Voice has no flow before Phase C and says so.
+    // Each action reaches its flow: نص opens the note sheet.
     await tester.tap(
       find.descendant(
         of: dial,
-        matching: find.byKey(const Key('capture-voice')),
+        matching: find.byKey(const Key('capture-text')),
       ),
     );
     await tester.pumpAndSettle();
     expect(dial, findsNothing);
-    expect(find.byKey(const Key('capture-soon-voice')), findsOneWidget);
+    expect(find.byKey(const Key('text-note-sheet')), findsOneWidget);
   });
 
   testWidgets("the dashboard's today عرض الكل opens السجل on that day", (

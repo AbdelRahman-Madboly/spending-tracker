@@ -434,4 +434,89 @@ void main() {
     expect(repo.saves, 1);
     expect((await _saved(repo)), hasLength(1));
   });
+
+  group('a voice note nobody transcribed', () {
+    const voice = DraftAttachment(
+      kind: AttachmentKind.voice,
+      path: 'attachments/2026-09/v.m4a',
+      durationMs: 4000,
+    );
+    ReviewRequest unheard() => ReviewRequest(
+          kind: CaptureKind.voice,
+          capturedAt: _now(),
+          attachments: const [voice],
+        );
+
+    testWidgets('can be typed in and parsed into lines', (tester) async {
+      final h = await _open(tester, unheard());
+      expect(find.byKey(const Key('review-line-l0')), findsNothing);
+
+      await tester.enterText(
+          find.byKey(const Key('review-type-text')), 'طماطم ب 30\nعيش ب 10');
+      await _tap(tester, find.byKey(const Key('review-parse-text')));
+
+      expect(find.byKey(const Key('review-line-l0')), findsOneWidget);
+      expect(find.byKey(const Key('review-line-l1')), findsOneWidget);
+      await _tap(tester, find.byKey(const Key('review-save')));
+
+      final saved = await _saved(h.repo);
+      expect(saved, hasLength(2));
+      expect(saved.every((t) => t.source == EntrySource.voice), isTrue);
+      final group = (await h.repo.captureGroup(saved.first.captureGroupId!))!;
+      expect(group.rawText, 'طماطم ب 30\nعيش ب 10');
+      expect(group.attachments.single.kind, AttachmentKind.voice);
+    });
+
+    testWidgets('closed untyped, it waits in Needs review with its audio',
+        (tester) async {
+      final h = await _open(tester, unheard());
+      await _tap(tester, find.byKey(const Key('review-later')));
+
+      final draft = (await h.repo.watchDraftCaptures().first).single;
+      expect(draft.kind, CaptureKind.voice);
+      expect(draft.rawText, isNull);
+      expect(draft.attachments.single.kind, AttachmentKind.voice);
+    });
+
+    testWidgets('closed after typing, the draft keeps the typed text',
+        (tester) async {
+      final h = await _open(tester, unheard());
+      await tester.enterText(
+          find.byKey(const Key('review-type-text')), 'عيش ب 10');
+      await _tap(tester, find.byKey(const Key('review-later')));
+
+      final draft = (await h.repo.watchDraftCaptures().first).single;
+      expect(draft.rawText, 'عيش ب 10');
+    });
+
+    testWidgets('a draft of it can be typed in later from Needs review',
+        (tester) async {
+      final repo = FixtureSpendingRepository();
+      final draftId = await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.voice,
+        date: DateTime(2026, 9, 20),
+        lines: const [],
+        isDraft: true,
+        attachments: const [voice],
+      ));
+      final draft = (await repo.watchDraftCaptures().first).single;
+      await _open(tester, ReviewRequest.fromDraft(draft),
+          harness: _Harness(repo));
+
+      await tester.enterText(
+          find.byKey(const Key('review-type-text')), 'عيش ب 10');
+      await _tap(tester, find.byKey(const Key('review-parse-text')));
+      await _tap(tester, find.byKey(const Key('review-save')));
+
+      final group = (await repo.captureGroup(draftId))!;
+      expect(group.status, CaptureStatus.saved);
+      expect(group.rawText, 'عيش ب 10');
+      expect(group.entries.single.amountPiastres, 1000);
+    });
+
+    testWidgets('a capture with words shows no typing field', (tester) async {
+      await _open(tester, _text('طماطم ب 30'));
+      expect(find.byKey(const Key('review-type-text')), findsNothing);
+    });
+  });
 }

@@ -4,9 +4,18 @@ import 'package:flutter/services.dart';
 import '../../core/design/tokens.dart';
 import '../../data/barcode_scan_service.dart';
 import '../../data/photo_capture_service.dart';
+import '../../data/speech_recognition_service.dart';
+import '../../data/voice_playback.dart';
+import '../../data/voice_recorder.dart';
+import '../../domain/models.dart';
+import '../../domain/parsing/line_parser.dart';
 import '../../domain/spending_repository.dart';
 import '../add/add_sheet.dart';
 import '../home/widgets/capture_bar.dart';
+import '../review/review_sheet.dart';
+import 'text_note_sheet.dart';
+import 'voice_capture_controller.dart';
+import 'voice_capture_sheet.dart';
 
 /// Opens the add sheet (spec §6.1) as a modal bottom sheet. Saving writes
 /// the entry, gives a light haptic and closes the sheet; the dashboard's
@@ -45,14 +54,19 @@ Future<void> openAddSheet(
 }
 
 /// Runs one capture bar action. Camera and barcode open the add sheet
-/// straight into their capture; voice and text notes have no flow yet
-/// (Phase C) and say so instead of doing nothing.
+/// straight into their capture; voice records and transcribes (spec §6.4)
+/// and text takes a typed note (spec §6.5), and both end in the review
+/// sheet. The platform services are injectable for widget tests.
 Future<void> launchCapture(
   BuildContext context,
   SpendingRepository repository,
   CaptureAction action, {
   PhotoCaptureService? photoCaptureService,
   BarcodeScanService? barcodeScanService,
+  VoiceRecorder Function()? voiceRecorderFactory,
+  SpeechRecognitionService? speechRecognition,
+  VoicePlayback Function()? playbackFactory,
+  DateTime Function() clock = DateTime.now,
 }) async {
   switch (action) {
     case CaptureAction.camera:
@@ -67,14 +81,155 @@ Future<void> launchCapture(
         barcodeScanService: barcodeScanService,
       );
     case CaptureAction.voice:
+      await captureVoice(
+        context,
+        repository,
+        recorderFactory: voiceRecorderFactory,
+        speechRecognition: speechRecognition,
+        photoCaptureService: photoCaptureService,
+        playbackFactory: playbackFactory,
+        clock: clock,
+      );
     case CaptureAction.text:
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          key: Key('capture-soon-${action.name}'),
-          content: Text(action == CaptureAction.voice
-              ? 'التسجيل بالصوت جاي في التحديث الجاي'
-              : 'كتابة المصاريف كنص جاية في التحديث الجاي'),
-        ));
+      await captureText(
+        context,
+        repository,
+        photoCaptureService: photoCaptureService,
+        playbackFactory: playbackFactory,
+        clock: clock,
+      );
+  }
+}
+
+void _say(BuildContext context, String message, Key key) {
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(key: key, content: Text(message)));
+}
+
+/// Records a voice note (spec §6.4), then reviews what was heard with the
+/// audio attached. When nothing was heard (no recogniser the capture may
+/// use) the review asks for the words to be typed, and closing it keeps
+/// the audio as a draft in Needs review.
+Future<void> captureVoice(
+  BuildContext context,
+  SpendingRepository repository, {
+  VoiceRecorder Function()? recorderFactory,
+  SpeechRecognitionService? speechRecognition,
+  PhotoCaptureService? photoCaptureService,
+  VoicePlayback Function()? playbackFactory,
+  DateTime Function() clock = DateTime.now,
+}) async {
+  final capturedAt = clock();
+  final end = await showVoiceCaptureSheet(
+    context,
+    controller: VoiceCaptureController(
+      recorder: (recorderFactory ?? RecordVoiceRecorder.new)(),
+      speech: speechRecognition ?? SpeechToTextRecognitionService(),
+      repository: repository,
+      clock: clock,
+    ),
+  );
+  if (!context.mounted) return;
+  switch (end.phase) {
+    case VoicePhase.permissionDenied:
+      _say(context, 'محتاج إذن الميكروفون علشان أسجل. اسمح بيه من إعدادات التطبيق.',
+          const Key('voice-permission-denied'));
+      return;
+    case VoicePhase.failed:
+      _say(context, 'الميكروفون مش متاح دلوقتي، جرب تاني',
+          const Key('voice-failed'));
+      return;
+    case VoicePhase.stopped:
+      break;
+    case VoicePhase.idle:
+    case VoicePhase.recording:
+    case VoicePhase.discarded:
+      return;
+  }
+  final result = end.result!;
+  final transcript = result.transcript.trim();
+  final audioPath = result.audioPath;
+  if (audioPath == null && transcript.isEmpty) {
+    _say(context, 'ما اتسجلش حاجة', const Key('voice-empty'));
+    return;
+  }
+  await showReviewSheet(
+    context,
+    repository: repository,
+    request: ReviewRequest(
+      kind: CaptureKind.voice,
+      capturedAt: capturedAt,
+      rawText: transcript.isEmpty ? null : transcript,
+      attachments: [
+        if (audioPath != null)
+          DraftAttachment(
+            kind: AttachmentKind.voice,
+            path: audioPath,
+            transcript: transcript.isEmpty ? null : transcript,
+            durationMs: result.durationMs,
+          ),
+      ],
+    ),
+    clock: clock,
+    photoCaptureService: photoCaptureService,
+    playbackFactory: playbackFactory,
+  );
+}
+
+/// Takes a typed note (spec §6.5) and reviews it through the parser. A
+/// note closed before review is kept as a draft rather than lost.
+Future<void> captureText(
+  BuildContext context,
+  SpendingRepository repository, {
+  PhotoCaptureService? photoCaptureService,
+  VoicePlayback Function()? playbackFactory,
+  DateTime Function() clock = DateTime.now,
+}) async {
+  final capturedAt = clock();
+  var typed = '';
+  final text = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+    ),
+    builder: (_) => TextNoteSheet(onChanged: (t) => typed = t),
+  );
+  if (!context.mounted) return;
+  if (text != null) {
+    await showReviewSheet(
+      context,
+      repository: repository,
+      request: ReviewRequest(
+          kind: CaptureKind.text, capturedAt: capturedAt, rawText: text),
+      clock: clock,
+      photoCaptureService: photoCaptureService,
+      playbackFactory: playbackFactory,
+    );
+    return;
+  }
+  final kept = typed.trim();
+  if (kept.isEmpty) return;
+  try {
+    await repository.saveCapture(CaptureDraft(
+      kind: CaptureKind.text,
+      date: ArabicLineParser.captureDay(capturedAt),
+      rawText: kept,
+      lines: const [],
+      isDraft: true,
+    ));
+    if (context.mounted) {
+      _say(context, 'الملاحظة مستنياك في «محتاج مراجعة»',
+          const Key('text-note-kept'));
+    }
+  } catch (_) {
+    if (context.mounted) {
+      _say(context, 'ما قدرتش أحتفظ بالملاحظة، جرب تاني',
+          const Key('text-note-keep-failed'));
+    }
   }
 }

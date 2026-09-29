@@ -724,6 +724,33 @@ void runV3RepositoryContract(
           [AttachmentKind.voice, AttachmentKind.text]);
     });
 
+    test('a draft with no text keeps the text typed at review', () async {
+      // A voice note no recogniser heard: the audio, and no words yet.
+      final draftId = await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.voice,
+        date: DateTime(2026, 9, 22),
+        lines: const [],
+        isDraft: true,
+        attachments: const [
+          DraftAttachment(
+              kind: AttachmentKind.voice, path: 'attachments/2026-09/e.m4a'),
+        ],
+      ));
+
+      await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.voice,
+        date: DateTime(2026, 9, 22),
+        rawText: 'عيش ب 10',
+        draftId: draftId,
+        lines: const [
+          CaptureLine(amountPiastres: 1000, categoryKey: 'Food', description: 'عيش'),
+        ],
+      ));
+
+      final group = (await repo.captureGroup(draftId))!;
+      expect(group.rawText, 'عيش ب 10');
+    });
+
     test('a reviewed draft kept as a note leaves Needs review', () async {
       final draftId = await keepDraft();
 

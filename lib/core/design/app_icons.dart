@@ -131,6 +131,7 @@ abstract final class AppIcons {
   static const attach = Symbols.attach_file_rounded;
   static const play = Symbols.play_arrow_rounded;
   static const pause = Symbols.pause_rounded;
+  static const stop = Symbols.stop_rounded;
   static const checkCircle = Symbols.check_circle_rounded;
   static const recategorize = Symbols.drive_file_move_rounded;
   static const filter = Symbols.filter_list_rounded;

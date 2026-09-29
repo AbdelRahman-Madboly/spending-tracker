@@ -111,7 +111,7 @@ class _AppShellState extends State<AppShell>
   void _add() => openAddSheet(context, widget.repository);
 
   void _capture(CaptureAction action) =>
-      launchCapture(context, widget.repository, action);
+      launchCapture(context, widget.repository, action, clock: widget.clock);
 
   Future<void> _openSpeedDial() async {
     final action = await showModalBottomSheet<CaptureAction>(

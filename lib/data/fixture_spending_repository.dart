@@ -906,7 +906,11 @@ class FixtureSpendingRepository implements SpendingRepository {
       kind: existing?.kind ?? draft.kind,
       status: draft.status,
       // A finished draft keeps what was captured.
-      rawText: existing == null ? draft.rawText : existing.rawText,
+      // A draft keeps what was captured; one captured with no words (a
+      // voice note nobody transcribed) takes the text typed at review.
+      rawText: existing == null || (existing.rawText ?? '').trim().isEmpty
+          ? draft.rawText
+          : existing.rawText,
       cleanText: draft.cleanText,
       parsedBy: draft.parsedBy,
       date: day,

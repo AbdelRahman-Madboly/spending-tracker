@@ -231,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _capture(CaptureAction action) => widget.onCapture != null
       ? widget.onCapture!(action)
-      : launchCapture(context, _repo, action);
+      : launchCapture(context, _repo, action, clock: widget.clock);
 
   void _openStatistics() => widget.onOpenStatistics != null
       ? widget.onOpenStatistics!()

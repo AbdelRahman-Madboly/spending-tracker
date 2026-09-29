@@ -119,6 +119,7 @@ Future<ReviewOutcome> showReviewSheet(
           latest.lines = lines;
           latest.date = date;
         },
+        onTyped: (text) => latest.typed = text,
       ),
     ),
   );
@@ -139,6 +140,9 @@ Future<ReviewOutcome> showReviewSheet(
 class _ReviewSnapshot {
   List<ReviewLine> lines = const [];
   DateTime? date;
+
+  /// What was typed for a capture that came with no words.
+  String typed = '';
 }
 
 /// Keeps a new capture as a draft. A draft stores its text and
@@ -148,7 +152,11 @@ Future<void> _keepAsDraft(SpendingRepository repository,
     ReviewRequest request, _ReviewSnapshot latest) async {
   if (request.draftId != null) return;
   final raw = request.rawText ?? '';
-  final text = raw.trim().isNotEmpty ? raw : reviewDraftText(latest.lines);
+  final text = raw.trim().isNotEmpty
+      ? raw
+      : latest.typed.trim().isNotEmpty
+          ? latest.typed.trim()
+          : reviewDraftText(latest.lines);
   if (text.trim().isEmpty && request.attachments.isEmpty) return;
   final day = latest.date ?? ArabicLineParser.captureDay(request.capturedAt);
   await repository.saveCapture(CaptureDraft(
@@ -177,6 +185,10 @@ class ReviewSheet extends StatefulWidget {
   /// sheet can keep them as a draft when it is closed.
   final void Function(List<ReviewLine> lines, DateTime date)? onChanged;
 
+  /// Told the text typed for a capture that came with no words, for the
+  /// same reason.
+  final ValueChanged<String>? onTyped;
+
   const ReviewSheet({
     super.key,
     required this.repository,
@@ -185,6 +197,7 @@ class ReviewSheet extends StatefulWidget {
     this.photoCaptureService,
     this.playbackFactory,
     this.onChanged,
+    this.onTyped,
   });
 
   @override
@@ -214,6 +227,13 @@ class _ReviewSheetState extends State<ReviewSheet> {
   /// lines.
   String? _parsedBy;
 
+  /// A capture that came with no words and no lines (a voice note no
+  /// recogniser heard, spec §6.4) asks for its text to be typed here; the
+  /// typed text is then the capture's raw text.
+  late final bool _asksForText;
+  final _typed = TextEditingController();
+  ArabicLineParser? _parser;
+
   List<CategoryView> _categories = const [];
   Map<String, List<SubcategoryView>> _subcategories = const {};
   List<QuickPickItem> _items = const [];
@@ -222,7 +242,41 @@ class _ReviewSheetState extends State<ReviewSheet> {
   void initState() {
     super.initState();
     _date = _request.date ?? ArabicLineParser.captureDay(_request.capturedAt);
+    _asksForText = _request.lines == null &&
+        (_request.cleanText ?? _request.rawText ?? '').trim().isEmpty;
+    _typed.addListener(() => widget.onTyped?.call(_typed.text));
     _load();
+  }
+
+  @override
+  void dispose() {
+    _typed.dispose();
+    super.dispose();
+  }
+
+  /// The captured text, or the typed one for a capture that had none.
+  String? get _rawText {
+    final raw = _request.rawText;
+    if (raw != null && raw.trim().isNotEmpty) return raw;
+    final typed = _typed.text.trim();
+    return typed.isEmpty ? raw : typed;
+  }
+
+  /// Reads the typed text into lines, added after any already there.
+  void _parseTyped() {
+    final parser = _parser;
+    final text = _typed.text.trim();
+    if (parser == null || text.isEmpty) return;
+    final parsed = parser.parse(text, capturedAt: _request.capturedAt);
+    setState(() {
+      _lines = [
+        ..._lines,
+        for (final p in parsed) ReviewLine.fromParsed(p, id: _newId()),
+      ];
+      _parsedBy = 'local';
+    });
+    FocusScope.of(context).unfocus();
+    _report();
   }
 
   String _newId() => 'l${_nextId++}';
@@ -238,8 +292,9 @@ class _ReviewSheetState extends State<ReviewSheet> {
     String? parsedBy = _request.parsedBy;
     if (parsed == null) {
       final text = _request.cleanText ?? _request.rawText ?? '';
-      parsed = ArabicLineParser(await loadParserCatalogue(_repo))
-          .parse(text, capturedAt: _request.capturedAt);
+      final parser = ArabicLineParser(await loadParserCatalogue(_repo));
+      _parser = parser;
+      parsed = parser.parse(text, capturedAt: _request.capturedAt);
       parsedBy ??= 'local';
     }
     if (!mounted) return;
@@ -302,7 +357,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      final raw = _request.rawText;
+      final raw = _rawText;
       await _repo.saveCapture(CaptureDraft(
         kind: _request.kind,
         date: _date,
@@ -439,6 +494,31 @@ class _ReviewSheetState extends State<ReviewSheet> {
               resolveFile: (path) => _photos.resolve(path),
               playbackFactory:
                   widget.playbackFactory ?? JustAudioVoicePlayback.new,
+            ),
+          ],
+          if (_asksForText) ...[
+            label('اكتب اللي اتقال'),
+            TextField(
+              key: const Key('review-type-text'),
+              controller: _typed,
+              minLines: 2,
+              maxLines: 6,
+              keyboardType: TextInputType.multiline,
+              decoration: const InputDecoration(
+                hintText: 'طماطم ب 30\nعيش ب 10',
+                helperText: 'مقدرتش أفهم الكلام، اكتبه وأنا أقسمه سطور',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: FilledButton.tonalIcon(
+                key: const Key('review-parse-text'),
+                style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+                onPressed: _parseTyped,
+                icon: const Icon(AppIcons.textNote, size: 20),
+                label: const Text('حلّل'),
+              ),
             ),
           ],
           if (text.isNotEmpty) ...[
