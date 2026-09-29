@@ -14,6 +14,7 @@ import '../../domain/product_catalog.dart';
 import '../../domain/spending_repository.dart';
 import '../add/widgets/category_strip.dart' show SelectableChip;
 import '../capture/permission_prompt.dart';
+import '../scan_check/scan_check.dart';
 import 'product_editor.dart';
 
 /// Opens «المنتجات» over [context].
@@ -199,6 +200,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
+  /// «امسح واعرف السعر»: see what a code is and costs before deciding;
+  /// what the user keeps shows in the list when they come back.
+  Future<void> _scanCheck() async {
+    await scanAndCheck(
+      context,
+      widget.repository,
+      scanner: _scanner,
+      productCatalog: widget.catalog,
+      permissionService: widget.permissionService,
+    );
+    if (mounted) await _load();
+  }
+
   QuickPickItem? _mineFor(CatalogueProduct product) => _items
       .where(
         (i) =>
@@ -338,6 +352,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
               0,
             ),
             child: _TabToggle(selected: _tab, onSelected: _switchTab),
+          ),
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+              AppSpacing.gutter,
+              AppSpacing.sm,
+              AppSpacing.gutter,
+              0,
+            ),
+            child: OutlinedButton.icon(
+              key: const Key('products-scan-check'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              onPressed: _scanCheck,
+              icon: const Icon(AppIcons.search),
+              label: const Text('امسح واعرف السعر'),
+            ),
           ),
           Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(

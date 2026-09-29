@@ -16,6 +16,7 @@ import '../../domain/transactions.dart';
 import '../capture/capture_launcher.dart';
 import '../capture/permission_prompt.dart';
 import '../home/home_screen.dart';
+import '../scan_check/scan_check.dart';
 import '../home/widgets/capture_bar.dart';
 import '../settings/import_screen.dart';
 import '../settings/settings_screen.dart';
@@ -259,6 +260,15 @@ class _AppShellState extends State<AppShell>
         clock: widget.clock,
       );
 
+  void _scanCheck() => scanAndCheck(
+    context,
+    widget.repository,
+    permissionService: widget.permissionService,
+    photoCaptureService: widget.photoCaptureService,
+    textRecognition: widget.textRecognition,
+    clock: widget.clock,
+  );
+
   Future<void> _openSpeedDial() async {
     final action = await showModalBottomSheet<CaptureAction>(
       context: context,
@@ -290,6 +300,7 @@ class _AppShellState extends State<AppShell>
       clock: widget.clock,
       onAdd: _add,
       onCapture: _capture,
+      onScanCheck: _scanCheck,
       onOpenStatistics: _openStatistics,
       onOpenTransactions: (day) =>
           _openTransactions(TransactionFilter.day(day)),

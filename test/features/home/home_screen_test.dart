@@ -17,6 +17,7 @@ DateTime _fixtureToday() => DateTime(2026, 9, 6, 12);
 class _Calls {
   int adds = 0;
   int statistics = 0;
+  int scanChecks = 0;
   final captures = <CaptureAction>[];
   final transactionDays = <DateTime>[];
   final drafts = <CaptureGroupView>[];
@@ -41,6 +42,7 @@ Future<_Calls> _pump(
         onAdd: () => calls.adds++,
         onCapture: calls.captures.add,
         onOpenStatistics: () => calls.statistics++,
+        onScanCheck: () => calls.scanChecks++,
         onOpenTransactions: calls.transactionDays.add,
         onOpenDraft: calls.drafts.add,
       ),
@@ -292,11 +294,54 @@ void main() {
     expect(calls.captures, [CaptureAction.camera]);
   });
 
-  testWidgets('a long press on باركود opens المنتجات', (tester) async {
-    await _pump(tester, FixtureSpendingRepository());
-    await tester.longPress(find.byKey(const Key('capture-barcode')));
-    await tester.pumpAndSettle();
-    expect(find.byType(ProductsScreen), findsOneWidget);
+  group('a long press on باركود', () {
+    testWidgets('offers سجل مصروف, امسح واعرف and المنتجات, each 48dp or '
+        'more', (tester) async {
+      await _pump(tester, FixtureSpendingRepository());
+      await tester.longPress(find.byKey(const Key('capture-barcode')));
+      await tester.pumpAndSettle();
+      for (final (key, label) in [
+        ('barcode-menu-record', 'سجل مصروف'),
+        ('barcode-menu-check', 'امسح واعرف'),
+        ('barcode-menu-products', 'المنتجات'),
+      ]) {
+        final option = find.byKey(Key(key));
+        expect(
+            find.descendant(of: option, matching: find.text(label)),
+            findsOneWidget);
+        expect(tester.getSize(option).height, greaterThanOrEqualTo(48));
+      }
+    });
+
+    testWidgets('سجل مصروف runs the barcode capture as a tap does',
+        (tester) async {
+      final calls = await _pump(tester, FixtureSpendingRepository());
+      await tester.longPress(find.byKey(const Key('capture-barcode')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('barcode-menu-record')));
+      await tester.pumpAndSettle();
+      expect(calls.captures, [CaptureAction.barcode]);
+      expect(calls.scanChecks, 0);
+    });
+
+    testWidgets('امسح واعرف starts scan and check', (tester) async {
+      final calls = await _pump(tester, FixtureSpendingRepository());
+      await tester.longPress(find.byKey(const Key('capture-barcode')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('barcode-menu-check')));
+      await tester.pumpAndSettle();
+      expect(calls.scanChecks, 1);
+      expect(calls.captures, isEmpty);
+    });
+
+    testWidgets('المنتجات opens المنتجات', (tester) async {
+      await _pump(tester, FixtureSpendingRepository());
+      await tester.longPress(find.byKey(const Key('capture-barcode')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('barcode-menu-products')));
+      await tester.pumpAndSettle();
+      expect(find.byType(ProductsScreen), findsOneWidget);
+    });
   });
 
   testWidgets('tapping the trend chart opens statistics', (tester) async {

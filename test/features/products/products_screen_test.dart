@@ -295,6 +295,29 @@ void main() {
       expect(fieldText(tester, 'product-barcode'), '9999');
     });
 
+    testWidgets('امسح واعرف السعر shows what a code is and costs, and the '
+        'list shows it once it is added', (tester) async {
+      scanner.next.add('6221007012345');
+      await pump(tester);
+      final entry = find.byKey(const Key('products-scan-check'));
+      expect(find.descendant(of: entry, matching: find.text('امسح واعرف السعر')),
+          findsOneWidget);
+      expect(tester.getSize(entry).height, greaterThanOrEqualTo(48));
+      await tap(tester, entry);
+      expect(find.byKey(const Key('scan-result')), findsOneWidget);
+      expect(find.text('الدليل'), findsWidgets);
+      await tap(tester, find.byKey(const Key('scan-save')));
+      expect(find.byKey(const Key('scan-result')), findsNothing);
+      expect((await repo.itemByBarcode('6221007012345'))!.nameAr,
+          'مكرونة ريجينا قلم');
+      await search(tester, 'ريجينا');
+      expect(
+          find.byWidgetPredicate((w) =>
+              w.key is ValueKey<String> &&
+              (w.key as ValueKey<String>).value.startsWith('product-')),
+          findsOneWidget);
+    });
+
     testWidgets('backing out of the scanner opens nothing', (tester) async {
       await pump(tester);
       await tap(tester, find.byKey(const Key('products-scan-add')));

@@ -10,6 +10,7 @@ import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
 import '../capture/capture_launcher.dart';
 import '../products/products_screen.dart';
+import '../scan_check/scan_check.dart';
 import '../review/review_sheet.dart';
 import '../statistics/statistics_screen.dart';
 import '../transactions/transactions_screen.dart';
@@ -42,8 +43,11 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<CaptureAction>? onCapture;
   final VoidCallback? onOpenStatistics;
 
-  /// Opens «المنتجات» (a long press on the capture bar's باركود).
+  /// Opens «المنتجات» (from the باركود long-press menu).
   final VoidCallback? onOpenProducts;
+
+  /// Starts «امسح واعرف» (from the باركود long-press menu).
+  final VoidCallback? onScanCheck;
 
   /// Opens السجل filtered to the given day.
   final ValueChanged<DateTime>? onOpenTransactions;
@@ -62,6 +66,7 @@ class HomeScreen extends StatefulWidget {
     this.onCapture,
     this.onOpenStatistics,
     this.onOpenProducts,
+    this.onScanCheck,
     this.onOpenTransactions,
     this.onOpenDraft,
     this.onImportBundled,
@@ -269,6 +274,25 @@ class _HomeScreenState extends State<HomeScreen>
       ? widget.onOpenProducts!()
       : openProductsScreen(context, _repo);
 
+  void _scanCheck() => widget.onScanCheck != null
+      ? widget.onScanCheck!()
+      : scanAndCheck(context, _repo, clock: widget.clock);
+
+  Future<void> _barcodeMenu() async {
+    final choice = await showBarcodeMenu(context);
+    if (!mounted) return;
+    switch (choice) {
+      case BarcodeMenuChoice.record:
+        _capture(CaptureAction.barcode);
+      case BarcodeMenuChoice.check:
+        _scanCheck();
+      case BarcodeMenuChoice.products:
+        _openProducts();
+      case null:
+        break;
+    }
+  }
+
   void _openStatistics() => widget.onOpenStatistics != null
       ? widget.onOpenStatistics!()
       : Navigator.of(context).push(MaterialPageRoute<void>(
@@ -324,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen>
                 gap,
                 CaptureBar(
                   onAction: _capture,
-                  onLongPress: (_) => _openProducts(),
+                  onLongPress: (_) => _barcodeMenu(),
                 ),
                 // Always in the list, so showing or hiding it never shifts
                 // the sections below to new slots.
