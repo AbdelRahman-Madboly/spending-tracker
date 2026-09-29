@@ -27,8 +27,9 @@ extension CaptureActionLabels on CaptureAction {
 /// dashboard and in the FAB's long-press speed dial, so both reach the same
 /// flows.
 ///
-/// A long press on باركود reports [onLongPress] (the dashboard offers
-/// [showBarcodeMenu]); the other buttons have no long press.
+/// A long press on باركود reports [onLongPress]; the dashboard answers a
+/// tap or a long press on it with [showBarcodeMenu]. The other buttons
+/// have no long press.
 class CaptureBar extends StatelessWidget {
   final ValueChanged<CaptureAction> onAction;
   final ValueChanged<CaptureAction>? onLongPress;
@@ -55,7 +56,7 @@ class CaptureBar extends StatelessWidget {
                 child: Semantics(
                   onLongPressHint:
                       action == CaptureAction.barcode && onLongPress != null
-                      ? 'امسح واعرف أو المنتجات'
+                      ? 'امسح واعرف السعر أو المنتجات'
                       : null,
                   child: InkWell(
                     key: Key('capture-${action.name}'),
@@ -97,8 +98,8 @@ class CaptureBar extends StatelessWidget {
 /// What the باركود long press offers.
 enum BarcodeMenuChoice { record, check, products }
 
-/// The باركود menu: «سجل مصروف» (the barcode capture a tap runs),
-/// «امسح واعرف» (scan a product to see what it is and costs before
+/// The باركود menu: «سجل مصروف» (the barcode purchase scan),
+/// «امسح واعرف السعر» (scan a product to see what it is and costs before
 /// deciding anything) and «المنتجات». Null when dismissed.
 Future<BarcodeMenuChoice?> showBarcodeMenu(BuildContext context) =>
     showModalBottomSheet<BarcodeMenuChoice>(
@@ -138,7 +139,7 @@ Future<BarcodeMenuChoice?> showBarcodeMenu(BuildContext context) =>
                 BarcodeMenuChoice.check,
                 'barcode-menu-check',
                 AppIcons.search,
-                'امسح واعرف',
+                'امسح واعرف السعر',
                 'اعرف المنتج وسعره، وبعدين قرر تسجله ولا لأ',
               ),
               option(

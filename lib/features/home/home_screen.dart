@@ -43,10 +43,10 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<CaptureAction>? onCapture;
   final VoidCallback? onOpenStatistics;
 
-  /// Opens «المنتجات» (from the باركود long-press menu).
+  /// Opens «المنتجات» (from the باركود menu).
   final VoidCallback? onOpenProducts;
 
-  /// Starts «امسح واعرف» (from the باركود long-press menu).
+  /// Starts «امسح واعرف» (from the باركود menu).
   final VoidCallback? onScanCheck;
 
   /// Opens السجل filtered to the given day.
@@ -347,7 +347,11 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 gap,
                 CaptureBar(
-                  onAction: _capture,
+                  // باركود asks first: a purchase, a price check or the
+                  // products, so «امسح واعرف» is one tap away.
+                  onAction: (action) => action == CaptureAction.barcode
+                      ? _barcodeMenu()
+                      : _capture(action),
                   onLongPress: (_) => _barcodeMenu(),
                 ),
                 // Always in the list, so showing or hiding it never shifts

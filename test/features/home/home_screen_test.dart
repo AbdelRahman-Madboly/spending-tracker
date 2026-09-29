@@ -294,6 +294,19 @@ void main() {
     expect(calls.captures, [CaptureAction.camera]);
   });
 
+  testWidgets('a tap on باركود opens the same choice, not the scanner',
+      (tester) async {
+    final calls = await _pump(tester, FixtureSpendingRepository());
+    await tester.tap(find.byKey(const Key('capture-barcode')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('barcode-menu')), findsOneWidget);
+    expect(calls.captures, isEmpty);
+    await tester.tap(find.byKey(const Key('barcode-menu-check')));
+    await tester.pumpAndSettle();
+    expect(calls.scanChecks, 1);
+    expect(calls.captures, isEmpty);
+  });
+
   group('a long press on باركود', () {
     testWidgets('offers سجل مصروف, امسح واعرف and المنتجات, each 48dp or '
         'more', (tester) async {
@@ -302,7 +315,7 @@ void main() {
       await tester.pumpAndSettle();
       for (final (key, label) in [
         ('barcode-menu-record', 'سجل مصروف'),
-        ('barcode-menu-check', 'امسح واعرف'),
+        ('barcode-menu-check', 'امسح واعرف السعر'),
         ('barcode-menu-products', 'المنتجات'),
       ]) {
         final option = find.byKey(Key(key));

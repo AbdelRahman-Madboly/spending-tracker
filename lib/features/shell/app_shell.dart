@@ -18,6 +18,7 @@ import '../capture/permission_prompt.dart';
 import '../home/home_screen.dart';
 import '../scan_check/scan_check.dart';
 import '../home/widgets/capture_bar.dart';
+import '../products/products_screen.dart';
 import '../settings/import_screen.dart';
 import '../settings/settings_screen.dart';
 import '../statistics/statistics_screen.dart';
@@ -149,6 +150,11 @@ class _AppShellState extends State<AppShell>
       return;
     }
     final action = quickLaunchCapture(type);
+    // The launcher's باركود offers the same choice as the dashboard's.
+    if (action == CaptureAction.barcode) {
+      _barcodeMenu();
+      return;
+    }
     // The launcher's كاميرا is the camera itself, not the choice.
     if (action != null) {
       _capture(
@@ -269,6 +275,26 @@ class _AppShellState extends State<AppShell>
     clock: widget.clock,
   );
 
+  /// The باركود choice: a purchase scan, «امسح واعرف» or «المنتجات».
+  Future<void> _barcodeMenu() async {
+    final choice = await showBarcodeMenu(context);
+    if (!mounted) return;
+    switch (choice) {
+      case BarcodeMenuChoice.record:
+        _capture(CaptureAction.barcode);
+      case BarcodeMenuChoice.check:
+        _scanCheck();
+      case BarcodeMenuChoice.products:
+        openProductsScreen(
+          context,
+          widget.repository,
+          permissionService: widget.permissionService,
+        );
+      case null:
+        break;
+    }
+  }
+
   Future<void> _openSpeedDial() async {
     final action = await showModalBottomSheet<CaptureAction>(
       context: context,
@@ -291,7 +317,8 @@ class _AppShellState extends State<AppShell>
         ),
       ),
     );
-    if (action != null && mounted) _capture(action);
+    if (action == null || !mounted) return;
+    action == CaptureAction.barcode ? _barcodeMenu() : _capture(action);
   }
 
   Widget _buildTab(AppTab tab) => switch (tab) {

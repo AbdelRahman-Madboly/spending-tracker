@@ -85,11 +85,24 @@ void main() {
     expect(find.text('إذن الميكروفون'), findsOneWidget);
   });
 
-  testWidgets('a warm start from باركود goes to the scanner flow',
-      (tester) async {
+  testWidgets('a warm start from باركود offers the barcode choice, and '
+      'سجل مصروف goes to the scanner flow', (tester) async {
     final actions = FakeQuickActions();
     await pump(tester, actions);
     actions.press('barcode');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('barcode-menu')), findsOneWidget);
+    expect(find.byKey(const Key('permission-card')), findsNothing);
+    await tester.tap(find.byKey(const Key('barcode-menu-record')));
+    await tester.pumpAndSettle();
+    expect(find.text('إذن الكاميرا'), findsOneWidget);
+  });
+
+  testWidgets('a cold start from باركود offers the barcode choice, and '
+      'امسح واعرف السعر asks for the camera', (tester) async {
+    await pump(tester, FakeQuickActions(launchedWith: 'barcode'));
+    expect(find.byKey(const Key('barcode-menu')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('barcode-menu-check')));
     await tester.pumpAndSettle();
     expect(find.text('إذن الكاميرا'), findsOneWidget);
   });
