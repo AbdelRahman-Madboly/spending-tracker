@@ -180,6 +180,10 @@ class CatalogueAdditions extends Equatable {
   List<Object?> get props => [categories, subcategories];
 }
 
+/// Reads an evidence file named relative to its pack's folder
+/// (`evidence/...jpeg`); null when the pack came without it.
+typedef EvidenceReader = Future<List<int>?> Function(String path);
+
 /// Everything one import source holds, read but not yet checked.
 class ImportPack extends Equatable {
   /// The file the pack came from (`samsung_notes_2026-09.json`,
@@ -201,6 +205,11 @@ class ImportPack extends Equatable {
   /// from a prepared pack.
   final bool fromNote;
 
+  /// Where this pack's own evidence is read from (a zip pack's files);
+  /// null for a pack whose evidence the importer finds (the bundled
+  /// assets).
+  final EvidenceReader? readEvidence;
+
   const ImportPack({
     required this.fileName,
     required this.rows,
@@ -209,7 +218,20 @@ class ImportPack extends Equatable {
     this.skipped = 0,
     this.rawTextByGroup = const {},
     this.fromNote = false,
+    this.readEvidence,
   });
+
+  /// This pack, with its evidence read by [reader].
+  ImportPack withEvidence(EvidenceReader reader) => ImportPack(
+    fileName: fileName,
+    rows: rows,
+    salaries: salaries,
+    additions: additions,
+    skipped: skipped,
+    rawTextByGroup: rawTextByGroup,
+    fromNote: fromNote,
+    readEvidence: reader,
+  );
 
   @override
   List<Object?> get props => [

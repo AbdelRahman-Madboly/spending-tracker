@@ -4,6 +4,8 @@ import 'package:path/path.dart' as p;
 
 import '../spending_repository.dart';
 import 'import_pack.dart';
+
+export 'import_pack.dart' show EvidenceReader;
 import 'import_review.dart';
 
 /// The sample import packs shipped in `assets/import/`, in the order they
@@ -20,10 +22,6 @@ const importOfferSettingKey = 'import_offer_done';
 /// A file the user picked or shared to import: its name decides how it is
 /// read (see `packFromFile`).
 typedef PickedImportFile = ({String name, Uint8List bytes});
-
-/// Reads an evidence file named relative to its pack's folder
-/// (`evidence/...jpeg`); null when the pack came without it.
-typedef EvidenceReader = Future<List<int>?> Function(String path);
 
 /// Keeps evidence bytes in app storage; returns the stored relative path.
 typedef EvidenceSaver =
@@ -159,7 +157,8 @@ class Importer {
     Future<String?> store(String? path) async {
       if (path == null) return null;
       if (evidence.containsKey(path)) return evidence[path];
-      final read = readEvidence, save = saveEvidence;
+      // A pack that carries its evidence (a zip) reads it from there.
+      final read = pack.readEvidence ?? readEvidence, save = saveEvidence;
       if (read == null || save == null) return null;
       final bytes = await read(path);
       if (bytes == null) return null;

@@ -630,7 +630,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   leading: const Icon(AppIcons.importData),
                   title: const Text('استيراد', style: AppText.body),
                   subtitle: const Text(
-                      'البيانات المرفقة، ملف JSON أو ملاحظة سامسونج أو نص',
+                      'البيانات المرفقة، ملف JSON أو ZIP أو ملاحظة سامسونج أو نص',
                       style: AppText.caption),
                   onTap: _openImport,
                 ),

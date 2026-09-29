@@ -156,8 +156,58 @@ ImportPack noteImportPack({
   );
 }
 
+/// A pack sent as a zip: one pack JSON at the zip's root, named as the
+/// pack (its rows are `pack:<that name>:<ref>`), and its evidence in the
+/// zip beside it (`evidence/...`). Evidence is read only from inside the
+/// zip: a path that climbs out of it or is absolute reads as missing.
+/// Throws [FormatException] for a file that is not a zip, or a zip without
+/// exactly one JSON at its root.
+ImportPack readZipPack(Uint8List bytes) {
+  final Archive archive;
+  try {
+    archive = ZipDecoder().decodeBytes(bytes);
+  } on Object {
+    throw const FormatException('not a zip');
+  }
+  final files = <String, ArchiveFile>{};
+  for (final file in archive.files) {
+    if (!file.isFile) continue;
+    final name = _insideZip(file.name);
+    if (name == null || name.startsWith('__MACOSX/')) continue;
+    files[name] = file;
+  }
+  final packs = [
+    for (final name in files.keys)
+      if (!name.contains('/') &&
+          !name.startsWith('.') &&
+          p.extension(name).toLowerCase() == '.json')
+        name,
+  ];
+  if (packs.length != 1) {
+    throw const FormatException('a zip pack holds one JSON at its root');
+  }
+  final name = packs.single;
+  final pack = parseImportPack(
+    name,
+    utf8.decode(files[name]!.content, allowMalformed: true),
+  );
+  return pack.withEvidence((path) async {
+    final inside = _insideZip(path);
+    return inside == null ? null : files[inside]?.content;
+  });
+}
+
+/// [path] as a normalised path inside the zip, or null when it is
+/// absolute, climbs out of the zip or uses backslashes.
+String? _insideZip(String path) {
+  if (path.contains(r'\') || p.posix.isAbsolute(path)) return null;
+  final normalized = p.posix.normalize(path);
+  if (normalized == '..' || normalized.startsWith('../')) return null;
+  return normalized;
+}
+
 /// The pack a file the user picked or shared holds, by its extension: a
-/// `.json` import pack, a Samsung Notes `.sdocx` (dated by its name, or
+/// `.json` import pack, a `.zip` pack with its evidence, a Samsung Notes `.sdocx` (dated by its name, or
 /// [now] when the name is not `Notes_YYMMDD_HHMMSS`), or anything else as
 /// UTF-8 text read like a note captured [now]. Throws [FormatException]
 /// for a file that is none of these.
@@ -171,6 +221,8 @@ ImportPack packFromFile(
   switch (p.extension(name).toLowerCase()) {
     case '.json':
       return parseImportPack(name, utf8.decode(bytes, allowMalformed: true));
+    case '.zip':
+      return readZipPack(bytes);
     case '.sdocx':
       final text = readSdocxNote(bytes);
       if (text == null) throw const FormatException('not a Samsung note');

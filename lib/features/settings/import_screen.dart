@@ -12,7 +12,7 @@ import '../../domain/parsing/repository_catalogue.dart';
 import '../../domain/spending_repository.dart';
 
 /// The import screen (plan Task 13): choose a source (the bundled packs, a
-/// JSON / `.sdocx` / text file, or pasted text), then review every row
+/// JSON / `.zip` / `.sdocx` / text file, or pasted text), then review every row
 /// with its flags and confirm. Nothing is written before the confirm.
 ///
 /// With [packs] it opens straight on their review, as the dashboard card
@@ -236,7 +236,9 @@ class _ImportScreenState extends State<ImportScreen> {
             key: const Key('import-pick'),
             leading: const Icon(AppIcons.importFile),
             title: const Text('اختار ملف'),
-            subtitle: const Text('JSON أو ملاحظة سامسونج .sdocx أو نص'),
+            subtitle: const Text(
+              'JSON أو ZIP بصوره أو ملاحظة سامسونج .sdocx أو نص',
+            ),
             onTap: _pick,
           ),
         ListTile(

@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
@@ -104,6 +106,42 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(ImportScreen), findsOneWidget);
     expect(find.textContaining('مش ملف استيراد'), findsOneWidget);
+  });
+
+  testWidgets('a shared zip pack opens its review, rows and salary',
+      (tester) async {
+    final inbox = await pump(tester);
+    final archive = Archive()
+      ..addFile(ArchiveFile.bytes(
+          'manual_2026-10.json',
+          utf8.encode(jsonEncode({
+            'format': 'manual-import/1',
+            'salaryPeriods': [
+              {
+                'ref': 's1',
+                'datePaid': '2026-09-23',
+                'amountPiastres': 900000,
+                'evidencePhotoPath': 'evidence/s.jpeg',
+              },
+            ],
+            'entries': [
+              {
+                'ref': 'z1',
+                'date': '2026-09-20',
+                'amountPiastres': 4500,
+                'description': 'تاكسي',
+                'categoryKey': 'Transport',
+                'evidencePhotoPath': 'evidence/z1.jpeg',
+              },
+            ],
+          }))))
+      ..addFile(ArchiveFile.bytes('evidence/s.jpeg', [1]))
+      ..addFile(ArchiveFile.bytes('evidence/z1.jpeg', [2]));
+    inbox.controller.add(SharedFile(
+        'pack.zip', Uint8List.fromList(ZipEncoder().encode(archive))));
+    await tester.pumpAndSettle();
+    expect(find.byType(ImportScreen), findsOneWidget);
+    expect(find.text('استورد (2)'), findsOneWidget);
   });
 
   group('shared images', () {

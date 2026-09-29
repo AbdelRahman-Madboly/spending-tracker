@@ -48,7 +48,7 @@ Importer appImporter(SpendingRepository repository, [AssetBundle? bundle]) {
   );
 }
 
-/// The system document picker, for a JSON pack, an `.sdocx` or a text
+/// The system document picker, for a JSON or zip pack, an `.sdocx` or a text
 /// file. Null when the user backed out.
 Future<PickedImportFile?> pickImportFile() async {
   final picked = await FilePicker.pickFile(type: FileType.any);
@@ -127,8 +127,12 @@ Future<List<SharedImport>> sharedImportsOf(List<SharedMediaFile> batch) async {
         images.add(media.path);
       case SharedMediaType.file:
         try {
-          shares.add(SharedFile(
-              p.basename(media.path), await File(media.path).readAsBytes()));
+          shares.add(
+            SharedFile(
+              p.basename(media.path),
+              await File(media.path).readAsBytes(),
+            ),
+          );
         } on Object {
           // Gone from the cache, or unreadable: nothing to import.
         }
