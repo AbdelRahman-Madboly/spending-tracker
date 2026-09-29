@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../core/arabic_text.dart';
+import '../domain/bills.dart';
 import '../domain/models.dart';
 import '../domain/spending_repository.dart';
 
@@ -1386,5 +1387,45 @@ class FixtureSpendingRepository implements SpendingRepository {
         unitPricePiastres: copy.unitPricePiastres);
     _controller.add(null);
     return copy.id;
+  }
+
+  @override
+  Future<RecurringBillView> payRecurringBill(String id, DateTime paidOn,
+      {DateTime? expectedDue}) async {
+    final index = _bills.indexWhere((b) => b.id == id && !b.archived);
+    if (index == -1) throw StateError('no live recurring bill $id');
+    final bill = _bills[index];
+    if (expectedDue != null &&
+        (expectedDue.year != bill.nextDue.year ||
+            expectedDue.month != bill.nextDue.month ||
+            expectedDue.day != bill.nextDue.day)) {
+      throw StateError('bill $id is no longer due $expectedDue');
+    }
+    final record = EntryRecord(
+      id: _newId(),
+      date: DateTime(paidOn.year, paidOn.month, paidOn.day),
+      amountPiastres: bill.amountPiastres,
+      categoryKey: bill.categoryKey,
+      subcategoryKey: bill.subcategoryKey,
+      description: bill.nameAr,
+      paymentMethod: 'Cash',
+      source: EntrySource.manual,
+    );
+    _records[record.id] = record;
+    _createdAt[record.id] = DateTime.now();
+    _entries.add(_viewOf(record));
+    final paid = RecurringBillView(
+      id: bill.id,
+      nameAr: bill.nameAr,
+      amountPiastres: bill.amountPiastres,
+      categoryKey: bill.categoryKey,
+      subcategoryKey: bill.subcategoryKey,
+      everyMonths: bill.everyMonths,
+      nextDue: dueAfterPayment(bill),
+      remindDaysBefore: bill.remindDaysBefore,
+    );
+    _bills[index] = paid;
+    _controller.add(null);
+    return paid;
   }
 }

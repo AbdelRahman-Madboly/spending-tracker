@@ -13,6 +13,7 @@ import '../../domain/spending_repository.dart';
 import '../add/widgets/new_item_dialog.dart'
     show showEditItemDialog, showNewItemDialog;
 import 'widgets/category_dialogs.dart';
+import 'recurring_bills_screen.dart';
 import 'widgets/online_settings_section.dart';
 
 /// App name shown in the "about" block and used as the Android launcher
@@ -580,6 +581,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onPressed: () => _unarchiveSubcategory(subcategory.key),
                     ),
                   ),
+                const Divider(height: AppSpacing.lg),
+                ListTile(
+                  key: const Key('settings-recurring-bills'),
+                  leading: const Icon(AppIcons.bill),
+                  title: const Text('الفواتير المتكررة', style: AppText.body),
+                  subtitle: const Text('تذكير قبل الميعاد وتسجيل الدفع',
+                      style: AppText.caption),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) =>
+                        RecurringBillsScreen(repository: widget.repository),
+                  )),
+                ),
                 const Divider(height: AppSpacing.lg),
                 const _SectionHeader('المزايا الأونلاين'),
                 OnlineSettingsSection(

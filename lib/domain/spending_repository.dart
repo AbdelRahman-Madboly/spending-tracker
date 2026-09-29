@@ -342,4 +342,17 @@ abstract class SpendingRepository {
   /// group, no import identity, no attachments) and returns its id: the
   /// entry detail's "تكرار اليوم".
   Future<String> duplicateEntry(String id, DateTime date);
+
+  // ---- v3: paying a recurring bill ----
+
+  /// Pays [id]'s current due date: writes one entry dated [paidOn] with the
+  /// bill's name, amount, category and subcategory, and moves the bill's
+  /// `nextDue` on by `everyMonths`, both or neither. Returns the bill as it
+  /// is now.
+  ///
+  /// Throws [StateError] when the bill is unknown or archived, or when
+  /// [expectedDue] is given and is no longer the bill's due date (a second
+  /// tap on a stale copy), writing nothing.
+  Future<RecurringBillView> payRecurringBill(String id, DateTime paidOn,
+      {DateTime? expectedDue});
 }
