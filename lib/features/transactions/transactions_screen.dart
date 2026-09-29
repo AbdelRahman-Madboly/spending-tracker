@@ -31,6 +31,14 @@ String _isoDay(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}'
     '-${d.day.toString().padLeft(2, '0')}';
 
+/// From the 1st to the last day of one calendar month: statistics' month
+/// history opens السجل on exactly this.
+bool _isWholeMonth(DateTime from, DateTime to) =>
+    from.day == 1 &&
+    to.year == from.year &&
+    to.month == from.month &&
+    DateTime(to.year, to.month, to.day + 1).month != to.month;
+
 const _attachmentKindLabels = {
   AttachmentKind.photo: 'صورة',
   AttachmentKind.voice: 'صوت',
@@ -53,13 +61,17 @@ class TransactionsScreen extends StatefulWidget {
   final SpendingRepository repository;
   final DateTime Function() clock;
 
-  /// The day to open on; null opens on every entry.
+  /// The day to open on; null opens on every entry. Shorthand for a
+  /// one-day [initialFilter], which wins when both are given.
   final DateTime? initialDay;
 
-  /// Bumped by the shell on every "show [initialDay]" request. The day
-  /// alone is not enough: asking for today twice, with the user having
-  /// stepped to yesterday in between, passes the same day both times.
-  final int dayRequest;
+  /// What to open on, such as a month from statistics' history.
+  final TransactionFilter? initialFilter;
+
+  /// Bumped by the shell on every "show this" request. The filter alone is
+  /// not enough: asking for today twice, with the user having stepped to
+  /// yesterday in between, passes the same day both times.
+  final int filterRequest;
 
   /// Passed to the entry detail sheet; the defaults are the real ones.
   final PhotoCaptureService? photoCaptureService;
@@ -70,7 +82,8 @@ class TransactionsScreen extends StatefulWidget {
     required this.repository,
     this.clock = DateTime.now,
     this.initialDay,
-    this.dayRequest = 0,
+    this.initialFilter,
+    this.filterRequest = 0,
     this.photoCaptureService,
     this.playbackFactory,
   });
@@ -107,8 +120,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   void initState() {
     super.initState();
-    final day = widget.initialDay;
-    if (day != null) _filter = TransactionFilter.day(day);
+    _filter = _requested(widget) ?? const TransactionFilter();
     _loadCategories();
   }
 
@@ -124,14 +136,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   void didUpdateWidget(TransactionsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // The shell reuses this screen when the dashboard asks for another day.
-    final day = widget.initialDay;
-    if (day != null &&
-        (day != oldWidget.initialDay ||
-            widget.dayRequest != oldWidget.dayRequest)) {
+    // The shell reuses this screen when the dashboard asks for another day
+    // or statistics for another month.
+    final requested = _requested(widget);
+    if (requested != null &&
+        (requested != _requested(oldWidget) ||
+            widget.filterRequest != oldWidget.filterRequest)) {
       _selected.clear();
-      _filter = TransactionFilter.day(day);
+      _filter = requested;
     }
+  }
+
+  static TransactionFilter? _requested(TransactionsScreen w) {
+    final day = w.initialDay;
+    return w.initialFilter ?? (day == null ? null : TransactionFilter.day(day));
   }
 
   @override
@@ -498,6 +516,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       final to = f.to;
       if (from == null && to == null) return 'الفترة';
       if (f.isSingleDay) return _dayMonth(from!);
+      if (from != null && to != null && _isWholeMonth(from, to)) {
+        return '${arabicMonthName(from.month)} ${from.year}';
+      }
       return '${from == null ? '…' : _dayMonth(from)} – '
           '${to == null ? '…' : _dayMonth(to)}';
     }

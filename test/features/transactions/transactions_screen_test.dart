@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/domain/models.dart';
+import 'package:spending_tracker/domain/transactions.dart';
 import 'package:spending_tracker/features/transactions/transactions_screen.dart';
 import 'package:spending_tracker/features/transactions/widgets/transaction_tile.dart';
 
@@ -19,6 +20,7 @@ class _FailingDelete extends FixtureSpendingRepository {
 Future<FixtureSpendingRepository> _pump(
   WidgetTester tester, {
   DateTime? initialDay,
+  TransactionFilter? initialFilter,
   FixtureSpendingRepository? repository,
 }) async {
   tester.view.physicalSize = const Size(1080, 2400);
@@ -33,6 +35,7 @@ Future<FixtureSpendingRepository> _pump(
           repository: repo,
           clock: _today,
           initialDay: initialDay,
+          initialFilter: initialFilter,
         ),
       ),
     ),
@@ -118,6 +121,72 @@ void main() {
       expect(find.byType(TransactionTile), findsNothing);
       expect(find.text('مفيش نتائج'), findsOneWidget);
       await tester.tap(find.byKey(const Key('filters-clear')));
+      await tester.pumpAndSettle();
+      expect(find.byType(TransactionTile), findsNWidgets(3));
+    });
+  });
+
+  group('one month, from statistics', () {
+    testWidgets('initialFilter opens on the month, its chip named after it', (
+      tester,
+    ) async {
+      final repo = FixtureSpendingRepository();
+      await repo.saveCapture(
+        CaptureDraft(
+          kind: CaptureKind.text,
+          date: DateTime(2026, 8, 20),
+          lines: const [
+            CaptureLine(
+              amountPiastres: 2500,
+              categoryKey: 'Food',
+              description: 'كشري',
+            ),
+          ],
+        ),
+      );
+      await _pump(
+        tester,
+        repository: repo,
+        initialFilter: TransactionFilter(
+          from: DateTime(2026, 8, 1),
+          to: DateTime(2026, 8, 31),
+        ),
+      );
+      expect(_names(tester), ['كشري']);
+      final chip = tester.widget<FilterChip>(
+        find.byKey(const Key('filter-period')),
+      );
+      expect((chip.label as Text).data, 'أغسطس 2026');
+      expect(chip.selected, isTrue);
+      // A month is not one day: the list keeps its day headers.
+      expect(find.byKey(const Key('day-label')), findsNothing);
+    });
+
+    testWidgets('a new request replaces the filter, even for the same month', (
+      tester,
+    ) async {
+      final repo = FixtureSpendingRepository();
+      final september = TransactionFilter(
+        from: DateTime(2026, 9, 1),
+        to: DateTime(2026, 9, 30),
+      );
+      Widget screen(int request) => MaterialApp(
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: TransactionsScreen(
+            repository: repo,
+            clock: _today,
+            initialFilter: september,
+            filterRequest: request,
+          ),
+        ),
+      );
+      await tester.pumpWidget(screen(0));
+      await tester.pumpAndSettle();
+      await _filter(tester, 'payment', 'InstaPay');
+      expect(find.byType(TransactionTile), findsNothing);
+
+      await tester.pumpWidget(screen(1));
       await tester.pumpAndSettle();
       expect(find.byType(TransactionTile), findsNWidgets(3));
     });
