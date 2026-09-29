@@ -104,6 +104,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   bool _searching = false;
   final _search = TextEditingController();
 
+  /// The list's scroll. A new search or filter starts it at the top, so
+  /// the newest match is the first row rather than wherever the whole
+  /// history had been scrolled to.
+  final _scroll = ScrollController();
+
   /// Ids chosen in multi-select; empty when not selecting.
   final Set<String> _selected = {};
 
@@ -144,6 +149,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             widget.filterRequest != oldWidget.filterRequest)) {
       _selected.clear();
       _filter = requested;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _toTop();
+      });
     }
   }
 
@@ -155,15 +163,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   void dispose() {
     _search.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
   /// Any change of filter (a chip, the search, the day stepper) ends the
   /// selection: a bulk action must only touch rows that are on screen.
-  void _setFilter(TransactionFilter filter) => setState(() {
-    _filter = filter;
-    _selected.clear();
-  });
+  void _setFilter(TransactionFilter filter) {
+    setState(() {
+      _filter = filter;
+      _selected.clear();
+    });
+    _toTop();
+  }
+
+  void _toTop() {
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+  }
 
   void _step(int days) {
     final from = _filter.from!;
@@ -437,6 +453,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       _searching = false;
       _filter = const TransactionFilter();
     });
+    _toTop();
   }
 
   void _closeSearch() {
@@ -445,6 +462,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       _searching = false;
       _filter = _filter.copyWith(query: '');
     });
+    _toTop();
   }
 
   // ---- build ----
@@ -675,7 +693,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     slivers.add(
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl * 2)),
     );
-    return CustomScrollView(slivers: slivers);
+    return CustomScrollView(controller: _scroll, slivers: slivers);
   }
 
   Widget _empty(bool dayMode) {
