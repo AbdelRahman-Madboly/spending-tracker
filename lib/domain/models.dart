@@ -35,6 +35,15 @@ const entryUnitLabels = {
   'person': 'فرد',
 };
 
+/// The units a product can be sold loose by, in the order the product
+/// editor's «بيتباع بـ» offers them after بالقطعة/العبوة. Packaging units
+/// (علبة، كيس ...) name a piece, so they are not among them.
+const looseUnits = ['liter', 'kg', 'g'];
+
+/// «سعر اللتر», «سعر الكيلو»: the price label of a product sold by [unit].
+String pricePerUnitLabel(String unit) =>
+    'سعر ال${entryUnitLabels[unit] ?? unit}';
+
 /// The kind of capture event a `capture_groups` row records.
 enum CaptureKind {
   voice,

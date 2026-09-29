@@ -17,6 +17,7 @@ import 'widgets/amount_keypad.dart';
 import 'widgets/category_strip.dart';
 import 'widgets/new_item_dialog.dart';
 import 'widgets/subcategory_strip.dart';
+import 'widgets/unit_quantity_step.dart';
 
 /// What the add sheet starts as soon as it is up: how the dashboard's
 /// capture bar reaches the photo and barcode capture this sheet already
@@ -262,6 +263,10 @@ class _AddSheetState extends State<AddSheet> {
     QuickPickItem item, {
     EntrySource source = EntrySource.quickPick,
   }) {
+    if (item.isSoldByUnit) {
+      _recordByUnit(item, source);
+      return;
+    }
     final amount = item.suggestedAmountPiastres;
     setState(() {
       _item = item;
@@ -269,6 +274,37 @@ class _AddSheetState extends State<AddSheet> {
       _expression = amount == null ? '' : keypadText(amount);
       _filled = amount != null;
     });
+  }
+
+  /// A product sold loose by a unit: asks how much was bought and at what
+  /// price per unit, then saves that at once. The keypad is never filled,
+  /// so no stale quantity can ride along with an amount typed afterwards.
+  Future<void> _recordByUnit(QuickPickItem item, EntrySource source) async {
+    if (_saving) return;
+    final purchase = await showUnitQuantityStep(context, item);
+    if (purchase == null || !mounted) return;
+    await _submit(DraftEntry(
+      amountPiastres: purchase.totalPiastres,
+      itemId: item.id,
+      description: item.nameAr,
+      categoryKey: item.categoryKey,
+      subcategoryKey: item.subcategoryKey,
+      paymentMethod: _paymentMethod,
+      source: source,
+      photoPath: _photoPath,
+      quantityMilli: purchase.quantityMilli,
+      unit: item.unit,
+      unitPricePiastres: purchase.unitPricePiastres,
+    ));
+  }
+
+  /// The price a tile or chip shows: per unit for a loose product.
+  static String _priceText(QuickPickItem item, {bool withCurrency = false}) {
+    final price = item.suggestedAmountPiastres!;
+    final unit = item.unit;
+    return unit == null
+        ? formatPiastres(price, withCurrency: withCurrency)
+        : formatPiastresPer(price, entryUnitLabels[unit] ?? unit);
   }
 
   /// One keypad key; see [pressKeypadKey].
@@ -708,8 +744,10 @@ class _AddSheetState extends State<AddSheet> {
                           if (item.suggestedAmountPiastres != null) ...[
                             const SizedBox(width: AppSpacing.xs),
                             Text(
-                              formatPiastres(item.suggestedAmountPiastres!),
-                              textDirection: TextDirection.ltr,
+                              _priceText(item),
+                              textDirection: item.unit == null
+                                  ? TextDirection.ltr
+                                  : null,
                               style: AppText.caption.copyWith(
                                 color: palette.textSecondary,
                               ),
@@ -777,7 +815,9 @@ class _AddSheetState extends State<AddSheet> {
                     ),
                     if (item.suggestedAmountPiastres != null)
                       Text(
-                        formatPiastres(item.suggestedAmountPiastres!),
+                        _priceText(item),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppText.caption.copyWith(
                           color: palette.textSecondary,
                         ),

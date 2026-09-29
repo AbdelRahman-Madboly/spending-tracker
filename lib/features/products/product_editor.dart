@@ -28,14 +28,6 @@ class ProductPrefill {
   final String? barcode;
 }
 
-/// The units a product can be sold loose by, in the order «بيتباع بـ»
-/// offers them after بالقطعة/العبوة. Packaging units (علبة، كيس ...) name
-/// a piece, so they are not offered here.
-const looseUnits = ['liter', 'kg', 'g'];
-
-/// «سعر اللتر», «سعر الكيلو»: the price label of a product sold by [unit].
-String pricePerUnitLabel(String unit) => 'سعر ال${entryUnitLabels[unit]}';
-
 /// The Arabic refusal of a barcode another live product holds.
 String barcodeTakenMessage(String holderName) =>
     'الباركود ده مسجل على «$holderName»';
