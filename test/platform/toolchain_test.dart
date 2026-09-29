@@ -54,6 +54,21 @@ void main() {
     });
   });
 
+  group('release shrinking', () {
+    test('tells R8 the unused ML Kit script recognisers are absent', () {
+      // The text recognition plugin references the Chinese, Devanagari,
+      // Japanese and Korean options classes; only Latin is bundled, and
+      // without these rules `flutter build apk --release` fails in R8.
+      final rules = File('android/app/proguard-rules.pro').readAsStringSync();
+      for (final script in ['chinese', 'devanagari', 'japanese', 'korean']) {
+        expect(
+          rules,
+          contains('-dontwarn com.google.mlkit.vision.text.$script.'),
+        );
+      }
+    });
+  });
+
   group('pubspec assets', () {
     test('bundles the prepared import packs', () async {
       final manual = await rootBundle.loadString(
