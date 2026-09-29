@@ -6,10 +6,16 @@ import 'package:spending_tracker/features/capture/voice_capture_controller.dart'
 
 import 'voice_fakes.dart';
 
+/// Every settings read fails, as a locked database would.
+class _UnreadableSettingsRepo extends FixtureSpendingRepository {
+  @override
+  Future<String?> setting(String key) async => throw StateError('locked');
+}
+
 class _Setup {
   final recorder = FakeVoiceRecorder();
   final speech = FakeSpeechRecognition();
-  final repo = FixtureSpendingRepository();
+  final FixtureSpendingRepository repo;
   late final controller = VoiceCaptureController(
     recorder: recorder,
     speech: speech,
@@ -17,6 +23,9 @@ class _Setup {
     clock: () => DateTime(2026, 9, 22, 12),
     newId: () => 'v1',
   );
+
+  _Setup([FixtureSpendingRepository? repo])
+      : repo = repo ?? FixtureSpendingRepository();
 }
 
 Future<void> _allowOnlineSpeech(FixtureSpendingRepository repo) async {
@@ -98,7 +107,6 @@ void main() {
     expect(result.audioPath, 'attachments/2026-09/v1.m4a');
     expect(result.durationMs, 4000);
     expect(result.transcript, 'طماطم ب 30\nعيش ب 10');
-    expect(result.recognitionUnavailable, isFalse);
   });
 
   testWidgets('recording stops by itself after two minutes', (tester) async {
@@ -152,7 +160,82 @@ void main() {
     await s.controller.discard();
   });
 
+  testWidgets('a recogniser client error listens again, a few times at most',
+      (tester) async {
+    final s = _Setup();
+    await s.controller.start();
+    s.speech.fail('error_client');
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(s.speech.listens, hasLength(2));
+    expect(s.controller.mode, RecognitionMode.onDevice);
+
+    for (var i = 0; i < 5; i++) {
+      s.speech.fail('error_client');
+      await tester.pump(const Duration(seconds: 1));
+    }
+    expect(s.controller.mode, RecognitionMode.unavailable);
+    expect(s.controller.phase, VoicePhase.recording);
+    expect(s.controller.showOfflineHint, isFalse);
+    await s.controller.discard();
+  });
+
+  testWidgets('words heard between client errors start the count again',
+      (tester) async {
+    final s = _Setup();
+    await s.controller.start();
+    for (var i = 0; i < 6; i++) {
+      s.speech.fail('error_client');
+      await tester.pump(const Duration(seconds: 1));
+      s.speech.hear('عيش', isFinal: true);
+    }
+    expect(s.controller.mode, RecognitionMode.onDevice);
+    await s.controller.discard();
+  });
+
+  testWidgets('an audio error stops recognition without going online or '
+      'using up the offline pack hint', (tester) async {
+    final s = _Setup();
+    await _allowOnlineSpeech(s.repo);
+    await s.controller.start();
+    s.speech.fail('error_audio_error');
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(s.controller.mode, RecognitionMode.unavailable);
+    expect(s.controller.phase, VoicePhase.recording);
+    expect(s.speech.listens.where((l) => !l.onDevice), isEmpty);
+    expect(s.controller.showOfflineHint, isFalse);
+    expect(await s.repo.setting(voiceOfflineHintSettingKey), isNull);
+    await s.controller.discard();
+  });
+
+  testWidgets('a settings read that fails listens on the phone only',
+      (tester) async {
+    final s = _Setup(_UnreadableSettingsRepo());
+    await s.controller.start();
+
+    expect(s.controller.phase, VoicePhase.recording);
+    expect(s.controller.mode, RecognitionMode.onDevice);
+    expect(s.speech.listens, [(localeId: 'ar_EG', onDevice: true)]);
+    await s.controller.discard();
+  });
+
   group('no offline Arabic recogniser', () {
+    testWidgets('going online listens once, even when the failed session '
+        'then reports it stopped', (tester) async {
+      final s = _Setup();
+      await _allowOnlineSpeech(s.repo);
+      s.speech.onDeviceError = 'error_network';
+      await s.controller.start();
+      await tester.pump();
+      s.speech.end();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(s.controller.mode, RecognitionMode.online);
+      expect(s.speech.listens.where((l) => !l.onDevice), hasLength(1));
+      await s.controller.discard();
+    });
+
     testWidgets('with online speech off, keeps recording audio only and '
         'never listens online', (tester) async {
       final s = _Setup();
@@ -168,7 +251,6 @@ void main() {
       final result = await s.controller.stop();
       expect(result.audioPath, isNotNull);
       expect(result.transcript, isEmpty);
-      expect(result.recognitionUnavailable, isTrue);
     });
 
     testWidgets('with online speech on, falls back to the online recogniser',
@@ -254,6 +336,23 @@ void main() {
     final result = await s.controller.stop();
     expect(result.audioPath, isNull);
     expect(result.transcript, 'عيش ب 10');
+  });
+
+  testWidgets('a microphone the recorder cannot open keeps the words heard '
+      'when the recogniser then gives up', (tester) async {
+    final s = _Setup();
+    VoiceCaptureResult? finished;
+    s.controller.onFinished = (r) => finished = r;
+    s.recorder.failStart = true;
+    await s.controller.start();
+    s.speech.hear('عيش ب 10', isFinal: true);
+    s.speech.hear('لبن');
+    s.speech.fail('error_network');
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(s.controller.phase, VoicePhase.stopped);
+    expect(finished?.audioPath, isNull);
+    expect(finished?.transcript, 'عيش ب 10\nلبن');
   });
 
   testWidgets('no audio and no recogniser fails', (tester) async {

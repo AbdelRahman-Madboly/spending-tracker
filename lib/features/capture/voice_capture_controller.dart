@@ -32,15 +32,10 @@ class VoiceCaptureResult {
   final int durationMs;
   final String transcript;
 
-  /// True when no recogniser listened: an empty [transcript] then means
-  /// "not heard", not "nothing said".
-  final bool recognitionUnavailable;
-
   const VoiceCaptureResult({
     required this.audioPath,
     required this.durationMs,
     required this.transcript,
-    required this.recognitionUnavailable,
   });
 }
 
@@ -73,6 +68,10 @@ class VoiceCaptureController extends ChangeNotifier {
   /// The wait before listening again once the recogniser ends a session:
   /// long enough for its own end-of-session events to settle.
   static const _relistenDelay = Duration(milliseconds: 300);
+
+  /// How many `error_client` in a row are retried before recognition is
+  /// given up for this recording. Words heard in between reset the count.
+  static const _clientErrorRetries = 3;
 
   VoiceCaptureController({
     required this.recorder,
@@ -108,6 +107,7 @@ class VoiceCaptureController extends ChangeNotifier {
   String? _audioPath;
   String? _localeId;
   bool _onlineAllowed = false;
+  int _clientErrors = 0;
   bool _disposed = false;
   VoiceCaptureResult? _result;
   VoiceCaptureResult? get result => _result;
@@ -177,8 +177,13 @@ class VoiceCaptureController extends ChangeNotifier {
       await _recognitionUnavailable();
       return;
     }
-    _onlineAllowed =
-        await isOnlineFeatureOn(repository, OnlineFeature.onlineSpeech);
+    try {
+      _onlineAllowed =
+          await isOnlineFeatureOn(repository, OnlineFeature.onlineSpeech);
+    } catch (_) {
+      // Settings that cannot be read allow nothing online (spec §9.2).
+      _onlineAllowed = false;
+    }
     if (!_recording) return;
     _mode = RecognitionMode.onDevice;
     _changed();
@@ -205,6 +210,7 @@ class VoiceCaptureController extends ChangeNotifier {
 
   void _onResult(String words, bool isFinal) {
     if (!_recording) return;
+    _clientErrors = 0;
     if (isFinal) {
       if (words.trim().isNotEmpty) _finished.add(words);
       _hearing = '';
@@ -220,40 +226,57 @@ class VoiceCaptureController extends ChangeNotifier {
 
   void _onSpeechError(String code) {
     if (!_recording) return;
-    if (speechErrorMeansUnavailable(code) || speechErrorIsPermanent(code)) {
+    if (speechErrorMeansUnavailable(code)) {
       unawaited(_fallBack());
+    } else if (speechErrorIsPermanent(code) ||
+        (code == 'error_client' && ++_clientErrors > _clientErrorRetries)) {
+      unawaited(_recognitionUnavailable(hint: false));
     } else {
       _scheduleRelisten();
     }
   }
 
-  /// The recogniser in use cannot work here. From on-device, go online
+  /// There is no offline Arabic recogniser here. From on-device, go online
   /// when that is allowed; otherwise record audio only.
+  ///
+  /// The online session is started by the scheduled relisten, not called
+  /// here: the failed session still reports that it stopped, and that
+  /// report schedules a relisten too, so one timer means one listen.
   Future<void> _fallBack() async {
     if (_mode == RecognitionMode.onDevice && _onlineAllowed) {
       _mode = RecognitionMode.online;
       await _hintOnce();
       _changed();
-      await _listen();
+      _scheduleRelisten();
       return;
     }
     await _recognitionUnavailable();
   }
 
-  Future<void> _recognitionUnavailable() async {
+  /// Recognition stops for the rest of this recording. [hint] suggests the
+  /// offline Arabic pack, which is only worth it when a missing pack is the
+  /// reason.
+  Future<void> _recognitionUnavailable({bool hint = true}) async {
     _relisten?.cancel();
     _mode = RecognitionMode.unavailable;
     try {
       await speech.cancel();
     } catch (_) {}
+    if (!_recording) return;
     if (_audioPath == null) {
+      if (transcript.trim().isNotEmpty) {
+        // No audio, but the words heard so far are the capture: keep them
+        // (spec §6.7, closing never discards a capture).
+        await stop();
+        return;
+      }
       // No audio and no words: nothing to keep.
       _stopTimers();
       _phase = VoicePhase.failed;
       _changed();
       return;
     }
-    await _hintOnce();
+    if (hint) await _hintOnce();
     _changed();
   }
 
@@ -295,7 +318,6 @@ class VoiceCaptureController extends ChangeNotifier {
       audioPath: _audioPath,
       durationMs: _elapsed.inMilliseconds,
       transcript: transcript,
-      recognitionUnavailable: unavailable || _mode == null,
     );
     _result = result;
     _changed();

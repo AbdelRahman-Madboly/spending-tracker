@@ -465,6 +465,21 @@ void main() {
       final group = (await h.repo.captureGroup(saved.first.captureGroupId!))!;
       expect(group.rawText, 'طماطم ب 30\nعيش ب 10');
       expect(group.attachments.single.kind, AttachmentKind.voice);
+      expect(group.attachments.single.transcript, 'طماطم ب 30\nعيش ب 10');
+    });
+
+    testWidgets('parsing again replaces the lines the last parse made',
+        (tester) async {
+      final h = await _open(tester, unheard());
+      final field = find.byKey(const Key('review-type-text'));
+      await tester.enterText(field, 'طماطم ب 30\nعيش ب 10');
+      await _tap(tester, find.byKey(const Key('review-parse-text')));
+      await tester.enterText(field, 'طماطم ب 30\nعيش ب 10\nلبن ب 25');
+      await _tap(tester, find.byKey(const Key('review-parse-text')));
+      await _tap(tester, find.byKey(const Key('review-save')));
+
+      final saved = await _saved(h.repo);
+      expect(saved, hasLength(3));
     });
 
     testWidgets('closed untyped, it waits in Needs review with its audio',
@@ -487,6 +502,7 @@ void main() {
 
       final draft = (await h.repo.watchDraftCaptures().first).single;
       expect(draft.rawText, 'عيش ب 10');
+      expect(draft.attachments.single.transcript, 'عيش ب 10');
     });
 
     testWidgets('a draft of it can be typed in later from Needs review',

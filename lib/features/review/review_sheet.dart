@@ -152,10 +152,11 @@ Future<void> _keepAsDraft(SpendingRepository repository,
     ReviewRequest request, _ReviewSnapshot latest) async {
   if (request.draftId != null) return;
   final raw = request.rawText ?? '';
+  final typed = raw.trim().isEmpty ? latest.typed.trim() : '';
   final text = raw.trim().isNotEmpty
       ? raw
-      : latest.typed.trim().isNotEmpty
-          ? latest.typed.trim()
+      : typed.isNotEmpty
+          ? typed
           : reviewDraftText(latest.lines);
   if (text.trim().isEmpty && request.attachments.isEmpty) return;
   final day = latest.date ?? ArabicLineParser.captureDay(request.capturedAt);
@@ -166,9 +167,29 @@ Future<void> _keepAsDraft(SpendingRepository repository,
     cleanText: request.cleanText,
     parsedBy: request.parsedBy,
     lines: const [],
-    attachments: request.attachments,
+    attachments: _withTypedTranscript(request.attachments, typed),
     isDraft: true,
   ));
+}
+
+/// The capture's attachments, with [typed] as the transcript of a voice
+/// note no recogniser heard: the audio is kept "with its transcript"
+/// (spec §6.4) whether the words were heard or typed.
+List<DraftAttachment> _withTypedTranscript(
+    List<DraftAttachment> attachments, String typed) {
+  if (typed.isEmpty) return attachments;
+  return [
+    for (final a in attachments)
+      a.kind == AttachmentKind.voice && a.transcript == null
+          ? DraftAttachment(
+              kind: a.kind,
+              path: a.path,
+              text: a.text,
+              transcript: typed,
+              durationMs: a.durationMs,
+            )
+          : a,
+  ];
 }
 
 /// The review sheet (spec §6.7): a shared date and payment method and the
@@ -234,6 +255,10 @@ class _ReviewSheetState extends State<ReviewSheet> {
   final _typed = TextEditingController();
   ArabicLineParser? _parser;
 
+  /// The ids of the lines the last حلّل made: parsing again replaces them
+  /// rather than adding a second copy.
+  Set<String> _typedLineIds = const {};
+
   List<CategoryView> _categories = const [];
   Map<String, List<SubcategoryView>> _subcategories = const {};
   List<QuickPickItem> _items = const [];
@@ -262,17 +287,24 @@ class _ReviewSheetState extends State<ReviewSheet> {
     return typed.isEmpty ? raw : typed;
   }
 
-  /// Reads the typed text into lines, added after any already there.
+  /// Reads the typed text into lines. They replace the lines the last
+  /// parse made (edited or not: the typed text is the source now) and
+  /// follow any line added by hand.
   void _parseTyped() {
     final parser = _parser;
     final text = _typed.text.trim();
     if (parser == null || text.isEmpty) return;
     final parsed = parser.parse(text, capturedAt: _request.capturedAt);
+    final fresh = [
+      for (final p in parsed) ReviewLine.fromParsed(p, id: _newId()),
+    ];
     setState(() {
       _lines = [
-        ..._lines,
-        for (final p in parsed) ReviewLine.fromParsed(p, id: _newId()),
+        for (final l in _lines)
+          if (!_typedLineIds.contains(l.id)) l,
+        ...fresh,
       ];
+      _typedLineIds = {for (final l in fresh) l.id};
       _parsedBy = 'local';
     });
     FocusScope.of(context).unfocus();
@@ -371,7 +403,8 @@ class _ReviewSheetState extends State<ReviewSheet> {
         cleanText: _request.cleanText,
         parsedBy: _parsedBy,
         lines: lines,
-        attachments: _request.attachments,
+        attachments: _withTypedTranscript(_request.attachments,
+            _asksForText ? _typed.text.trim() : ''),
         draftId: _request.draftId,
       ));
       if (outcome == ReviewOutcome.saved) HapticFeedback.lightImpact();
@@ -515,7 +548,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
               child: FilledButton.tonalIcon(
                 key: const Key('review-parse-text'),
                 style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-                onPressed: _parseTyped,
+                onPressed: _parser == null ? null : _parseTyped,
                 icon: const Icon(AppIcons.textNote, size: 20),
                 label: const Text('حلّل'),
               ),

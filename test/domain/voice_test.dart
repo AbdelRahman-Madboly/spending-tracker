@@ -57,6 +57,9 @@ void main() {
   test('errors that stop recognition for good', () {
     expect(speechErrorIsPermanent('error_permission'), isTrue);
     expect(speechErrorIsPermanent('error_audio_error'), isTrue);
+    // Android raises it when listening starts again too soon after a
+    // session ends: waiting and trying again can help.
+    expect(speechErrorIsPermanent('error_client'), isFalse);
     expect(speechErrorIsPermanent('error_no_match'), isFalse);
     expect(speechErrorIsPermanent('error_speech_timeout'), isFalse);
   });

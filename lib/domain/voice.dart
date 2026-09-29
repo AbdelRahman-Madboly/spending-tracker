@@ -54,13 +54,17 @@ bool speechErrorMeansUnavailable(String code) => const {
       'recognizerNotAvailable',
     }.contains(code);
 
-/// Recogniser errors after which listening again cannot help. Silence
-/// (`error_no_match`, `error_speech_timeout`) is not one: the recogniser
-/// stops after a pause, and the capture listens again while it records.
+/// Recogniser errors after which listening again cannot help. They say
+/// nothing about a missing offline pack (an audio error is more likely the
+/// recorder holding the microphone), so they never switch to online
+/// recognition. Silence (`error_no_match`, `error_speech_timeout`) is not
+/// one: the recogniser stops after a pause, and the capture listens again
+/// while it records. Nor is `error_client`: Android raises it when a listen
+/// comes too soon after the last session ended, and the capture retries it
+/// a few times.
 bool speechErrorIsPermanent(String code) => const {
       'error_permission',
       'error_audio_error',
-      'error_client',
     }.contains(code);
 
 /// The live transcript: every phrase the recogniser finished, one per
