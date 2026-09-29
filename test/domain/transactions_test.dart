@@ -204,4 +204,43 @@ void main() {
       expect(addMonthsClamped(DateTime(2026, 3, 31), 1), DateTime(2026, 4, 30));
     });
   });
+
+  group('nextMonthlyDue', () {
+    test('is a month on for an entry from this month', () {
+      expect(
+        nextMonthlyDue(DateTime(2026, 9, 6), DateTime(2026, 9, 6, 12)),
+        DateTime(2026, 10, 6),
+      );
+    });
+
+    test('steps past today for an older entry', () {
+      // The home internet case: 27 Aug seen on 29 Sep is due 27 Oct.
+      expect(
+        nextMonthlyDue(DateTime(2026, 8, 27), DateTime(2026, 9, 29, 9)),
+        DateTime(2026, 10, 27),
+      );
+      expect(
+        nextMonthlyDue(DateTime(2026, 5, 10), DateTime(2026, 9, 29)),
+        DateTime(2026, 10, 10),
+      );
+    });
+
+    test('a due date falling today counts', () {
+      expect(
+        nextMonthlyDue(DateTime(2026, 8, 29), DateTime(2026, 9, 29, 20)),
+        DateTime(2026, 9, 29),
+      );
+    });
+
+    test('keeps the entry day of month across short months', () {
+      expect(
+        nextMonthlyDue(DateTime(2026, 1, 31), DateTime(2026, 4, 5)),
+        DateTime(2026, 4, 30),
+      );
+      expect(
+        nextMonthlyDue(DateTime(2026, 1, 31), DateTime(2026, 5, 1)),
+        DateTime(2026, 5, 31),
+      );
+    });
+  });
 }

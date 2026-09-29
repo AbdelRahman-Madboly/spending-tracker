@@ -9,6 +9,13 @@ import 'package:spending_tracker/features/transactions/widgets/transaction_tile.
 /// (أكل) and شويبس 40 (مشروبات) yesterday.
 DateTime _today() => DateTime(2026, 9, 6, 12);
 
+/// Deleting fails, as with a full disk.
+class _FailingDelete extends FixtureSpendingRepository {
+  @override
+  Future<void> deleteEntries(Iterable<String> ids) async =>
+      throw StateError('disk full');
+}
+
 Future<FixtureSpendingRepository> _pump(
   WidgetTester tester, {
   DateTime? initialDay,
@@ -314,5 +321,43 @@ void main() {
       expect(find.text('1 محدد'), findsNothing);
       expect(find.text('السجل'), findsOneWidget);
     });
+  });
+
+  group('selection and filters together', () {
+    testWidgets('the filter chips are off while selecting', (tester) async {
+      await _pump(tester);
+      await tester.longPress(_row('1'));
+      await tester.pumpAndSettle();
+      for (final chip in ['period', 'category', 'payment', 'attachment']) {
+        expect(
+          tester.widget<FilterChip>(find.byKey(Key('filter-$chip'))).onSelected,
+          isNull,
+          reason: chip,
+        );
+      }
+    });
+
+    testWidgets('stepping to another day drops the selection', (tester) async {
+      final repo = await _pump(tester, initialDay: DateTime(2026, 9, 6));
+      await tester.longPress(_row('1'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 محدد'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('day-previous')));
+      await tester.pumpAndSettle();
+      expect(find.text('1 محدد'), findsNothing);
+      expect(find.byKey(const Key('bulk-delete')), findsNothing);
+      expect(await repo.entry('1'), isNotNull);
+    });
+  });
+
+  testWidgets('a failed delete brings the rows back and says so', (
+    tester,
+  ) async {
+    await _pump(tester, repository: _FailingDelete());
+    await tester.drag(_row('1'), const Offset(600, 0));
+    await tester.pumpAndSettle();
+    expect(_row('1'), findsOneWidget);
+    expect(find.byKey(const Key('delete-failed')), findsOneWidget);
+    expect(find.byKey(const Key('undo-snackbar')), findsNothing);
   });
 }

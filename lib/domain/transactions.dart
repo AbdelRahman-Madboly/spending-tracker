@@ -137,6 +137,20 @@ DateTime addMonthsClamped(DateTime date, int months) {
   );
 }
 
+/// The first monthly due date from [date] (a month on, then two, and so
+/// on) that is not before [today]'s day: a bill made from an old entry
+/// must not be overdue the moment it exists. Each step counts from [date]
+/// itself, so a 31st stays the 31st wherever the month has one.
+DateTime nextMonthlyDue(DateTime date, DateTime today) {
+  final day = DateTime(today.year, today.month, today.day);
+  var months = 1;
+  var due = addMonthsClamped(date, months);
+  while (due.isBefore(day)) {
+    due = addMonthsClamped(date, ++months);
+  }
+  return due;
+}
+
 /// A row's time: 12-hour with ص or م, Latin digits, e.g. `9:05 م`.
 String formatClock(DateTime time) {
   final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;

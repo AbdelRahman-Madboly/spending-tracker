@@ -237,13 +237,35 @@ class _EntryDetailSheetState extends State<EntryDetailSheet> {
     if (picked != null && mounted) setState(() => _date = picked);
   }
 
-  Future<void> _save() async {
+  /// Whether any field differs from the stored entry, so leaving for a
+  /// sibling line would drop edits.
+  bool get _isDirty {
+    final entry = _entry;
+    if (entry == null) return false;
+    final storedQuantity = entry.quantityMilli == null
+        ? ''
+        : formatQuantityMilli(entry.quantityMilli!);
+    return _amount != entry.amountPiastres ||
+        _date != entry.date ||
+        _categoryKey != entry.categoryKey ||
+        _subcategoryKey != entry.subcategoryKey ||
+        _itemId != entry.itemId ||
+        _unit != entry.unit ||
+        _paymentMethod != entry.paymentMethod ||
+        _name.text.trim() != entry.description ||
+        _quantity.text.trim() != storedQuantity ||
+        _note.text.trim() != (entry.note ?? '');
+  }
+
+  /// The entry as the fields now stand, or null (after saying why) when
+  /// the amount or quantity does not read.
+  EntryRecord? _edited() {
     final entry = _entry;
     final amount = _amount;
-    if (entry == null || _busy) return;
+    if (entry == null) return null;
     if (amount == null || amount <= 0) {
       _say('اكتب مبلغ أكبر من صفر');
-      return;
+      return null;
     }
     final quantityText = _quantity.text.trim();
     final quantity = quantityText.isEmpty
@@ -251,58 +273,127 @@ class _EntryDetailSheetState extends State<EntryDetailSheet> {
         : parseQuantityMilli(quantityText);
     if (quantityText.isNotEmpty && quantity == null) {
       _say('الكمية مش مظبوطة');
-      return;
+      return null;
     }
     final note = _note.text.trim();
+    return EntryRecord(
+      id: entry.id,
+      date: _date,
+      amountPiastres: amount,
+      categoryKey: _categoryKey,
+      subcategoryKey: _subcategoryKey,
+      itemId: _itemId,
+      description: _name.text.trim(),
+      paymentMethod: _paymentMethod,
+      source: entry.source,
+      quantityMilli: quantity,
+      unit: _unit,
+      // A unit price no longer holds once amount or quantity changed.
+      unitPricePiastres:
+          amount == entry.amountPiastres && quantity == entry.quantityMilli
+          ? entry.unitPricePiastres
+          : null,
+      captureGroupId: entry.captureGroupId,
+      externalId: entry.externalId,
+      reference: entry.reference,
+      note: note.isEmpty ? null : note,
+    );
+  }
+
+  /// Runs one action at a time: while it runs every action and حفظ are
+  /// off, so a double tap cannot make two copies or two bills. A failure
+  /// (a write, or the camera refusing) is said in a snackbar and turns
+  /// them back on; an action that closes the sheet leaves them off.
+  Future<void> _run(
+    Future<void> Function() action, {
+    String failure = 'ما نفعش، جرب تاني',
+    Key failureKey = const Key('detail-action-failed'),
+  }) async {
+    if (_busy || _entry == null) return;
     setState(() => _busy = true);
     try {
-      await _repo.updateEntry(
-        EntryRecord(
-          id: entry.id,
-          date: _date,
-          amountPiastres: amount,
-          categoryKey: _categoryKey,
-          subcategoryKey: _subcategoryKey,
-          itemId: _itemId,
-          description: _name.text.trim(),
-          paymentMethod: _paymentMethod,
-          source: entry.source,
-          quantityMilli: quantity,
-          unit: _unit,
-          // A unit price no longer holds once amount or quantity changed.
-          unitPricePiastres:
-              amount == entry.amountPiastres && quantity == entry.quantityMilli
-              ? entry.unitPricePiastres
-              : null,
-          captureGroupId: entry.captureGroupId,
-          externalId: entry.externalId,
-          reference: entry.reference,
-          note: note.isEmpty ? null : note,
-        ),
-      );
-      if (mounted) {
-        Navigator.of(
-          context,
-        ).pop(EntryDetailResult(EntryDetailOutcome.saved, entry.id));
-      }
+      await action();
     } catch (_) {
-      if (mounted) {
-        setState(() => _busy = false);
-        _say('الحفظ ما نفعش، جرب تاني', key: const Key('detail-save-failed'));
-      }
+      if (mounted) _say(failure, key: failureKey);
+    } finally {
+      // After a pop the state is unmounted and there is nothing to reset.
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _duplicate() async {
-    final entry = _entry;
-    if (entry == null) return;
-    await _repo.duplicateEntry(entry.id, widget.clock());
-    _say('اتكرر النهارده');
+  Future<void> _save() async {
+    final edited = _edited();
+    if (edited == null) return;
+    await _run(
+      () async {
+        await _repo.updateEntry(edited);
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).pop(EntryDetailResult(EntryDetailOutcome.saved, edited.id));
+        }
+      },
+      failure: 'الحفظ ما نفعش، جرب تاني',
+      failureKey: const Key('detail-save-failed'),
+    );
   }
 
-  Future<void> _repeatMonthly() async {
-    final entry = _entry;
-    if (entry == null) return;
+  /// Opens a sibling line in place. With unsaved edits it asks first:
+  /// حفظ writes them, تجاهل drops them, إلغاء stays on this entry.
+  Future<void> _openSibling(String id) async {
+    if (_busy) return;
+    if (!_isDirty) {
+      await _load(id);
+      return;
+    }
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        key: const Key('unsaved-dialog'),
+        content: const Text('فيه تعديلات مش محفوظة. تحفظها الأول؟'),
+        actions: [
+          TextButton(
+            key: const Key('unsaved-cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            key: const Key('unsaved-discard'),
+            onPressed: () => Navigator.of(dialogContext).pop('discard'),
+            child: const Text('تجاهل'),
+          ),
+          FilledButton(
+            key: const Key('unsaved-save'),
+            onPressed: () => Navigator.of(dialogContext).pop('save'),
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 'discard') {
+      await _load(id);
+      return;
+    }
+    final edited = _edited();
+    if (edited == null) return;
+    await _run(
+      () async {
+        await _repo.updateEntry(edited);
+        await _load(id);
+      },
+      failure: 'الحفظ ما نفعش، جرب تاني',
+      failureKey: const Key('detail-save-failed'),
+    );
+  }
+
+  Future<void> _duplicate() => _run(() async {
+    await _repo.duplicateEntry(_entry!.id, widget.clock());
+    _say('اتكرر النهارده');
+  });
+
+  Future<void> _repeatMonthly() => _run(() async {
+    final entry = _entry!;
     final name = entry.description.isNotEmpty
         ? entry.description
         : _categories
@@ -315,24 +406,24 @@ class _EntryDetailSheetState extends State<EntryDetailSheet> {
       amountPiastres: entry.amountPiastres,
       categoryKey: entry.categoryKey,
       subcategoryKey: entry.subcategoryKey,
-      nextDue: addMonthsClamped(entry.date, 1),
+      nextDue: nextMonthlyDue(entry.date, widget.clock()),
     );
     _say('اتعملت فاتورة شهرية');
-  }
+  });
 
-  Future<void> _delete() async {
-    final entry = _entry;
-    if (entry == null || _busy) return;
-    setState(() => _busy = true);
+  Future<void> _delete() => _run(() async {
+    final entry = _entry!;
     await _repo.deleteEntries([entry.id]);
     if (mounted) {
       Navigator.of(
         context,
       ).pop(EntryDetailResult(EntryDetailOutcome.deleted, entry.id));
     }
-  }
+  });
 
-  Future<void> _addAttachment() async {
+  Future<void> _addAttachment() => _run(_attach);
+
+  Future<void> _attach() async {
     final choice = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
@@ -659,7 +750,7 @@ class _EntryDetailSheetState extends State<EntryDetailSheet> {
                   textDirection: TextDirection.ltr,
                   style: AppText.bodyStrong,
                 ),
-                onTap: () => _load(sibling.id),
+                onTap: () => _openSibling(sibling.id),
               ),
           ],
           const SizedBox(height: AppSpacing.md),
@@ -671,26 +762,26 @@ class _EntryDetailSheetState extends State<EntryDetailSheet> {
                 key: const Key('detail-duplicate'),
                 icon: AppIcons.duplicate,
                 label: 'تكرار اليوم',
-                onPressed: _duplicate,
+                onPressed: _busy ? null : _duplicate,
               ),
               _Action(
                 key: const Key('detail-repeat-monthly'),
                 icon: AppIcons.repeat,
                 label: 'كرر شهرياً',
-                onPressed: _repeatMonthly,
+                onPressed: _busy ? null : _repeatMonthly,
               ),
               _Action(
                 key: const Key('detail-add-attachment'),
                 icon: AppIcons.attach,
                 label: 'إضافة مرفق',
-                onPressed: _addAttachment,
+                onPressed: _busy ? null : _addAttachment,
               ),
               _Action(
                 key: const Key('detail-delete'),
                 icon: AppIcons.delete,
                 label: 'حذف',
                 color: palette.negative,
-                onPressed: _delete,
+                onPressed: _busy ? null : _delete,
               ),
             ],
           ),
@@ -703,7 +794,7 @@ class _EntryDetailSheetState extends State<EntryDetailSheet> {
 class _Action extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final Color? color;
 
   const _Action({
@@ -719,7 +810,9 @@ class _Action extends StatelessWidget {
     style: OutlinedButton.styleFrom(
       minimumSize: const Size(0, 48),
       foregroundColor: color,
-      side: color == null ? null : BorderSide(color: color!),
+      side: color == null || onPressed == null
+          ? null
+          : BorderSide(color: color!),
     ),
     onPressed: onPressed,
     icon: Icon(icon, size: 20),

@@ -140,7 +140,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     super.dispose();
   }
 
-  void _setFilter(TransactionFilter filter) => setState(() => _filter = filter);
+  /// Any change of filter (a chip, the search, the day stepper) ends the
+  /// selection: a bulk action must only touch rows that are on screen.
+  void _setFilter(TransactionFilter filter) => setState(() {
+    _filter = filter;
+    _selected.clear();
+  });
 
   void _step(int days) {
     final from = _filter.from!;
@@ -168,7 +173,24 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       _hidden.addAll(ids);
       _selected.clear();
     });
-    await _repo.deleteEntries(ids);
+    try {
+      await _repo.deleteEntries(ids);
+    } catch (_) {
+      // A swiped row must leave the tree before it can come back, so the
+      // rows reappear only after the frame that hid them.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      setState(() => _hidden.removeAll(ids));
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            key: Key('delete-failed'),
+            content: Text('المسح ما نفعش، جرب تاني'),
+          ),
+        );
+      return;
+    }
     _offerUndo(ids);
   }
 
@@ -490,7 +512,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             label: Text(label),
             selected: active,
             showCheckmark: false,
-            onSelected: (_) => onTap(),
+            // Off while selecting, so the selection cannot outlive the
+            // rows it was made on.
+            onSelected: _selecting ? null : (_) => onTap(),
           ),
         );
 

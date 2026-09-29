@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -30,16 +31,58 @@ class _Photos implements PhotoCaptureService {
   Future<void> delete(String relativePath) async {}
 }
 
-class _Harness {
-  final repo = FixtureSpendingRepository();
-  final results = <EntryDetailResult?>[];
+/// Every write the sheet's actions make fails, as a full disk would.
+class _FailingRepo extends FixtureSpendingRepository {
+  @override
+  Future<String> duplicateEntry(String id, DateTime date) async =>
+      throw StateError('disk full');
+
+  @override
+  Future<RecurringBillView> createRecurringBill({
+    required String nameAr,
+    required int amountPiastres,
+    required String categoryKey,
+    String? subcategoryKey,
+    int everyMonths = 1,
+    required DateTime nextDue,
+    int remindDaysBefore = 2,
+  }) async => throw StateError('disk full');
+
+  @override
+  Future<void> deleteEntries(Iterable<String> ids) async =>
+      throw StateError('disk full');
 }
 
-Future<_Harness> _open(WidgetTester tester, {String entryId = '1'}) async {
+/// Holds every duplicate until [gate] completes, counting the calls.
+class _SlowDuplicate extends FixtureSpendingRepository {
+  final gate = Completer<void>();
+  int calls = 0;
+
+  @override
+  Future<String> duplicateEntry(String id, DateTime date) async {
+    calls++;
+    await gate.future;
+    return super.duplicateEntry(id, date);
+  }
+}
+
+class _Harness {
+  final FixtureSpendingRepository repo;
+  final results = <EntryDetailResult?>[];
+
+  _Harness([FixtureSpendingRepository? repo])
+    : repo = repo ?? FixtureSpendingRepository();
+}
+
+Future<_Harness> _open(
+  WidgetTester tester, {
+  String entryId = '1',
+  _Harness? harness,
+}) async {
   tester.view.physicalSize = const Size(1080, 2400);
   tester.view.devicePixelRatio = 3.0;
   addTearDown(tester.view.reset);
-  final h = _Harness();
+  final h = harness ?? _Harness();
   await tester.pumpWidget(
     MaterialApp(
       home: Directionality(
@@ -187,6 +230,33 @@ void main() {
     expect(bill.nextDue, DateTime(2026, 10, 6));
   });
 
+  testWidgets('كرر شهرياً on an old entry is due next on or after today', (
+    tester,
+  ) async {
+    final h = _Harness();
+    final groupId = await h.repo.saveCapture(
+      CaptureDraft(
+        kind: CaptureKind.text,
+        date: DateTime(2026, 7, 20),
+        lines: const [
+          CaptureLine(
+            amountPiastres: 50000,
+            categoryKey: 'Food',
+            description: 'نت البيت',
+          ),
+        ],
+      ),
+    );
+    final old = (await h.repo.captureGroup(groupId))!.entries.single;
+    await _open(tester, entryId: old.id, harness: h);
+    await _tapVisible(tester, find.byKey(const Key('detail-repeat-monthly')));
+    // 20 Jul seen on 6 Sep: 20 Aug is past, so 20 Sep.
+    expect(
+      (await h.repo.recurringBills()).single.nextDue,
+      DateTime(2026, 9, 20),
+    );
+  });
+
   testWidgets('إضافة مرفق adds a text note and shows it', (tester) async {
     final h = await _open(tester);
     await _tapVisible(tester, find.byKey(const Key('detail-add-attachment')));
@@ -282,5 +352,102 @@ void main() {
     await _tapVisible(tester, sibling);
     expect(find.widgetWithText(TextField, 'عيش'), findsOneWidget);
     expect(find.byKey(Key('sibling-${lines.first.id}')), findsOneWidget);
+  });
+
+  testWidgets('failed actions say so and leave حفظ usable', (tester) async {
+    await _open(tester, harness: _Harness(_FailingRepo()));
+    await _tapVisible(tester, find.byKey(const Key('detail-duplicate')));
+    expect(find.byKey(const Key('detail-action-failed')), findsOneWidget);
+    await _tapVisible(tester, find.byKey(const Key('detail-repeat-monthly')));
+    expect(find.byKey(const Key('detail-action-failed')), findsOneWidget);
+    await _tapVisible(tester, find.byKey(const Key('detail-delete')));
+    expect(find.byKey(const Key('detail-action-failed')), findsOneWidget);
+    expect(find.byKey(const Key('entry-detail')), findsOneWidget);
+    final save = tester.widget<FilledButton>(
+      find.byKey(const Key('detail-save')),
+    );
+    expect(save.onPressed, isNotNull);
+  });
+
+  testWidgets('a second tap while an action runs does nothing', (tester) async {
+    final repo = _SlowDuplicate();
+    await _open(tester, harness: _Harness(repo));
+    final duplicate = find.byKey(const Key('detail-duplicate'));
+    await tester.ensureVisible(duplicate);
+    await tester.pumpAndSettle();
+    await tester.tap(duplicate);
+    await tester.pump();
+    await tester.tap(duplicate);
+    await tester.pump();
+    repo.gate.complete();
+    await tester.pumpAndSettle();
+    expect(repo.calls, 1);
+  });
+
+  group('moving to a sibling line', () {
+    Future<(FixtureSpendingRepository, List<EntryRecord>)> grouped() async {
+      final repo = FixtureSpendingRepository();
+      final groupId = await repo.saveCapture(
+        CaptureDraft(
+          kind: CaptureKind.text,
+          date: DateTime(2026, 9, 6),
+          lines: const [
+            CaptureLine(
+              amountPiastres: 3000,
+              categoryKey: 'Food',
+              description: 'طماطم',
+            ),
+            CaptureLine(
+              amountPiastres: 1000,
+              categoryKey: 'Food',
+              description: 'عيش',
+            ),
+          ],
+        ),
+      );
+      return (repo, (await repo.captureGroup(groupId))!.entries);
+    }
+
+    testWidgets('with no edits goes straight there', (tester) async {
+      final (repo, lines) = await grouped();
+      await _open(tester, entryId: lines.first.id, harness: _Harness(repo));
+      await _tapVisible(tester, find.byKey(Key('sibling-${lines.last.id}')));
+      expect(find.byKey(const Key('unsaved-dialog')), findsNothing);
+      expect(find.widgetWithText(TextField, 'عيش'), findsOneWidget);
+    });
+
+    testWidgets('with edits asks, and تجاهل drops them', (tester) async {
+      final (repo, lines) = await grouped();
+      await _open(tester, entryId: lines.first.id, harness: _Harness(repo));
+      await tester.enterText(find.byKey(const Key('detail-name')), 'قوطة');
+      await _tapVisible(tester, find.byKey(Key('sibling-${lines.last.id}')));
+      expect(find.byKey(const Key('unsaved-dialog')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('unsaved-discard')));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, 'عيش'), findsOneWidget);
+      expect((await repo.entry(lines.first.id))!.description, 'طماطم');
+    });
+
+    testWidgets('with edits asks, and حفظ keeps them', (tester) async {
+      final (repo, lines) = await grouped();
+      await _open(tester, entryId: lines.first.id, harness: _Harness(repo));
+      await tester.enterText(find.byKey(const Key('detail-name')), 'قوطة');
+      await _tapVisible(tester, find.byKey(Key('sibling-${lines.last.id}')));
+      await tester.tap(find.byKey(const Key('unsaved-save')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('entry-detail')), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'عيش'), findsOneWidget);
+      expect((await repo.entry(lines.first.id))!.description, 'قوطة');
+    });
+
+    testWidgets('with edits asks, and إلغاء stays put', (tester) async {
+      final (repo, lines) = await grouped();
+      await _open(tester, entryId: lines.first.id, harness: _Harness(repo));
+      await tester.enterText(find.byKey(const Key('detail-name')), 'قوطة');
+      await _tapVisible(tester, find.byKey(Key('sibling-${lines.last.id}')));
+      await tester.tap(find.byKey(const Key('unsaved-cancel')));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, 'قوطة'), findsOneWidget);
+    });
   });
 }

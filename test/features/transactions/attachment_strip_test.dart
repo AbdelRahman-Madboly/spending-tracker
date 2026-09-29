@@ -48,6 +48,12 @@ class FakeVoicePlayback implements VoicePlayback {
   Future<void> dispose() async => disposed = true;
 }
 
+/// A player whose file will not open, as with a missing recording.
+class _BrokenPlayback extends FakeVoicePlayback {
+  @override
+  Future<Duration?> open(File file) async => throw StateError('no file');
+}
+
 final _created = DateTime(2026, 9, 20);
 
 Future<void> _pump(
@@ -160,5 +166,38 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
     expect(playback.disposed, isTrue);
+  });
+
+  testWidgets('a voice note that fails to open is retried on the next tap', (
+    tester,
+  ) async {
+    final made = <FakeVoicePlayback>[];
+    await _pump(
+      tester,
+      [
+        AttachmentView(
+          id: 'v',
+          kind: AttachmentKind.voice,
+          path: 'attachments/2026-09/v.m4a',
+          createdAt: _created,
+        ),
+      ],
+      playback: () {
+        final p = made.isEmpty ? _BrokenPlayback() : FakeVoicePlayback();
+        made.add(p);
+        return p;
+      },
+    );
+    await tester.tap(find.byKey(const Key('voice-play-v')));
+    await tester.pump();
+    expect(find.text('مش قادر أشغل التسجيل ده'), findsOneWidget);
+    expect(made.first.disposed, isTrue);
+    expect(made.first.calls, isEmpty);
+
+    await tester.tap(find.byKey(const Key('voice-play-v')));
+    await tester.pump();
+    expect(made, hasLength(2));
+    expect(made.last.opened, ['/nowhere/attachments/2026-09/v.m4a']);
+    expect(made.last.calls, ['play']);
   });
 }

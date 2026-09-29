@@ -307,6 +307,14 @@ class _VoiceNoteBarState extends State<VoiceNoteBar> {
           setState(() => _duration = duration);
         }
       } catch (_) {
+        // Drop the player that failed so the next tap opens the file
+        // again, rather than playing on a player with nothing loaded.
+        for (final s in _subscriptions) {
+          s.cancel();
+        }
+        _subscriptions.clear();
+        _playback = null;
+        playback.dispose();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('مش قادر أشغل التسجيل ده')),
