@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/amount_expression.dart';
 import '../../core/design/app_icons.dart';
@@ -11,6 +12,7 @@ import '../../data/barcode_scan_service.dart';
 import '../../data/photo_capture_service.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
+import '../capture/permission_prompt.dart';
 import 'widgets/amount_keypad.dart';
 import 'widgets/category_strip.dart';
 import 'widgets/new_item_dialog.dart';
@@ -66,6 +68,10 @@ class AddSheet extends StatefulWidget {
   /// Started once the first frame is up; null starts nothing.
   final AddSheetAction? initialAction;
 
+  /// Asks for the camera behind an explanation card (spec §8). Defaults
+  /// to permission_handler; overridable for widget tests.
+  final PermissionService? permissionService;
+
   const AddSheet({
     super.key,
     required this.repository,
@@ -73,6 +79,7 @@ class AddSheet extends StatefulWidget {
     this.photoCaptureService,
     this.barcodeScanService,
     this.initialAction,
+    this.permissionService,
   });
 
   @override
@@ -97,8 +104,13 @@ class _AddSheetState extends State<AddSheet> {
   /// asynchronously and must not overwrite a choice already made.
   bool _paymentTouched = false;
 
-  /// True while [widget.onSubmit] runs; حفظ is disabled meanwhile.
+  /// True while [widget.onSubmit] runs; حفظ is disabled and the sheet
+  /// cannot be dismissed meanwhile.
   bool _saving = false;
+
+  /// The sheet's own messenger, so its snackbars show on the sheet rather
+  /// than behind it on the screen underneath.
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
 
   List<QuickPickItem> _recent = const [];
   List<QuickPickItem> _items = const [];
@@ -178,7 +190,9 @@ class _AddSheetState extends State<AddSheet> {
 
   @override
   void dispose() {
-    _cleanupAbandonedPhotos();
+    // A save still pending may yet put the photo in an entry; [_submit]
+    // cleans up once it knows.
+    if (!_saving) _cleanupAbandonedPhotos();
     super.dispose();
   }
 
@@ -292,8 +306,17 @@ class _AddSheetState extends State<AddSheet> {
     );
   }
 
-  Future<void> _captureFromCamera() =>
-      _capture(_photoCapture.captureFromCamera);
+  Future<void> _captureFromCamera() async {
+    if (!await _allowCamera() || !mounted) return;
+    await _capture(_photoCapture.captureFromCamera);
+  }
+
+  Future<bool> _allowCamera() => ensurePermission(
+      context, AppPermission.camera, service: widget.permissionService);
+
+  void _say(SnackBar snackBar) => _messenger.currentState
+    ?..hideCurrentSnackBar()
+    ..showSnackBar(snackBar);
 
   Future<void> _pickFromGallery() => _capture(_photoCapture.pickFromGallery);
 
@@ -304,7 +327,7 @@ class _AddSheetState extends State<AddSheet> {
       case PhotoCaptureOutcome.cancelled:
         return;
       case PhotoCaptureOutcome.permissionDenied:
-        ScaffoldMessenger.of(context).showSnackBar(
+        _say(
           const SnackBar(
             content: Text(
               'تعذّر الوصول إلى الكاميرا. يرجى السماح بإذن الكاميرا من إعدادات التطبيق.',
@@ -336,6 +359,7 @@ class _AddSheetState extends State<AddSheet> {
   /// opens the new-item dialog with the barcode attached, so naming and
   /// pricing it teaches the app that code for every future scan.
   Future<void> _scanBarcode() async {
+    if (!await _allowCamera() || !mounted) return;
     final barcode = await _barcodeScan.scan(context);
     if (!mounted || barcode == null) return;
 
@@ -390,77 +414,86 @@ class _AddSheetState extends State<AddSheet> {
   @override
   Widget build(BuildContext context) {
     final draft = _draft;
-    return SafeArea(
-      top: false,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildAmountHeader(context),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsetsDirectional.fromSTEB(
-                  AppSpacing.md,
-                  0,
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (_photoFile != null) _buildPhoto(context),
-                    _buildRecentChips(context),
-                    const SizedBox(height: AppSpacing.sm),
-                    AmountKeypad(onKey: _press),
-                    const SizedBox(height: AppSpacing.sm),
-                    CategoryStrip(
-                      categories: _categories,
-                      selectedKey: _selectedCategoryKey,
-                      onSelected: _selectCategory,
+    return ScaffoldMessenger(
+      key: _messenger,
+      child: PopScope(
+        // Dismissing mid-save would leave the save running with no sheet
+        // to report a failure on.
+        canPop: !_saving,
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.85,
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildAmountHeader(context),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      AppSpacing.md,
+                      0,
+                      AppSpacing.md,
+                      AppSpacing.sm,
                     ),
-                    // Only exists once a real category is selected: الكل
-                    // never has to make room for it.
-                    if (_selectedCategoryKey != null)
-                      SubcategoryStrip(
-                        subcategories: _subcategories,
-                        selectedKey: _selectedSubcategoryKey,
-                        onSelected: _selectSubcategory,
-                        colorKey: _colorKeyOf(_selectedCategoryKey),
-                      ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _buildItemGrid(context),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildPaymentMethods(context),
-                  ],
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_photoFile != null) _buildPhoto(context),
+                        _buildRecentChips(context),
+                        const SizedBox(height: AppSpacing.sm),
+                        AmountKeypad(onKey: _press),
+                        const SizedBox(height: AppSpacing.sm),
+                        CategoryStrip(
+                          categories: _categories,
+                          selectedKey: _selectedCategoryKey,
+                          onSelected: _selectCategory,
+                        ),
+                        // Only exists once a real category is selected:
+                        // الكل never has to make room for it.
+                        if (_selectedCategoryKey != null)
+                          SubcategoryStrip(
+                            subcategories: _subcategories,
+                            selectedKey: _selectedSubcategoryKey,
+                            onSelected: _selectSubcategory,
+                            colorKey: _colorKeyOf(_selectedCategoryKey),
+                          ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _buildItemGrid(context),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildPaymentMethods(context),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
             // Pinned under the scrolling part so حفظ is always in thumb
-            // reach, however much of the sheet is scrolled (spec §8).
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(
-                AppSpacing.md,
-                AppSpacing.sm,
-                AppSpacing.md,
-                AppSpacing.md,
-              ),
-              child: FilledButton(
-                key: const Key('save-button'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
+            // reach, however much of the sheet is scrolled (spec §8); the
+            // sheet's snackbars float just above it.
+            bottomNavigationBar: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.md,
                 ),
-                onPressed: draft == null || _saving
-                    ? null
-                    : () => _submit(draft),
-                child: const Text('حفظ'),
+                child: FilledButton(
+                  key: const Key('save-button'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                  ),
+                  onPressed: draft == null || _saving
+                      ? null
+                      : () => _submit(draft),
+                  child: const Text('حفظ'),
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -475,7 +508,7 @@ class _AddSheetState extends State<AddSheet> {
       _saved = true;
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        _say(
           const SnackBar(
             key: Key('save-failed'),
             content: Text('ما اتحفظش المصروف. جرّب تاني.'),
@@ -483,7 +516,13 @@ class _AddSheetState extends State<AddSheet> {
         );
       }
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      } else {
+        // Torn down mid-save: dispose left the photos for now, and only
+        // now is it known whether the current one belongs to an entry.
+        _cleanupAbandonedPhotos();
+      }
     }
   }
 
@@ -649,7 +688,10 @@ class _AddSheetState extends State<AddSheet> {
                   child: InkWell(
                     key: Key('recent-${item.id}'),
                     borderRadius: BorderRadius.circular(AppRadii.full),
-                    onTap: () => _select(item),
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      _select(item);
+                    },
                     child: Padding(
                       padding: const EdgeInsetsDirectional.symmetric(
                         horizontal: AppSpacing.ms,
@@ -702,7 +744,10 @@ class _AddSheetState extends State<AddSheet> {
       children: [
         for (final item in _items)
           InkWell(
-            onTap: () => _select(item),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              _select(item);
+            },
             borderRadius: BorderRadius.circular(AppRadii.sm),
             child: Container(
               // surfaceAlt, not surface: the sheet itself is surface, and a

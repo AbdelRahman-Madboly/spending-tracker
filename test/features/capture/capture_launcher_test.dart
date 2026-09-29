@@ -19,6 +19,9 @@ import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/domain/online_features.dart';
 
 import '../transactions/attachment_strip_test.dart' show FakeVoicePlayback;
+import 'package:spending_tracker/features/capture/permission_prompt.dart';
+
+import 'permission_fakes.dart';
 import 'voice_fakes.dart';
 
 class _Photos implements PhotoCaptureService {
@@ -115,6 +118,8 @@ void main() {
                   voiceRecorderFactory: () => recorder,
                   speechRecognition: speech,
                   playbackFactory: FakeVoicePlayback.new,
+                  permissionService:
+                      FakePermissionService(AppPermissionStatus.granted),
                   clock: _now,
                 ),
                 child: const Text('go'),

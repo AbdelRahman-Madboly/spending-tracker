@@ -5,6 +5,7 @@ import 'core/design/app_theme.dart';
 import 'data/db/database.dart';
 import 'data/drift_spending_repository.dart';
 import 'features/shell/app_shell.dart';
+import 'features/shell/quick_launch.dart';
 
 class SpendingApp extends StatefulWidget {
   const SpendingApp({super.key});
@@ -68,7 +69,10 @@ class _SpendingAppState extends State<SpendingApp> {
         textDirection: TextDirection.rtl,
         child: child ?? const SizedBox.shrink(),
       ),
-      home: AppShell(repository: _repository),
+      home: AppShell(
+        repository: _repository,
+        quickActions: const PluginQuickActionsSource(),
+      ),
     );
   }
 }

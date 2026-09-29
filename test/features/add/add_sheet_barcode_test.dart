@@ -4,6 +4,9 @@ import 'package:spending_tracker/data/barcode_scan_service.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
 import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';
+import 'package:spending_tracker/features/capture/permission_prompt.dart';
+
+import '../capture/permission_fakes.dart';
 
 /// Test double for [BarcodeScanService] — mobile_scanner talks to the
 /// platform camera through platform channels that don't run under
@@ -46,6 +49,8 @@ void main() {
             repository: repository,
             onSubmit: onSubmit ?? (_) {},
             barcodeScanService: scanService,
+            permissionService:
+                FakePermissionService(AppPermissionStatus.granted),
           ),
         ),
       ),
