@@ -4,6 +4,7 @@ import '../core/money.dart';
 import '../core/quantity.dart';
 import 'models.dart';
 import 'parsing/parsed_line.dart';
+import 'photo_reading.dart';
 
 /// A field of a review line the user can be asked to check (spec §6.7:
 /// "`low` fields get a warning outline and an icon").
@@ -58,6 +59,14 @@ class ReviewLine extends Equatable {
   /// the item it creates.
   final String? barcode;
 
+  /// Set on an InstaPay transfer that names the user as the one paid
+  /// ([TransferDirection.received]) or may (uncertain): the review offers
+  /// it as a salary. Null on every other line. Kept through every edit.
+  final TransferDirection? transfer;
+
+  /// The photo the line was read from, the evidence a salary keeps.
+  final String? photoPath;
+
   const ReviewLine({
     required this.id,
     required this.name,
@@ -73,12 +82,15 @@ class ReviewLine extends Equatable {
     this.uncertain = const {},
     this.reference,
     this.barcode,
+    this.transfer,
+    this.photoPath,
   });
 
   /// The line as the parser read it. Its flags say which fields to check:
   /// no amount or an ambiguous one, no category, and a name corrected by
   /// edit distance, which is a guess even when it is a good one.
-  factory ReviewLine.fromParsed(ParsedLine parsed, {required String id}) {
+  factory ReviewLine.fromParsed(ParsedLine parsed,
+      {required String id, String? photoPath}) {
     final flags = parsed.flags;
     return ReviewLine(
       id: id,
@@ -93,8 +105,15 @@ class ReviewLine extends Equatable {
       unitPricePiastres: parsed.unitPricePiastres,
       reference: parsed.reference,
       barcode: parsed.barcode,
+      transfer: flags.contains(ParseFlag.incoming)
+          ? TransferDirection.received
+          : flags.contains(ParseFlag.maybeIncoming)
+              ? TransferDirection.uncertain
+              : null,
+      photoPath: photoPath,
       uncertain: {
         if (flags.contains(ParseFlag.fuzzyMatch) ||
+            flags.contains(ParseFlag.maybeIncoming) ||
             _unknownProduct(parsed.barcode, parsed.itemId))
           ReviewField.name,
         if (flags.contains(ParseFlag.ambiguousAmount)) ReviewField.quantity,
@@ -123,6 +142,9 @@ class ReviewLine extends Equatable {
       barcode != null && itemId == null;
 
   bool get isReady => problems.isEmpty;
+
+  /// A salary is only an amount and a day: no category to file it under.
+  bool get canBeSalary => (amountPiastres ?? 0) > 0;
 
   ReviewLine _copy({
     String? name,
@@ -159,6 +181,8 @@ class ReviewLine extends Equatable {
         uncertain: uncertain ?? this.uncertain,
         reference: reference,
         barcode: barcode,
+        transfer: transfer,
+        photoPath: photoPath,
       );
 
   Set<ReviewField> _settled(ReviewField field) =>
@@ -230,6 +254,8 @@ class ReviewLine extends Equatable {
         uncertain: uncertain,
         reference: reference,
         barcode: barcode,
+        transfer: transfer,
+        photoPath: photoPath,
       );
 
   /// Links [item]: the line takes its name, category and subcategory, and
@@ -289,6 +315,8 @@ class ReviewLine extends Equatable {
         uncertain,
         reference,
         barcode,
+        transfer,
+        photoPath,
       ];
 }
 

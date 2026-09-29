@@ -375,12 +375,44 @@ class _ReviewSheetState extends State<ReviewSheet> {
 
   bool _loaded = false;
   bool _saving = false;
+
+  /// The user's answer to "salary or expense?" for the transfers the user
+  /// received (spec §6.2); null until they answer.
+  bool? _salaryChoice;
   bool _paymentTouched = false;
   bool _dateTouched = false;
   int _nextId = 0;
 
   List<ReviewLine> _lines = const [];
   late DateTime _date;
+
+  /// The lines that are money in, or may be: InstaPay transfers to the
+  /// user.
+  List<ReviewLine> get _transfersIn => [
+        for (final l in _lines)
+          if (l.transfer != null) l,
+      ];
+
+  /// Whether the transfers in are recorded as a salary. Until the user
+  /// answers, a transfer clearly received is; an uncertain one stays an
+  /// expense.
+  bool get _asSalary =>
+      _transfersIn.isNotEmpty &&
+      (_salaryChoice ??
+          _lines.any((l) => l.transfer == TransferDirection.received));
+
+  /// The lines saved as expenses: all of them, less the salary.
+  List<ReviewLine> get _expenseLines => _asSalary
+      ? [
+          for (final l in _lines)
+            if (l.transfer == null) l,
+        ]
+      : _lines;
+
+  bool get _canSave => _asSalary
+      ? _transfersIn.every((l) => l.canBeSalary) &&
+          (_expenseLines.isEmpty || canSaveReview(_expenseLines))
+      : canSaveReview(_lines);
   String _paymentMethod = 'Cash';
 
   /// Set when the sheet parsed the text itself rather than being handed
@@ -471,6 +503,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
     String? parsedBy = _request.parsedBy;
     String? photoPayment;
     List<ParsedLine> readReferences = const [];
+    Map<ParsedLine, String> photoSources = const {};
     if (parsed == null) {
       final text = _request.cleanText ?? _request.rawText ?? '';
       final catalogue = await loadParserCatalogue(_repo);
@@ -497,6 +530,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
           readReferences = read.lines;
         }
         if (read.instaPay) photoPayment = 'InstaPay';
+        photoSources = read.sources;
       } else if (_request.kind == CaptureKind.barcode) {
         // A barcode capture kept for later: its codes are scanned again,
         // and anything added by hand is parsed from the rest of its text.
@@ -523,9 +557,10 @@ class _ReviewSheetState extends State<ReviewSheet> {
       }
       _parsedBy = parsedBy;
       _smartKinds = smartKinds;
-      _lines = withReadReferences(
-          [for (final p in parsed!) ReviewLine.fromParsed(p, id: _newId())],
-          readReferences);
+      _lines = withReadReferences([
+        for (final p in parsed!)
+          ReviewLine.fromParsed(p, id: _newId(), photoPath: photoSources[p]),
+      ], readReferences);
       if (_request.date == null && parsed.isNotEmpty) _date = parsed.first.date;
       _loaded = true;
     });
@@ -547,16 +582,25 @@ class _ReviewSheetState extends State<ReviewSheet> {
   /// reference is already recorded, or already read in this capture, is
   /// refused: it says so, and a photo taken for this capture is dropped
   /// (one kept in a draft stays; it is the draft's).
-  Future<({List<ParsedLine> lines, bool instaPay})> _readPhotos(
-      List<String> paths) async {
+  ///
+  /// [sources] names the photo each line was read from, the evidence a
+  /// transfer recorded as a salary keeps.
+  Future<
+      ({
+        List<ParsedLine> lines,
+        bool instaPay,
+        Map<ParsedLine, String> sources,
+      })> _readPhotos(List<String> paths) async {
     final catalogue = _catalogue;
+    final Map<ParsedLine, String> sources = Map.identity();
     if (catalogue == null || paths.isEmpty) {
-      return (lines: const <ParsedLine>[], instaPay: false);
+      return (lines: const <ParsedLine>[], instaPay: false, sources: sources);
     }
     setState(() => _reading++);
     final lines = <ParsedLine>[];
     var instaPay = false;
     final refused = <String>[];
+    Set<String>? salaryIds;
     try {
       for (final path in paths) {
         PhotoReading reading;
@@ -571,21 +615,31 @@ class _ReviewSheetState extends State<ReviewSheet> {
         if (reference != null &&
             (lines.any((l) => l.reference == reference) ||
                 _lines.any((l) => l.reference == reference) ||
-                await _repo.referenceExists(reference))) {
+                await _repo.referenceExists(reference) ||
+                // A transfer in may be a salary already.
+                (reading.direction != TransferDirection.sent &&
+                    (salaryIds ??= await _repo.knownExternalIds())
+                        .contains(transferSalaryId(reference))))) {
           refused.add(path);
           continue;
         }
         instaPay = instaPay || reading.isInstaPay;
-        lines.addAll(photoLines(reading, catalogue,
+        final read = photoLines(reading, catalogue,
             day: ArabicLineParser.captureDay(_request.capturedAt),
-            priceOf: _priceOf));
+            priceOf: _priceOf);
+        for (final line in read) {
+          sources[line] = path;
+        }
+        lines.addAll(read);
       }
     } finally {
       if (mounted) setState(() => _reading--);
     }
     // Closed while reading: the photos were kept with the draft as they
     // were, refused one included, and there is no sheet left to say so.
-    if (!mounted) return (lines: const <ParsedLine>[], instaPay: false);
+    if (!mounted) {
+      return (lines: const <ParsedLine>[], instaPay: false, sources: sources);
+    }
     if (refused.isNotEmpty) {
       final dropped = {
         for (final a in _attachments)
@@ -600,7 +654,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
       }
       _sayDuplicate();
     }
-    return (lines: lines, instaPay: instaPay);
+    return (lines: lines, instaPay: instaPay, sources: sources);
   }
 
   void _sayDuplicate() => _say('العملية دي متسجلة قبل كده',
@@ -631,7 +685,8 @@ class _ReviewSheetState extends State<ReviewSheet> {
       }
       _lines = [
         ..._lines,
-        for (final p in read.lines) ReviewLine.fromParsed(p, id: _newId()),
+        for (final p in read.lines)
+          ReviewLine.fromParsed(p, id: _newId(), photoPath: read.sources[p]),
       ];
       if (read.instaPay && !_paymentTouched) _paymentMethod = 'InstaPay';
     });
@@ -865,24 +920,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      final raw = _rawText;
-      await _repo.saveCapture(CaptureDraft(
-        kind: _request.kind,
-        date: _date,
-        paymentMethod: _paymentMethod,
-        // A note needs words to be worth keeping; lines that came with no
-        // text of their own give it theirs.
-        rawText: raw ??
-            (lines.isEmpty && _lines.isNotEmpty
-                ? reviewDraftText(_lines)
-                : null),
-        cleanText: _cleanText ?? _request.cleanText,
-        parsedBy: _parsedBy,
-        lines: lines,
-        attachments: _withTypedTranscript(
-            _attachments, _asksForText ? _typed.text.trim() : ''),
-        draftId: _request.draftId,
-      ));
+      await _saveCapture(lines);
       if (outcome == ReviewOutcome.saved) HapticFeedback.lightImpact();
       if (mounted) Navigator.of(context).pop(outcome);
     } on DuplicateReferenceException {
@@ -896,10 +934,87 @@ class _ReviewSheetState extends State<ReviewSheet> {
     }
   }
 
+  /// Writes the capture with [lines] and the capture's attachments.
+  Future<void> _saveCapture(List<CaptureLine> lines) async {
+    final raw = _rawText;
+    await _repo.saveCapture(CaptureDraft(
+      kind: _request.kind,
+      date: _date,
+      paymentMethod: _paymentMethod,
+      // A note needs words to be worth keeping; lines that came with no
+      // text of their own give it theirs.
+      rawText: raw ??
+          (lines.isEmpty && _lines.isNotEmpty
+              ? reviewDraftText(_lines)
+              : null),
+      cleanText: _cleanText ?? _request.cleanText,
+      parsedBy: _parsedBy,
+      lines: lines,
+      attachments: _withTypedTranscript(
+          _attachments, _asksForText ? _typed.text.trim() : ''),
+      draftId: _request.draftId,
+    ));
+  }
+
   Future<void> _save() async {
-    if (!canSaveReview(_lines)) return;
+    if (!_canSave) return;
+    if (_asSalary) return _saveSalary();
     await _write([for (final l in _lines) l.toCaptureLine()],
         ReviewOutcome.saved);
+  }
+
+  /// Records the transfers in as salary periods, each with the screenshot
+  /// it was read from as its evidence, then the rest of the capture as
+  /// usual: its expense lines, or with none, the photos left over as a
+  /// note so no evidence is lost. A salary already recorded from the same
+  /// transfer is refused, as a second copy of an expense is.
+  Future<void> _saveSalary() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      for (final line in _transfersIn) {
+        final reference = line.reference;
+        await _repo.addSalaryPeriod(
+          datePaid: _date,
+          amountPiastres: line.amountPiastres!,
+          note: reference == null ? 'InstaPay' : 'InstaPay $reference',
+          evidencePhotoPath: line.photoPath,
+          externalId: reference == null ? null : transferSalaryId(reference),
+        );
+        // Recorded: a retry after a later failure must not record it again.
+        if (!mounted) return;
+        setState(() {
+          _lines = [for (final l in _lines) if (l.id != line.id) l];
+          if (line.photoPath case final path?) {
+            _attachments = [
+              for (final a in _attachments) if (a.path != path) a,
+            ];
+          }
+        });
+        widget.onAttachmentsChanged?.call(_attachments);
+        _report();
+      }
+      final expenses = _lines;
+      // A draft finished here leaves Needs review even with nothing left.
+      if (expenses.isNotEmpty ||
+          _attachments.isNotEmpty ||
+          _request.draftId != null) {
+        await _saveCapture(
+            [for (final l in expenses) l.toCaptureLine()]);
+      }
+      HapticFeedback.lightImpact();
+      if (mounted) Navigator.of(context).pop(ReviewOutcome.saved);
+    } on StateError {
+      if (mounted) _sayDuplicate();
+    } on DuplicateReferenceException {
+      if (mounted) _sayDuplicate();
+    } catch (_) {
+      if (mounted) {
+        _say('الحفظ ما نفعش، جرب تاني', key: const Key('review-save-failed'));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _saveNote() => _write(const [], ReviewOutcome.note);
@@ -1092,8 +1207,12 @@ class _ReviewSheetState extends State<ReviewSheet> {
                 ),
               ),
             ),
-          label(_lines.isEmpty ? 'مفيش سطور' : 'السطور (${_lines.length})'),
-          for (final line in _lines)
+          if (_transfersIn.isNotEmpty) _buildIncomingChoice(context),
+          label(_expenseLines.isEmpty
+              ? 'مفيش سطور'
+              : 'السطور (${_expenseLines.length})'),
+          // A salary has no category to file: its lines show in the choice.
+          for (final line in _expenseLines)
             Padding(
               padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.ms),
               child: Dismissible(
@@ -1125,6 +1244,91 @@ class _ReviewSheetState extends State<ReviewSheet> {
     );
   }
 
+  /// Money the user received (spec §6.2): saved as a salary period or as
+  /// an expense, the user's call. An uncertain transfer says it is unsure.
+  Widget _buildIncomingChoice(BuildContext context) {
+    final palette = context.palette;
+    final uncertain =
+        !_transfersIn.any((l) => l.transfer == TransferDirection.received);
+    return Container(
+      key: const Key('review-incoming-choice'),
+      margin: const EdgeInsetsDirectional.only(top: AppSpacing.md),
+      padding: const EdgeInsetsDirectional.all(AppSpacing.ms),
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(uncertain ? AppIcons.warning : AppIcons.payment,
+                  size: 20,
+                  color: uncertain ? palette.warning : palette.primary),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  uncertain
+                      ? 'مش واضح التحويل ده جالك ولا طلع منك. تسجله إزاي؟'
+                      : 'التحويل ده جالك. تسجله مرتب ولا مصروف؟',
+                  key: uncertain
+                      ? const Key('review-incoming-uncertain')
+                      : null,
+                  style: AppText.body,
+                ),
+              ),
+            ],
+          ),
+          if (_asSalary)
+            for (final line in _transfersIn)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(top: AppSpacing.sm),
+                child: Row(
+                  children: [
+                    const Text('مرتب', style: AppText.body),
+                    const Spacer(),
+                    Text(
+                      formatPiastres(line.amountPiastres ?? 0),
+                      key: Key('incoming-amount-${line.id}'),
+                      textDirection: TextDirection.ltr,
+                      style: AppText.title,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text('ج.م',
+                        style: AppText.caption
+                            .copyWith(color: palette.textSecondary)),
+                  ],
+                ),
+              ),
+          const SizedBox(height: AppSpacing.sm),
+          SegmentedButton<bool>(
+            key: const Key('incoming-segments'),
+            style: SegmentedButton.styleFrom(minimumSize: const Size(0, 48)),
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: true,
+                label: Text('مرتب', key: Key('incoming-salary')),
+              ),
+              ButtonSegment(
+                value: false,
+                label: Text('مصروف', key: Key('incoming-expense')),
+              ),
+            ],
+            selected: {_asSalary},
+            onSelectionChanged: _saving
+                ? null
+                : (choice) {
+                    setState(() => _salaryChoice = choice.single);
+                    widget.onEdited?.call();
+                  },
+          ),
+        ],
+      ),
+    );
+  }
+
   /// The item chips under a line's category (and subcategory, once one
   /// is picked). The linked item always shows, even past the first twelve.
   List<QuickPickItem> _itemsFor(ReviewLine line) {
@@ -1145,8 +1349,9 @@ class _ReviewSheetState extends State<ReviewSheet> {
 
   Widget _buildFooter(BuildContext context) {
     final palette = context.palette;
-    final ready = canSaveReview(_lines);
-    final blocked = _lines.any((l) => !l.isReady);
+    final ready = _canSave;
+    final expenses = _expenseLines;
+    final blocked = expenses.any((l) => !l.isReady);
     return SafeArea(
       child: Container(
         decoration: BoxDecoration(
@@ -1165,7 +1370,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
                         AppText.label.copyWith(color: palette.textSecondary)),
                 const Spacer(),
                 Text(
-                  formatPiastres(reviewTotal(_lines)),
+                  formatPiastres(reviewTotal(expenses)),
                   key: const Key('review-total'),
                   textDirection: TextDirection.ltr,
                   style: AppText.title,
@@ -1186,7 +1391,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
-                          _lines.any((l) => l.problems
+                          expenses.any((l) => l.problems
                                   .contains(ReviewProblem.missingName))
                               ? 'كمّل الاسم والمبلغ والفئة في السطور المعلّمة أو امسحها'
                               : 'كمّل المبلغ والفئة في السطور المعلّمة أو امسحها',
@@ -1202,7 +1407,11 @@ class _ReviewSheetState extends State<ReviewSheet> {
               style:
                   FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
               onPressed: ready && !_saving && _reading == 0 ? _save : null,
-              child: Text('حفظ ${_lines.length} مصروف'),
+              child: Text(!_asSalary
+                  ? 'حفظ ${_lines.length} مصروف'
+                  : expenses.isEmpty
+                      ? 'حفظ كمرتب'
+                      : 'حفظ مرتب و${expenses.length} مصروف'),
             ),
             Row(
               children: [

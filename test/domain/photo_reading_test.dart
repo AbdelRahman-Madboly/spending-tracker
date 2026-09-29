@@ -20,6 +20,22 @@ Date
 28 Sep 2026 10:15 PM
 ''';
 
+const _instaPayReceived = '''
+InstaPay
+Transaction Successful
+EGP 9,000.00
+From
+Ahmed M***
+ahmed.m@instapay
+To
+Mostafa Sample
+sampleuser@instapay
+Reference Number
+512345678999
+Date
+28 Sep 2026 10:15 PM
+''';
+
 void main() {
   group('amounts', () {
     test('a total next to a currency word is read in piastres', () {
@@ -110,6 +126,59 @@ Cash 300.00
       expect(_read('Sent to sara@instapay\nEGP 50').isInstaPay, isTrue);
     });
 
+    group('direction', () {
+      test('a transfer sent to someone else is sent', () {
+        expect(_read(_instaPay).direction, TransferDirection.sent);
+      });
+
+      test('the user under To is money received', () {
+        expect(_read(_instaPayReceived).direction, TransferDirection.received);
+      });
+
+      test('a payer\'s "Sent to" screenshot naming the user is received', () {
+        expect(
+            _read('InstaPay\nSent to\nMostafa M***\n'
+                    'sampleuser@instapay\nEGP 500')
+                .direction,
+            TransferDirection.received);
+      });
+
+      test('the user under From is sent', () {
+        expect(
+            _read('InstaPay\nFrom\nsampleuser@instapay\nTo\n'
+                    'sara@instapay\nEGP 50')
+                .direction,
+            TransferDirection.sent);
+      });
+
+      test('a Received label is money received', () {
+        expect(
+            _read('InstaPay\nMoney Received\nfrom ahmed.m@instapay\nEGP 700')
+                .direction,
+            TransferDirection.received);
+        expect(_read('InstaPay\nتم استلام\nEGP 700').direction,
+            TransferDirection.received);
+      });
+
+      test('the user named with no label to place them is uncertain', () {
+        expect(
+            _read('InstaPay\nsampleuser@instapay\nEGP 700').direction,
+            TransferDirection.uncertain);
+      });
+
+      test('signals both ways are uncertain', () {
+        expect(
+            _read('InstaPay\nReceived\nFrom\nsampleuser@instapay\nEGP 700')
+                .direction,
+            TransferDirection.uncertain);
+      });
+
+      test('a receipt that is not InstaPay has no direction', () {
+        expect(_read('Received with thanks\nTotal 20 EGP').direction,
+            TransferDirection.sent);
+      });
+    });
+
     test('an ordinary receipt is not InstaPay and has no reference', () {
       final reading = _read('Carrefour\nTotal 228.00 EGP');
       expect(reading.isInstaPay, isFalse);
@@ -149,6 +218,37 @@ Cash 300.00
       expect(line.date, DateTime(2026, 9, 28));
       expect(line.name, 'تحويل إنستاباي');
       expect(line.flags, contains(ParseFlag.noCategory));
+    });
+
+    test('a transfer received is one incoming line, not an expense', () {
+      final lines = photoLines(_read(_instaPayReceived), catalogue,
+          day: day, priceOf: price);
+      final line = lines.single;
+      expect(line.amountPiastres, 900000);
+      expect(line.reference, '512345678999');
+      expect(line.name, 'تحويل وارد');
+      expect(line.flags, contains(ParseFlag.incoming));
+    });
+
+    test('an uncertain direction stays an expense line with low confidence',
+        () {
+      final lines = photoLines(
+          _read('InstaPay\nsampleuser@instapay\nEGP 700'), catalogue,
+          day: day, priceOf: price);
+      final line = lines.single;
+      expect(line.name, 'تحويل إنستاباي');
+      expect(line.confidence, ParseConfidence.low);
+      expect(line.flags, contains(ParseFlag.maybeIncoming));
+      expect(line.flags, isNot(contains(ParseFlag.incoming)));
+    });
+
+    test('a transfer sent carries neither incoming flag', () {
+      final line = photoLines(_read(_instaPay), catalogue,
+              day: day, priceOf: price)
+          .single;
+      expect(line.flags, isNot(contains(ParseFlag.incoming)));
+      expect(line.flags, isNot(contains(ParseFlag.maybeIncoming)));
+      expect(line.confidence, ParseConfidence.medium);
     });
 
     test('a receipt total takes the one brand it names', () {

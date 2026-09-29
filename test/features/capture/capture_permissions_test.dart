@@ -14,6 +14,13 @@ import 'voice_fakes.dart';
 
 class _Photos implements PhotoCaptureService {
   int camera = 0;
+  int gallery = 0;
+  @override
+  Future<List<String>> pickManyFromGallery() async {
+    gallery++;
+    return const [];
+  }
+
   @override
   Future<PhotoCaptureResult> captureFromCamera() async {
     camera++;
@@ -79,6 +86,11 @@ void main() {
     ));
     await tester.tap(find.text('go'));
     await tester.pumpAndSettle();
+    // The camera button first asks camera or gallery.
+    if (action == CaptureAction.camera) {
+      await tester.tap(find.byKey(const Key('photo-source-camera')));
+      await tester.pumpAndSettle();
+    }
   }
 
   final cases = {
@@ -118,4 +130,31 @@ void main() {
       }
     });
   }
+
+  testWidgets('the gallery needs no camera permission', (tester) async {
+    final permissions = FakePermissionService(AppPermissionStatus.denied);
+    photos = _Photos();
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => launchCapture(
+                context, FixtureSpendingRepository(), CaptureAction.camera,
+                photoCaptureService: photos, permissionService: permissions),
+            child: const Text('go'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('go'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('photo-source-gallery')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('permission-card')), findsNothing);
+    expect(permissions.requested, isEmpty);
+    expect(photos.gallery, 1);
+  });
 }

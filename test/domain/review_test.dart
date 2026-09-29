@@ -3,6 +3,7 @@ import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/domain/parsing/catalogue_matcher.dart';
 import 'package:spending_tracker/domain/parsing/line_parser.dart';
 import 'package:spending_tracker/domain/parsing/parsed_line.dart';
+import 'package:spending_tracker/domain/photo_reading.dart';
 import 'package:spending_tracker/domain/review.dart';
 
 ParsedLine _parsed({
@@ -75,6 +76,45 @@ void main() {
                   id: 'a')
               .uncertain,
           {ReviewField.name});
+    });
+  });
+
+  group('transfers in', () {
+    test('a received transfer is marked with the photo it was read from', () {
+      final line = ReviewLine.fromParsed(
+          _parsed(category: null, flags: {ParseFlag.incoming}),
+          id: 'a',
+          photoPath: 'attachments/2026-09/1.jpg');
+      expect(line.transfer, TransferDirection.received);
+      expect(line.photoPath, 'attachments/2026-09/1.jpg');
+    });
+
+    test('an uncertain one is marked and its name is worth a look', () {
+      final line = ReviewLine.fromParsed(
+          _parsed(flags: {ParseFlag.maybeIncoming}),
+          id: 'a',
+          photoPath: 'p.jpg');
+      expect(line.transfer, TransferDirection.uncertain);
+      expect(line.uncertain, contains(ReviewField.name));
+    });
+
+    test('any other line has no transfer, and edits keep the mark', () {
+      expect(ReviewLine.fromParsed(_parsed(), id: 'a').transfer, isNull);
+      final edited = ReviewLine.fromParsed(
+              _parsed(category: null, flags: {ParseFlag.incoming}),
+              id: 'a',
+              photoPath: 'p.jpg')
+          .withAmount(900)
+          .withCategory('Food');
+      expect(edited.transfer, TransferDirection.received);
+      expect(edited.photoPath, 'p.jpg');
+    });
+
+    test('a salary needs only an amount above zero', () {
+      final line = ReviewLine.fromParsed(
+          _parsed(category: null, flags: {ParseFlag.incoming}), id: 'a');
+      expect(line.canBeSalary, isTrue);
+      expect(line.withAmount(0).canBeSalary, isFalse);
     });
   });
 

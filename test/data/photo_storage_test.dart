@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:spending_tracker/data/photo_storage.dart';
 
@@ -133,5 +134,43 @@ void main() {
     expect(p.dirname(relativePath), p.join('attachments', '2026-09'));
     expect(p.extension(relativePath), '.pdf');
     expect(await storage.resolve(relativePath).readAsBytes(), [7, 8, 9]);
+  });
+
+  group('importImage (an image shared in)', () {
+    test('a large screenshot is scaled to 1600px on its long edge as JPEG',
+        () async {
+      final source = await writeSourceFile(
+          'Screenshot.png', img.encodePng(img.Image(width: 1080, height: 2400)));
+
+      final relativePath = await storage.importImage(source);
+
+      expect(relativePath, startsWith(p.join('attachments', '2026-09')));
+      expect(p.extension(relativePath), '.jpg');
+      final stored =
+          img.decodeImage(File(p.join(documentsDir.path, relativePath))
+              .readAsBytesSync())!;
+      expect(stored.height, 1600);
+      expect(stored.width, 720);
+      expect(img.findFormatForData(
+              File(p.join(documentsDir.path, relativePath)).readAsBytesSync()),
+          img.ImageFormat.jpg);
+    });
+
+    test('a small image keeps its size', () async {
+      final source = await writeSourceFile(
+          'small.png', img.encodePng(img.Image(width: 300, height: 200)));
+      final relativePath = await storage.importImage(source);
+      final stored = img.decodeImage(
+          File(p.join(documentsDir.path, relativePath)).readAsBytesSync())!;
+      expect((stored.width, stored.height), (300, 200));
+    });
+
+    test('a file that is not an image is copied as it is', () async {
+      final source = await writeSourceFile('odd.heic', [1, 2, 3]);
+      final relativePath = await storage.importImage(source);
+      expect(File(p.join(documentsDir.path, relativePath)).readAsBytesSync(),
+          [1, 2, 3]);
+      expect(p.extension(relativePath), '.heic');
+    });
   });
 }

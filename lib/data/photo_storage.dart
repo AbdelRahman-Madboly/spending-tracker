@@ -1,6 +1,16 @@
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:typed_data';
 
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
+
+/// Spec §6.2: photos are stored downscaled to 1600px on the long edge at
+/// JPEG quality 85. For the camera and the gallery image_picker does the
+/// scaling (it keeps the aspect ratio inside both bounds); an image shared
+/// in from another app goes through [PhotoStorage.importImage].
+const double photoMaxEdge = 1600;
+const int photoJpegQuality = 85;
 
 /// Copies a picked photo or document into the app's documents directory
 /// under `attachments/<yyyy-MM>/` (spec §5) and hands back a path RELATIVE
@@ -23,6 +33,34 @@ class PhotoStorage {
   /// relative to [documentsDirectory] (e.g. `attachments/2026-09/172...jpg`).
   Future<String> importPhoto(File source) =>
       _import(source, fallbackExtension: '.jpg');
+
+  /// As [importPhoto], for an image another app shared in (a screenshot,
+  /// a gallery photo): stored as the camera's photos are, JPEG at quality
+  /// 85, no more than 1600px on its long edge. A file the decoder cannot
+  /// read (a format it does not know) is kept as it came.
+  Future<String> importImage(File source) async {
+    final bytes = await source.readAsBytes();
+    final jpeg = await Isolate.run(() => _downscaledJpeg(bytes));
+    if (jpeg == null) return importFile(source);
+    return importBytes(jpeg, fileName: 'shared.jpg');
+  }
+
+  static List<int>? _downscaledJpeg(Uint8List bytes) {
+    final img.Image? decoded;
+    try {
+      decoded = img.decodeImage(bytes);
+    } on Object {
+      return null;
+    }
+    if (decoded == null) return null;
+    final edge = photoMaxEdge.toInt();
+    final image = decoded.width <= edge && decoded.height <= edge
+        ? decoded
+        : decoded.width >= decoded.height
+            ? img.copyResize(decoded, width: edge)
+            : img.copyResize(decoded, height: edge);
+    return img.encodeJpg(image, quality: photoJpegQuality);
+  }
 
   /// As [importPhoto], for a document (a PDF invoice): the file is kept as
   /// it is, with its own extension in lower case.

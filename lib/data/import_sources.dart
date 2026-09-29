@@ -60,7 +60,8 @@ Future<PickedImportFile?> pickImportFile() async {
   return (name: picked.name, bytes: bytes);
 }
 
-/// Something shared into the app from another one: text, or a file.
+/// Something shared into the app from another one: text or a file to
+/// import, or images to read as a photo capture.
 sealed class SharedImport {
   const SharedImport();
 }
@@ -74,6 +75,14 @@ class SharedFile extends SharedImport {
   final String name;
   final Uint8List bytes;
   const SharedFile(this.name, this.bytes);
+}
+
+/// Images shared in one go (an InstaPay screenshot, gallery photos): the
+/// files the share plugin copied into the cache, read as one photo
+/// capture (spec §6.2).
+class SharedImages extends SharedImport {
+  final List<String> paths;
+  const SharedImages(this.paths);
 }
 
 /// What other apps share into this one (the Android share target), as a
@@ -95,31 +104,38 @@ class PluginShareInbox implements ShareInbox {
       // No share plugin on this platform (tests, desktop): nothing shared.
       return;
     }
-    for (final s in initial) {
-      final share = await _read(s);
-      if (share != null) yield share;
-    }
+    yield* Stream.fromIterable(await sharedImportsOf(initial));
     await for (final batch in intent.getMediaStream().handleError(
       (Object _) {},
     )) {
-      for (final s in batch) {
-        final share = await _read(s);
-        if (share != null) yield share;
-      }
+      yield* Stream.fromIterable(await sharedImportsOf(batch));
     }
   }
+}
 
-  static Future<SharedImport?> _read(SharedMediaFile media) async {
-    try {
-      if (media.type == SharedMediaType.text ||
-          media.type == SharedMediaType.url) {
-        return SharedText(media.path);
-      }
-      if (media.type != SharedMediaType.file) return null;
-      final file = File(media.path);
-      return SharedFile(p.basename(media.path), await file.readAsBytes());
-    } on Object {
-      return null;
+/// What one share holds: its text and files one by one, for import, and
+/// its images together as one [SharedImages]. A file that cannot be read
+/// and anything else (a video) are left out.
+Future<List<SharedImport>> sharedImportsOf(List<SharedMediaFile> batch) async {
+  final shares = <SharedImport>[];
+  final images = <String>[];
+  for (final media in batch) {
+    switch (media.type) {
+      case SharedMediaType.text || SharedMediaType.url:
+        shares.add(SharedText(media.path));
+      case SharedMediaType.image:
+        images.add(media.path);
+      case SharedMediaType.file:
+        try {
+          shares.add(SharedFile(
+              p.basename(media.path), await File(media.path).readAsBytes()));
+        } on Object {
+          // Gone from the cache, or unreadable: nothing to import.
+        }
+      case SharedMediaType.video:
+        break;
     }
   }
+  if (images.isNotEmpty) shares.add(SharedImages(images));
+  return shares;
 }

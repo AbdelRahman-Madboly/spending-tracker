@@ -58,12 +58,6 @@ abstract class PhotoCaptureService {
   Future<void> delete(String relativePath);
 }
 
-/// Spec §6.2: photos are stored downscaled to 1600px on the long edge at
-/// JPEG quality 85. image_picker does the scaling (it keeps the aspect
-/// ratio inside both bounds), so there is no image package to carry.
-const double photoMaxEdge = 1600;
-const int photoJpegQuality = 85;
-
 class ImagePickerPhotoCaptureService implements PhotoCaptureService {
   ImagePickerPhotoCaptureService({ImagePicker? picker})
       : _picker = picker ?? ImagePicker();

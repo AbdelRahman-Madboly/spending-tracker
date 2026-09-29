@@ -1,6 +1,36 @@
 import 'parsing/catalogue_matcher.dart';
 import 'parsing/parsed_line.dart';
 
+/// Which way an InstaPay transfer went, as far as the screenshot says.
+enum TransferDirection {
+  /// Paid by the user: an expense. Also what anything that is not a
+  /// transfer reads as.
+  sent,
+
+  /// Paid to the user: money in.
+  received,
+
+  /// The screenshot names the user, or says both things, and cannot be
+  /// placed either way.
+  uncertain,
+}
+
+/// The user's own InstaPay identity: the address, and the Latin spellings
+/// of the name the payer's app shows (often cut short as "Mostafa M***").
+final _ownIdentity = RegExp(
+  r'sampleuser\s*@\s*instapay|mou?s[\s-]?t?a?fa',
+  caseSensitive: false,
+);
+
+final _receivedWord =
+    RegExp(r'\breceived\b|تم\s+استلام|استلمت|وارد', caseSensitive: false);
+final _toLabel = RegExp(r'^(?:sent\s+)?to\b|^إلى|^الى', caseSensitive: false);
+final _fromLabel = RegExp(r'^(?:received\s+)?from\b|^من\b', caseSensitive: false);
+
+/// The import identity of a salary recorded from the InstaPay transfer
+/// with [reference]: the same transfer shared again is refused.
+String transferSalaryId(String reference) => 'instapay:$reference';
+
 /// What the offline recogniser's Latin text says about a photo (spec §6.2):
 /// a total, a date, an InstaPay reference and the Latin words that may
 /// name a product. Pure Dart, so every rule is unit tested without a
@@ -11,6 +41,7 @@ class PhotoReading {
     this.date,
     this.reference,
     this.isInstaPay = false,
+    this.direction = TransferDirection.sent,
     this.words = const [],
   });
 
@@ -23,6 +54,10 @@ class PhotoReading {
   /// a payment reference would refuse the next receipt from the same till.
   final String? reference;
   final bool isInstaPay;
+
+  /// Which way the transfer went; [TransferDirection.sent] for anything
+  /// that is not an InstaPay screenshot.
+  final TransferDirection direction;
 
   /// Lower-cased Latin words that could be a brand, in reading order,
   /// receipt vocabulary taken out.
@@ -110,8 +145,41 @@ PhotoReading readPhotoText(String text, {required DateTime now}) {
     date: _readDate(lines, now),
     reference: isInstaPay ? _readReference(lines) : null,
     isInstaPay: isInstaPay,
+    direction: isInstaPay ? _readDirection(lines) : TransferDirection.sent,
     words: _readWords(lines),
   );
+}
+
+/// Which side of the transfer the user is on. The user's name or address
+/// under a To label (a payer's "Sent to" screenshot included) or a
+/// Received label says money in; the user under From says money out.
+/// The user named with nothing to place them, or signals both ways, is
+/// uncertain; a transfer that names someone else is sent.
+TransferDirection _readDirection(List<String> lines) {
+  var ownUnderTo = false, ownUnderFrom = false, ownNamed = false;
+  var receivedWord = false;
+  // The label the lines under it belong to, until the next label.
+  bool? underTo;
+  for (final line in lines) {
+    if (_toLabel.hasMatch(line)) {
+      underTo = true;
+    } else if (_fromLabel.hasMatch(line)) {
+      underTo = false;
+    } else if (!_ownIdentity.hasMatch(line) && _referenceLabel.hasMatch(line)) {
+      underTo = null;
+    }
+    if (_receivedWord.hasMatch(line)) receivedWord = true;
+    if (_ownIdentity.hasMatch(line)) {
+      ownNamed = true;
+      if (underTo == true) ownUnderTo = true;
+      if (underTo == false) ownUnderFrom = true;
+    }
+  }
+  final receivedSignal = ownUnderTo || receivedWord;
+  if (receivedSignal && ownUnderFrom) return TransferDirection.uncertain;
+  if (receivedSignal) return TransferDirection.received;
+  if (ownUnderFrom) return TransferDirection.sent;
+  return ownNamed ? TransferDirection.uncertain : TransferDirection.sent;
 }
 
 int? _readAmount(List<String> lines) {
@@ -246,17 +314,25 @@ List<ParsedLine> photoLines(
   final amount = reading.amountPiastres;
   if (reading.isInstaPay) {
     if (amount == null && reading.reference == null) return const [];
+    final direction = reading.direction;
     return [
       ParsedLine(
         rawText: 'InstaPay',
         date: date,
-        name: 'تحويل إنستاباي',
+        name: direction == TransferDirection.received
+            ? 'تحويل وارد'
+            : 'تحويل إنستاباي',
         amountPiastres: amount,
         reference: reading.reference,
-        confidence: ParseConfidence.medium,
+        confidence: direction == TransferDirection.uncertain
+            ? ParseConfidence.low
+            : ParseConfidence.medium,
         flags: {
           ParseFlag.noCategory,
           if (amount == null) ParseFlag.noAmount,
+          if (direction == TransferDirection.received) ParseFlag.incoming,
+          if (direction == TransferDirection.uncertain)
+            ParseFlag.maybeIncoming,
         },
       ),
     ];

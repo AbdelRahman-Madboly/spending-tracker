@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../data/import_sources.dart';
+import '../../data/photo_capture_service.dart';
+import '../../data/text_recognition_service.dart';
 import '../../domain/import/import_pack.dart';
 import '../../domain/import/importer.dart' show PickedImportFile;
 import '../../domain/spending_repository.dart';
@@ -37,8 +39,8 @@ class AppShell extends StatefulWidget {
   final SpendingRepository repository;
   final DateTime Function() clock;
 
-  /// Text and files other apps share in (the Android share target), each
-  /// opened on the import review.
+  /// What other apps share in (the Android share target): text and files
+  /// open on the import review, images on the photo capture's review.
   final ShareInbox? shareInbox;
 
   /// The launcher quick actions (spec §8); null registers none.
@@ -48,6 +50,13 @@ class AppShell extends StatefulWidget {
   /// permission_handler, overridable for widget tests.
   final PermissionService? permissionService;
 
+  /// The photo capture's platform seams (camera and gallery, the text
+  /// recogniser, the copy of a shared image into app storage); the real
+  /// ones by default, overridable for widget tests.
+  final PhotoCaptureService? photoCaptureService;
+  final TextRecognitionService? textRecognition;
+  final SharedImageImporter? importSharedImage;
+
   const AppShell({
     super.key,
     required this.repository,
@@ -55,6 +64,9 @@ class AppShell extends StatefulWidget {
     this.shareInbox,
     this.quickActions,
     this.permissionService,
+    this.photoCaptureService,
+    this.textRecognition,
+    this.importSharedImage,
   });
 
   @override
@@ -104,6 +116,9 @@ class _AppShellState extends State<AppShell>
   bool _ready = false;
   String? _pendingQuickLaunch;
 
+  /// Shares that arrived before the first frame, opened once it is up.
+  final List<SharedImport> _pendingShares = [];
+
   @override
   void initState() {
     super.initState();
@@ -114,6 +129,9 @@ class _AppShellState extends State<AppShell>
       final pending = _pendingQuickLaunch;
       _pendingQuickLaunch = null;
       if (pending != null) _onQuickLaunch(pending);
+      final shares = [..._pendingShares];
+      _pendingShares.clear();
+      shares.forEach(_openShared);
     });
   }
 
@@ -130,7 +148,13 @@ class _AppShellState extends State<AppShell>
       return;
     }
     final action = quickLaunchCapture(type);
-    if (action != null) _capture(action);
+    // The launcher's كاميرا is the camera itself, not the choice.
+    if (action != null) {
+      _capture(
+        action,
+        photoSource: action == CaptureAction.camera ? PhotoSource.camera : null,
+      );
+    }
   }
 
   @override
@@ -144,29 +168,46 @@ class _AppShellState extends State<AppShell>
     List<ImportPack>? packs,
     PickedImportFile? file,
   }) async {
-    final imported = await Navigator.of(context).push(MaterialPageRoute<bool>(
-      builder: (_) => ImportScreen(
-        repository: widget.repository,
-        importer: appImporter(widget.repository),
-        packs: packs,
-        initialFile: file,
-        loadBundled: loadBundledPacks,
-        pickFile: pickImportFile,
-        clock: widget.clock,
+    final imported = await Navigator.of(context).push(
+      MaterialPageRoute<bool>(
+        builder: (_) => ImportScreen(
+          repository: widget.repository,
+          importer: appImporter(widget.repository),
+          packs: packs,
+          initialFile: file,
+          loadBundled: loadBundledPacks,
+          pickFile: pickImportFile,
+          clock: widget.clock,
+        ),
       ),
-    ));
+    );
     return imported ?? false;
   }
 
+  /// Something shared in, on a cold start or a warm one: images go to the
+  /// photo capture's review (spec §6.2), text and files to the import.
   void _openShared(SharedImport share) {
     if (!mounted) return;
-    _openImport(
-      file: switch (share) {
-        SharedText(:final text) =>
-          (name: 'shared.txt', bytes: utf8.encode(text)),
-        SharedFile(:final name, :final bytes) => (name: name, bytes: bytes),
-      },
-    );
+    if (!_ready) {
+      _pendingShares.add(share);
+      return;
+    }
+    switch (share) {
+      case SharedImages(:final paths):
+        captureSharedPhotos(
+          context,
+          widget.repository,
+          paths,
+          importImage: widget.importSharedImage,
+          photoCaptureService: widget.photoCaptureService,
+          textRecognition: widget.textRecognition,
+          clock: widget.clock,
+        );
+      case SharedText(:final text):
+        _openImport(file: (name: 'shared.txt', bytes: utf8.encode(text)));
+      case SharedFile(:final name, :final bytes):
+        _openImport(file: (name: name, bytes: bytes));
+    }
   }
 
   Future<bool> _importBundled() async =>
@@ -200,12 +241,23 @@ class _AppShellState extends State<AppShell>
     _select(AppTab.statistics);
   }
 
-  void _add() => openAddSheet(context, widget.repository,
-      permissionService: widget.permissionService);
+  void _add() => openAddSheet(
+    context,
+    widget.repository,
+    permissionService: widget.permissionService,
+  );
 
-  void _capture(CaptureAction action) => launchCapture(
-      context, widget.repository, action,
-      permissionService: widget.permissionService, clock: widget.clock);
+  void _capture(CaptureAction action, {PhotoSource? photoSource}) =>
+      launchCapture(
+        context,
+        widget.repository,
+        action,
+        permissionService: widget.permissionService,
+        photoSource: photoSource,
+        photoCaptureService: widget.photoCaptureService,
+        textRecognition: widget.textRecognition,
+        clock: widget.clock,
+      );
 
   Future<void> _openSpeedDial() async {
     final action = await showModalBottomSheet<CaptureAction>(

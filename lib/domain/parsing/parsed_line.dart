@@ -22,6 +22,14 @@ enum ParseFlag {
 
   /// The date came from a `d/m` line in the text, not the capture time.
   dateFromText,
+
+  /// An InstaPay transfer the user received (spec §6.2): money in, which
+  /// the review offers to record as a salary rather than as an expense.
+  incoming,
+
+  /// An InstaPay transfer that names the user in a way that does not say
+  /// which side they were on: kept as an expense, worth a look.
+  maybeIncoming,
 }
 
 /// Unit keys (spec §6.5 step 5). Stored in English, shown in Arabic.

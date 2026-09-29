@@ -26,6 +26,15 @@ import 'voice_fakes.dart';
 
 class _Photos implements PhotoCaptureService {
   int camera = 0;
+  int gallery = 0;
+  List<String> galleryPicks = const [];
+  @override
+  Future<List<String>> pickManyFromGallery() async {
+    gallery++;
+    if (error case final e?) throw e;
+    return galleryPicks;
+  }
+
   PhotoCaptureResult next =
       const PhotoCaptureResult(PhotoCaptureOutcome.cancelled);
   Object? error;
@@ -349,12 +358,32 @@ void main() {
   });
 
   group('camera', () {
+    Future<void> camera(WidgetTester tester) =>
+        tap(tester, find.byKey(const Key('photo-source-camera')));
+
+    testWidgets('the camera button asks: camera or gallery', (tester) async {
+      await run(tester, CaptureAction.camera);
+      expect(find.byKey(const Key('photo-source-sheet')), findsOneWidget);
+      expect(find.byKey(const Key('photo-source-camera')), findsOneWidget);
+      expect(find.byKey(const Key('photo-source-gallery')), findsOneWidget);
+      expect(photos.camera + photos.gallery, 0);
+    });
+
+    testWidgets('backing out of the choice opens nothing', (tester) async {
+      await run(tester, CaptureAction.camera);
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      expect(photos.camera + photos.gallery, 0);
+      expect(find.byKey(const Key('review-sheet')), findsNothing);
+    });
+
     testWidgets('takes a photo and reviews what it reads as a photo capture',
         (tester) async {
       await run(tester, CaptureAction.camera,
           photo: const PhotoCaptureResult(
               PhotoCaptureOutcome.attached, 'attachments/2026-09/p1.jpg'),
           photoText: 'Carrefour\nTotal 228.00 EGP');
+      await camera(tester);
 
       expect(photos.camera, 1);
       expect(find.byType(AddSheet), findsNothing);
@@ -369,8 +398,47 @@ void main() {
       expect(draft.attachments.single.path, 'attachments/2026-09/p1.jpg');
     });
 
+    testWidgets('the gallery reviews the photos picked as one photo capture',
+        (tester) async {
+      await run(tester, CaptureAction.camera,
+          photoText: 'Carrefour\nTotal 228.00 EGP');
+      photos.galleryPicks = [
+        'attachments/2026-09/g1.jpg',
+        'attachments/2026-09/g2.jpg',
+      ];
+      await tap(tester, find.byKey(const Key('photo-source-gallery')));
+
+      expect(photos.camera, 0);
+      expect(photos.gallery, 1);
+      expect(find.byKey(const Key('review-sheet')), findsOneWidget);
+      expect(tester.widget<Text>(find.byKey(const Key('review-total'))).data,
+          '456');
+      await tap(tester, find.byKey(const Key('review-later')));
+      final draft = (await repo.watchDraftCaptures().first).single;
+      expect(draft.kind, CaptureKind.photo);
+      expect([for (final a in draft.attachments) a.path],
+          ['attachments/2026-09/g1.jpg', 'attachments/2026-09/g2.jpg']);
+    });
+
+    testWidgets('backing out of the gallery opens nothing', (tester) async {
+      await run(tester, CaptureAction.camera);
+      await tap(tester, find.byKey(const Key('photo-source-gallery')));
+      expect(photos.gallery, 1);
+      expect(find.byKey(const Key('review-sheet')), findsNothing);
+    });
+
+    testWidgets('a gallery that fails says so instead of throwing',
+        (tester) async {
+      await run(tester, CaptureAction.camera,
+          photoError: PlatformException(code: 'no_picker'));
+      await tap(tester, find.byKey(const Key('photo-source-gallery')));
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('gallery-failed')), findsOneWidget);
+    });
+
     testWidgets('backing out of the camera opens nothing', (tester) async {
       await run(tester, CaptureAction.camera);
+      await camera(tester);
       expect(photos.camera, 1);
       expect(find.byKey(const Key('review-sheet')), findsNothing);
     });
@@ -379,6 +447,7 @@ void main() {
       await run(tester, CaptureAction.camera,
           photo:
               const PhotoCaptureResult(PhotoCaptureOutcome.permissionDenied));
+      await camera(tester);
       expect(find.byKey(const Key('photo-permission-denied')), findsOneWidget);
       expect(find.byKey(const Key('review-sheet')), findsNothing);
     });
@@ -387,6 +456,7 @@ void main() {
         (tester) async {
       await run(tester, CaptureAction.camera,
           photoError: PlatformException(code: 'camera_access_denied'));
+      await camera(tester);
       expect(tester.takeException(), isNull);
       expect(find.byKey(const Key('photo-failed')), findsOneWidget);
       expect(find.byKey(const Key('review-sheet')), findsNothing);

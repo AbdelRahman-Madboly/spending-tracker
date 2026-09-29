@@ -46,6 +46,9 @@ dependencies:
   path_provider: ^2.1.5
   path: ^1.9.0
   image_picker: ^1.2.3
+  # Downscales an image shared in from another app (spec §6.2: 1600px on
+  # the long edge, JPEG 85), which image_picker does only for its own picks.
+  image: ^4.9.2
   permission_handler: ^13.0.2
   mobile_scanner: ^7.4.2
   speech_to_text: ^7.5.0

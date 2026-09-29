@@ -48,6 +48,25 @@ void main() {
       expect(manifest, contains('android:fullBackupContent="false"'));
     });
 
+    test('is a share target for images, one or several, beside text and '
+        'files', () {
+      // An InstaPay screenshot, gallery photos or a WhatsApp image shared
+      // in opens the photo capture; text and files still go to import.
+      final filters = RegExp(r'<intent-filter>(.*?)</intent-filter>',
+              dotAll: true)
+          .allMatches(manifest)
+          .map((m) => m.group(1)!)
+          .toList();
+      bool accepts(String action, String mime) => filters.any((f) =>
+          f.contains('android.intent.action.$action"') &&
+          f.contains('android:mimeType="$mime"') &&
+          f.contains('android.intent.category.DEFAULT'));
+      expect(accepts('SEND', 'image/*'), isTrue);
+      expect(accepts('SEND_MULTIPLE', 'image/*'), isTrue);
+      expect(accepts('SEND', 'text/*'), isTrue);
+      expect(accepts('SEND', 'application/*'), isTrue);
+    });
+
     test('can see the system speech recognition service', () {
       // Android 11+ package visibility hides the recogniser unless queried.
       expect(manifest, contains('android.speech.RecognitionService'));
