@@ -20,10 +20,16 @@
          a reboot. Inexact on purpose: no exact-alarm permission. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <!-- No Android cloud backup: it would upload the spending data outside
+         NetworkGate with every online switch off, and bring back
+         secure-storage values whose Keystore key never left the old phone.
+         Settings -> البيانات makes the backups this app relies on. -->
     <application
         android:label="مصاريفي"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"

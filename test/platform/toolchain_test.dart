@@ -40,6 +40,14 @@ void main() {
       expect(manifest, contains('android.permission.RECORD_AUDIO'));
     });
 
+    test('turns off Android cloud backup of app data', () {
+      // Auto backup would upload the spending database to the cloud
+      // outside NetworkGate, with the online switches off, and restore
+      // secure-storage ciphertext whose Keystore key did not travel.
+      expect(manifest, contains('android:allowBackup="false"'));
+      expect(manifest, contains('android:fullBackupContent="false"'));
+    });
+
     test('can see the system speech recognition service', () {
       // Android 11+ package visibility hides the recogniser unless queried.
       expect(manifest, contains('android.speech.RecognitionService'));
