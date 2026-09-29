@@ -1052,5 +1052,119 @@ void runV3RepositoryContract(
       ));
       expect(await repo.setting(lastPaymentMethodSettingKey), isNull);
     });
+      group('products', () {
+      Future<QuickPickItem> pasta() => repo.createItem(
+          nameAr: 'مكرونة',
+          categoryKey: 'Food',
+          defaultAmountPiastres: 1500,
+          barcode: '6221007012345');
+
+      test('updateProduct writes the name, category, subcategory, default '
+          'price and barcode', () async {
+        final item = await pasta();
+        await repo.updateProduct(
+          itemId: item.id,
+          nameAr: 'مكرونة ريجينا',
+          categoryKey: 'Food',
+          subcategoryKey: 'Groceries',
+          defaultAmountPiastres: 1850,
+          barcode: '6221007099999',
+        );
+        final saved =
+            (await repo.allItems()).firstWhere((i) => i.id == item.id);
+        expect(saved.nameAr, 'مكرونة ريجينا');
+        expect(saved.subcategoryKey, 'Groceries');
+        expect(saved.defaultAmountPiastres, 1850);
+        expect(saved.barcode, '6221007099999');
+        expect(await repo.itemByBarcode('6221007012345'), isNull);
+        expect((await repo.itemByBarcode('6221007099999'))!.id, item.id);
+      });
+
+      test('updateProduct with no barcode clears it', () async {
+        final item = await pasta();
+        await repo.updateProduct(
+            itemId: item.id, nameAr: 'مكرونة', categoryKey: 'Food');
+        expect(await repo.itemByBarcode('6221007012345'), isNull);
+        expect((await repo.allItems()).firstWhere((i) => i.id == item.id)
+            .barcode, isNull);
+      });
+
+      test('updateProduct refuses a barcode another live item holds and '
+          'changes nothing', () async {
+        final item = await pasta();
+        await repo.createItem(
+            nameAr: 'بيبسي', categoryKey: 'Drinks', barcode: '5449');
+        await expectLater(
+          repo.updateProduct(
+              itemId: item.id,
+              nameAr: 'اسم جديد',
+              categoryKey: 'Food',
+              barcode: '5449'),
+          throwsA(isA<DuplicateBarcodeException>()),
+        );
+        final kept =
+            (await repo.allItems()).firstWhere((i) => i.id == item.id);
+        expect(kept.nameAr, 'مكرونة');
+        expect(kept.barcode, '6221007012345');
+      });
+
+      test('updateProduct may keep its own barcode, and one an archived '
+          'item holds is free', () async {
+        final item = await pasta();
+        final old = await repo.createItem(
+            nameAr: 'قديم', categoryKey: 'Drinks', barcode: '7777');
+        await repo.archiveItem(old.id);
+        await repo.updateProduct(
+            itemId: item.id,
+            nameAr: 'مكرونة',
+            categoryKey: 'Food',
+            barcode: '6221007012345');
+        await repo.updateProduct(
+            itemId: item.id,
+            nameAr: 'مكرونة',
+            categoryKey: 'Food',
+            barcode: '7777');
+        expect((await repo.itemByBarcode('7777'))!.id, item.id);
+      });
+
+      test('itemPriceHistory is the price of one on each day it was bought, '
+          'newest first, deleted entries left out', () async {
+        final item = await pasta();
+        Future<String> buy(DateTime day, int amount, {int? qty}) async {
+          final group = await repo.saveCapture(CaptureDraft(
+            kind: CaptureKind.barcode,
+            date: day,
+            lines: [
+              CaptureLine(
+                  amountPiastres: amount,
+                  categoryKey: 'Food',
+                  itemId: item.id,
+                  quantityMilli: qty,
+                  description: 'مكرونة'),
+            ],
+          ));
+          return (await repo.captureGroup(group))!.entries.single.id;
+        }
+
+        await buy(DateTime(2026, 9, 1), 1500);
+        await buy(DateTime(2026, 9, 20), 3600, qty: 2000);
+        final gone = await buy(DateTime(2026, 9, 25), 9900);
+        await repo.deleteEntries([gone]);
+        await repo.saveCapture(CaptureDraft(
+          kind: CaptureKind.text,
+          date: DateTime(2026, 9, 22),
+          lines: const [
+            CaptureLine(amountPiastres: 500, categoryKey: 'Food'),
+          ],
+        ));
+
+        final history = await repo.itemPriceHistory(item.id);
+        expect(history.map((p) => p.date),
+            [DateTime(2026, 9, 20), DateTime(2026, 9, 1)]);
+        expect(history.map((p) => p.unitPricePiastres), [1800, 1500]);
+        expect(history.first.quantityMilli, 2000);
+        expect(history.first.amountPiastres, 3600);
+      });
+    });
   });
 }

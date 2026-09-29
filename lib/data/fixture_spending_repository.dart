@@ -410,6 +410,58 @@ class FixtureSpendingRepository implements SpendingRepository {
   }
 
   @override
+  Future<void> updateProduct({
+    required String itemId,
+    required String nameAr,
+    required String categoryKey,
+    String? subcategoryKey,
+    int? defaultAmountPiastres,
+    String? barcode,
+  }) async {
+    if (barcode != null) {
+      final holder = await itemByBarcode(barcode);
+      if (holder != null && holder.id != itemId) {
+        throw DuplicateBarcodeException(barcode);
+      }
+    }
+    final index = _items.indexWhere((i) => i.id == itemId);
+    if (index == -1) return;
+    _items[index] = QuickPickItem(
+      id: itemId,
+      nameAr: nameAr,
+      categoryKey: categoryKey,
+      subcategoryKey: subcategoryKey,
+      defaultAmountPiastres: defaultAmountPiastres,
+      barcode: barcode,
+    );
+    _controller.add(null);
+  }
+
+  @override
+  Future<List<ItemPrice>> itemPriceHistory(String itemId) async {
+    final records = [
+      for (final (i, v) in _entries.indexed)
+        if (_recordOf(v) case final r when r.itemId == itemId) (i, r),
+    ]..sort((a, b) {
+        final byDate = b.$2.date.compareTo(a.$2.date);
+        return byDate != 0 ? byDate : b.$1.compareTo(a.$1);
+      });
+    return [
+      for (final (_, r) in records)
+        ItemPrice(
+          date: DateTime(r.date.year, r.date.month, r.date.day),
+          amountPiastres: r.amountPiastres,
+          quantityMilli: r.quantityMilli,
+          unitPricePiastres: unitPriceOf(
+            amountPiastres: r.amountPiastres,
+            quantityMilli: r.quantityMilli,
+            unitPricePiastres: r.unitPricePiastres,
+          ),
+        ),
+    ];
+  }
+
+  @override
   Stream<List<EntryView>> watchEntriesForDay(DateTime day) async* {
     List<EntryView> forDay() => _entries
         .where((e) =>

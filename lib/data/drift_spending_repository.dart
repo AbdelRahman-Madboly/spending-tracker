@@ -639,6 +639,59 @@ class DriftSpendingRepository implements SpendingRepository {
   }
 
   @override
+  Future<void> updateProduct({
+    required String itemId,
+    required String nameAr,
+    required String categoryKey,
+    String? subcategoryKey,
+    int? defaultAmountPiastres,
+    String? barcode,
+  }) async {
+    await _db.transaction(() async {
+      if (barcode != null) {
+        final holder = await itemByBarcode(barcode);
+        if (holder != null && holder.id != itemId) {
+          throw DuplicateBarcodeException(barcode);
+        }
+      }
+      await (_db.update(_db.items)..where((t) => t.id.equals(itemId))).write(
+        ItemsCompanion(
+          nameAr: Value(nameAr),
+          categoryKey: Value(categoryKey),
+          subcategoryKey: Value(subcategoryKey),
+          defaultAmountPiastres: Value(defaultAmountPiastres),
+          barcode: Value(barcode),
+        ),
+      );
+    });
+  }
+
+  @override
+  Future<List<ItemPrice>> itemPriceHistory(String itemId) async {
+    final rows = await (_db.select(_db.entries)
+          ..where((t) => t.itemId.equals(itemId) & t.deletedAt.isNull())
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.date),
+            (t) => OrderingTerm.desc(t.createdAt),
+            (t) => OrderingTerm.desc(t.rowId),
+          ]))
+        .get();
+    return [
+      for (final e in rows)
+        ItemPrice(
+          date: DateTime.parse(e.date),
+          amountPiastres: e.amountPiastres,
+          quantityMilli: e.quantityMilli,
+          unitPricePiastres: unitPriceOf(
+            amountPiastres: e.amountPiastres,
+            quantityMilli: e.quantityMilli,
+            unitPricePiastres: e.unitPricePiastres,
+          ),
+        ),
+    ];
+  }
+
+  @override
   Future<void> archiveItem(String itemId) async {
     await (_db.update(_db.items)..where((t) => t.id.equals(itemId)))
         .write(const ItemsCompanion(archived: Value(true)));

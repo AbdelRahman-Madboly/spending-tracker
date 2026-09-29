@@ -428,6 +428,26 @@ bool isSecretSettingKey(String key) {
 
 /// Thrown by `SpendingRepository.createItem` when another non-archived item
 /// already holds the barcode: a scan must resolve to exactly one item.
+/// One purchase of an item, for its price history: the day, the price of
+/// one (see [unitPriceOf]) and what the entry itself recorded.
+class ItemPrice extends Equatable {
+  const ItemPrice({
+    required this.date,
+    required this.unitPricePiastres,
+    required this.amountPiastres,
+    this.quantityMilli,
+  });
+
+  final DateTime date;
+  final int unitPricePiastres;
+  final int amountPiastres;
+  final int? quantityMilli;
+
+  @override
+  List<Object?> get props =>
+      [date, unitPricePiastres, amountPiastres, quantityMilli];
+}
+
 class DuplicateBarcodeException implements Exception {
   const DuplicateBarcodeException(this.barcode);
 
