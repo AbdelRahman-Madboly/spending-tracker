@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/fixture_spending_repository.dart';
+import 'package:spending_tracker/domain/models.dart';
 import 'package:spending_tracker/features/add/add_sheet.dart';
 import 'package:spending_tracker/features/home/home_screen.dart';
 import 'package:spending_tracker/features/home/widgets/capture_bar.dart';
@@ -15,6 +16,7 @@ DateTime _today() => DateTime(2026, 9, 6, 12);
 Future<void> _pump(
   WidgetTester tester, {
   bool disableAnimations = false,
+  FixtureSpendingRepository? repository,
 }) async {
   tester.view.physicalSize = const Size(1080, 2400);
   tester.view.devicePixelRatio = 3.0;
@@ -29,7 +31,7 @@ Future<void> _pump(
             disableAnimations: disableAnimations,
           ),
           child: AppShell(
-            repository: FixtureSpendingRepository(),
+            repository: repository ?? FixtureSpendingRepository(),
             clock: _today,
           ),
         ),
@@ -210,6 +212,83 @@ void main() {
       expect(find.text('اليوم'), findsOneWidget);
     },
   );
+
+  group('statistics', () {
+    Future<FixtureSpendingRepository> withAugust() async {
+      final repo = FixtureSpendingRepository();
+      await repo.saveCapture(
+        CaptureDraft(
+          kind: CaptureKind.text,
+          date: DateTime(2026, 8, 20),
+          lines: const [
+            CaptureLine(
+              amountPiastres: 2500,
+              categoryKey: 'Bills',
+              description: 'نت',
+            ),
+          ],
+        ),
+      );
+      return repo;
+    }
+
+    String monthShown(WidgetTester tester) => tester
+        .widget<Text>(find.byKey(const Key('stats-month-label')))
+        .data!;
+
+    testWidgets("the dashboard's links open statistics on this month, even "
+        'after stepping to another', (tester) async {
+      await _pump(tester, repository: await withAugust());
+      await tester.tap(_destination('الإحصائيات'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('month-previous')));
+      await tester.pumpAndSettle();
+      expect(monthShown(tester), 'أغسطس 2026');
+
+      await tester.tap(_destination('الرئيسية'));
+      await tester.pumpAndSettle();
+      final seeAll = find.byKey(const Key('top-categories-see-all'));
+      await tester.scrollUntilVisible(
+        seeAll,
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byType(HomeScreen),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(seeAll);
+      await tester.pumpAndSettle();
+      expect(find.byType(StatisticsScreen), findsOneWidget);
+      expect(monthShown(tester), 'سبتمبر 2026');
+    });
+
+    testWidgets('a month in the history opens السجل on that month', (
+      tester,
+    ) async {
+      await _pump(tester, repository: await withAugust());
+      await tester.tap(_destination('الإحصائيات'));
+      await tester.pumpAndSettle();
+      final august = find.byKey(const Key('history-2026-08'));
+      await tester.ensureVisible(august);
+      await tester.pumpAndSettle();
+      await tester.tap(august);
+      await tester.pumpAndSettle();
+
+      // The السجل tab itself, not a screen pushed over the shell.
+      final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(bar.selectedIndex, 1);
+      expect(find.byType(TransactionsScreen), findsOneWidget);
+      final chip = tester.widget<FilterChip>(
+        find.byKey(const Key('filter-period')),
+      );
+      expect((chip.label as Text).data, 'أغسطس 2026');
+      expect(find.text('نت'), findsOneWidget);
+      expect(find.text('لبن'), findsNothing);
+    });
+  });
 
   testWidgets('screen readers hear four tabs, not the FAB gap', (tester) async {
     final handle = tester.ensureSemantics();

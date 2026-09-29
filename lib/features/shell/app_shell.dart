@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_icons.dart';
 import '../../core/design/tokens.dart';
 import '../../domain/spending_repository.dart';
+import '../../domain/statistics.dart';
+import '../../domain/transactions.dart';
 import '../capture/capture_launcher.dart';
 import '../home/home_screen.dart';
 import '../home/widgets/capture_bar.dart';
@@ -48,12 +50,19 @@ class _AppShellState extends State<AppShell>
   AppTab _tab = AppTab.home;
   final Set<AppTab> _visited = {AppTab.home};
 
-  /// The day السجل should show, set when the dashboard sends the user there.
-  DateTime? _transactionsDay;
+  /// What السجل should show, set when the dashboard sends the user to a
+  /// day or statistics to a month.
+  TransactionFilter? _transactionsFilter;
 
-  /// Counts the dashboard's requests, so السجل jumps to the day on every
-  /// one, even when it is the same day as last time.
+  /// Counts those requests, so السجل jumps on every one, even when it is
+  /// the same day or month as last time.
   int _transactionsRequest = 0;
+
+  /// The month statistics should show, set by the dashboard's links.
+  YearMonth? _statisticsMonth;
+
+  /// Counts the dashboard's statistics requests, for the same reason.
+  int _statisticsRequest = 0;
 
   late final AnimationController _fade = AnimationController(
     vsync: this,
@@ -81,12 +90,22 @@ class _AppShellState extends State<AppShell>
     _fade.forward(from: _fade.duration == Duration.zero ? 1 : 0);
   }
 
-  void _openTransactions(DateTime day) {
+  void _openTransactions(TransactionFilter filter) {
     setState(() {
-      _transactionsDay = day;
+      _transactionsFilter = filter;
       _transactionsRequest++;
     });
     _select(AppTab.transactions);
+  }
+
+  /// Statistics on the current month (spec §4.2: the month card "opens
+  /// Statistics on this month"), whatever month it was left on.
+  void _openStatistics() {
+    setState(() {
+      _statisticsMonth = YearMonth.of(widget.clock());
+      _statisticsRequest++;
+    });
+    _select(AppTab.statistics);
   }
 
   void _add() => openAddSheet(context, widget.repository);
@@ -125,16 +144,25 @@ class _AppShellState extends State<AppShell>
       clock: widget.clock,
       onAdd: _add,
       onCapture: _capture,
-      onOpenStatistics: () => _select(AppTab.statistics),
-      onOpenTransactions: _openTransactions,
+      onOpenStatistics: _openStatistics,
+      onOpenTransactions: (day) =>
+          _openTransactions(TransactionFilter.day(day)),
     ),
     AppTab.transactions => TransactionsScreen(
       repository: widget.repository,
       clock: widget.clock,
-      initialDay: _transactionsDay,
-      dayRequest: _transactionsRequest,
+      initialFilter: _transactionsFilter,
+      filterRequest: _transactionsRequest,
     ),
-    AppTab.statistics => StatisticsScreen(repository: widget.repository),
+    AppTab.statistics => StatisticsScreen(
+      repository: widget.repository,
+      clock: widget.clock,
+      initialMonth: _statisticsMonth,
+      monthRequest: _statisticsRequest,
+      onOpenMonth: (month) => _openTransactions(
+        TransactionFilter(from: month.firstDay, to: month.lastDay),
+      ),
+    ),
     AppTab.settings => SettingsScreen(repository: widget.repository),
   };
 

@@ -235,7 +235,8 @@ class _HomeScreenState extends State<HomeScreen>
   void _openStatistics() => widget.onOpenStatistics != null
       ? widget.onOpenStatistics!()
       : Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => StatisticsScreen(repository: _repo)));
+          builder: (_) =>
+              StatisticsScreen(repository: _repo, clock: widget.clock)));
 
   void _openTransactions() => widget.onOpenTransactions != null
       ? widget.onOpenTransactions!(_today)
