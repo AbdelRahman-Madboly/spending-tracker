@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/db/database.dart';
 import 'package:spending_tracker/data/drift_spending_repository.dart';
 import 'package:spending_tracker/features/home/home_screen.dart';
+import 'package:spending_tracker/features/home/widgets/top_categories_section.dart';
 
 /// Regression test for a bug seen on a phone: the home screen's "today"
 /// list was frozen to a hard-coded date, so new purchases never showed up.
@@ -27,17 +28,27 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: Directionality(
         textDirection: TextDirection.rtl,
-        child: HomeScreen(repository: repository),
+        child: HomeScreen(
+          repository: repository,
+          // Pinned to a day after the last seeded entry, so today's list
+          // and the trend chart hold nothing that could match the numbers
+          // below, whatever the real date is.
+          clock: () => DateTime(2026, 11, 1, 12),
+        ),
       ),
     ));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.text('مشروبات'), 200);
-    expect(find.text('مشروبات'), findsOneWidget);
-    expect(find.text('75'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('أكل'), 200);
-    expect(find.text('أكل'), findsOneWidget);
-    expect(find.text('10'), findsOneWidget);
+    // Only the top categories section: the trend chart's axis labels can
+    // carry the same digits.
+    final section = find.byType(TopCategoriesSection);
+    await tester.scrollUntilVisible(section, 200);
+    Finder inSection(String text) =>
+        find.descendant(of: section, matching: find.text(text));
+    expect(inSection('أكل'), findsOneWidget);
+    expect(inSection('585'), findsOneWidget);
+    expect(inSection('مواصلات'), findsOneWidget);
+    expect(inSection('440'), findsOneWidget);
 
     // Unmount before the test ends (rather than relying on addTearDown)
     // and pump once more so dispose() can close the database and drift's
