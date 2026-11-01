@@ -1,0 +1,379 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:spending_tracker/data/fixture_spending_repository.dart';
+import 'package:spending_tracker/domain/barcode_scan.dart';
+import 'package:spending_tracker/domain/models.dart';
+import 'package:spending_tracker/domain/parsing/parsed_line.dart';
+import 'package:spending_tracker/domain/product_catalog.dart';
+import 'package:spending_tracker/domain/review.dart';
+
+void main() {
+  final day = DateTime(2026, 9, 29);
+
+  group('BarcodeTally', () {
+    final t0 = DateTime(2026, 9, 29, 12);
+    Duration ms(int n) => Duration(milliseconds: n);
+
+    test('a code held in front of the camera counts once', () {
+      final tally = BarcodeTally();
+      expect(tally.add('111', t0), isTrue);
+      for (var i = 1; i <= 20; i++) {
+        expect(tally.add('111', t0.add(ms(i * 200))), isFalse);
+      }
+      expect(tally.codes, ['111']);
+    });
+
+    test('the same code shown again after a gap counts again', () {
+      final tally = BarcodeTally();
+      tally.add('111', t0);
+      tally.add('222', t0.add(ms(500)));
+      expect(tally.add('111', t0.add(ms(2000))), isTrue);
+      expect(tally.codes, ['111', '222', '111']);
+      expect(tally.count, 3);
+    });
+
+    test('an empty code never counts', () {
+      final tally = BarcodeTally();
+      expect(tally.add('  ', t0), isFalse);
+      expect(tally.codes, isEmpty);
+    });
+  });
+
+  group('barcodeLines', () {
+    late FixtureSpendingRepository repo;
+
+    setUp(() => repo = FixtureSpendingRepository());
+
+    test('a known code of a product sold by the litre is its usual '
+        'quantity at its price a litre', () async {
+      final milk = await repo.createItem(
+          nameAr: 'لبن بقري سايب',
+          categoryKey: 'Drinks',
+          defaultAmountPiastres: 2500,
+          barcode: '6220001',
+          unit: 'liter',
+          defaultQuantityMilli: 2000);
+      final line =
+          (await barcodeLines(['6220001'], repository: repo, day: day)).single;
+      expect(line.itemId, milk.id);
+      expect(line.unit, 'liter');
+      expect(line.quantityMilli, 2000);
+      expect(line.unitPricePiastres, 2500);
+      expect(line.amountPiastres, 5000);
+    });
+
+    test('a known code is its item at the price it was last bought at',
+        () async {
+      final item = await repo.createItem(
+          nameAr: 'بيبسي كانز',
+          categoryKey: 'Drinks',
+          defaultAmountPiastres: 1500,
+          barcode: '6221');
+      await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.barcode,
+        date: day,
+        lines: [
+          CaptureLine(
+              amountPiastres: 2000,
+              categoryKey: 'Drinks',
+              itemId: item.id,
+              description: 'بيبسي كانز'),
+        ],
+      ));
+      final lines = await barcodeLines(['6221'], repository: repo, day: day);
+      final line = lines.single;
+      expect(line.name, 'بيبسي كانز');
+      expect(line.itemId, item.id);
+      expect(line.categoryKey, 'Drinks');
+      expect(line.amountPiastres, 2000);
+      expect(line.barcode, '6221');
+      expect(line.confidence, ParseConfidence.high);
+      expect(line.flags, isEmpty);
+      expect(line.date, day);
+    });
+
+    test('a code scanned twice is one line of two', () async {
+      await repo.createItem(
+          nameAr: 'تونة',
+          categoryKey: 'Food',
+          defaultAmountPiastres: 4500,
+          barcode: '6222');
+      final lines = await barcodeLines(['6222', '6222'],
+          repository: repo, day: day);
+      final line = lines.single;
+      expect(line.quantityMilli, 2000);
+      expect(line.unitPricePiastres, 4500);
+      expect(line.amountPiastres, 9000);
+    });
+
+    test('an unknown code asks for its name, amount and category', () async {
+      final lines = await barcodeLines(['9999'], repository: repo, day: day);
+      final line = lines.single;
+      expect(line.name, '');
+      expect(line.itemId, isNull);
+      expect(line.barcode, '9999');
+      expect(line.amountPiastres, isNull);
+      expect(line.confidence, ParseConfidence.low);
+      expect(line.flags, {ParseFlag.noAmount, ParseFlag.noCategory});
+    });
+
+    test('an unknown code takes the looked-up name, once per code', () async {
+      final asked = <String>[];
+      final lines = await barcodeLines(['9999', '8888', '9999'],
+          repository: repo, day: day, nameFor: (code) async {
+        asked.add(code);
+        return code == '9999' ? 'Juhayna 1 L' : null;
+      });
+      expect(asked, ['9999', '8888']);
+      expect(lines.map((l) => l.name), ['Juhayna 1 L', '']);
+      expect(lines.first.quantityMilli, 2000);
+    });
+
+    test('a lookup that fails leaves the name to type', () async {
+      final lines = await barcodeLines(['9999'],
+          repository: repo, day: day, nameFor: (_) async => throw 'offline');
+      expect(lines.single.name, '');
+    });
+  });
+
+  group('barcode drafts', () {
+    late FixtureSpendingRepository repo;
+
+    setUp(() => repo = FixtureSpendingRepository());
+
+    ReviewLine scanned(String code, {String name = '', int count = 1}) =>
+        ReviewLine.fromParsed(
+          ParsedLine(
+            rawText: code,
+            date: day,
+            name: name,
+            quantityMilli: count * 1000,
+            confidence: ParseConfidence.low,
+            flags: const {ParseFlag.noAmount, ParseFlag.noCategory},
+            barcode: code,
+          ),
+          id: code,
+        );
+
+    test('a scanned line is kept as its code once per scan, named once', () {
+      final text = barcodeDraftText([
+        scanned('9999'),
+        scanned('8888', name: 'عصير جهينة', count: 2),
+        ReviewLine.blank('b').withName('شيبسي').withAmount(1000),
+      ]);
+      expect(text, '#9999\n#8888 عصير جهينة\n#8888\nشيبسي ب 10');
+    });
+
+    test('an unknown code closed unnamed is still kept', () {
+      expect(barcodeDraftText([scanned('9999')]), '#9999');
+    });
+
+    test('a draft comes back as the lines its codes scan to, with the names '
+        'typed and the rest as text', () async {
+      final known = await repo.createItem(
+          nameAr: 'تونة',
+          categoryKey: 'Food',
+          defaultAmountPiastres: 2000,
+          barcode: '6230');
+      final result = await readBarcodeDraft(
+          '#6230\n#9999 عصير جهينة\n#9999\n#7777\nشيبسي ب 10',
+          repository: repo,
+          day: day);
+      expect(result.text, 'شيبسي ب 10');
+      final lines = result.lines;
+      expect(lines.map((l) => l.barcode), ['6230', '9999', '7777']);
+      expect(lines[0].itemId, known.id);
+      expect(lines[0].amountPiastres, 2000);
+      expect(lines[1].name, 'عصير جهينة');
+      expect(lines[1].quantityMilli, 2000);
+      expect(lines[1].itemId, isNull);
+      expect(lines[2].name, '');
+      expect(lines.every((l) => l.date == day), isTrue);
+    });
+
+    test('a code named after an item it was linked to links it again',
+        () async {
+      final item = await repo.createItem(
+          nameAr: 'مياه', categoryKey: 'Drinks', defaultAmountPiastres: 800);
+      final lines =
+          (await readBarcodeDraft('#9999 مياه', repository: repo, day: day))
+              .lines;
+      expect(lines.single.itemId, item.id);
+      expect(lines.single.categoryKey, 'Drinks');
+      expect(lines.single.amountPiastres, 800);
+      expect(lines.single.barcode, '9999');
+    });
+
+    test('a draft kept before codes were kept reads as text', () async {
+      final result =
+          await readBarcodeDraft('شويبس ب 40', repository: repo, day: day);
+      expect(result.lines, isEmpty);
+      expect(result.text, 'شويبس ب 40');
+    });
+  });
+
+  group('ReviewLine with a barcode', () {
+    ParsedLine unknown({String name = ''}) => ParsedLine(
+          rawText: '9999',
+          date: day,
+          name: name,
+          confidence: ParseConfidence.low,
+          flags: const {ParseFlag.noAmount, ParseFlag.noCategory},
+          barcode: '9999',
+        );
+
+    test('an unknown product needs a name before it can be saved', () {
+      final line = ReviewLine.fromParsed(unknown(), id: 'a')
+          .withAmount(1000)
+          .withCategory('Food');
+      expect(line.problems, {ReviewProblem.missingName});
+      expect(line.uncertain, contains(ReviewField.name));
+      final named = line.withName('عصير');
+      expect(named.isReady, isTrue);
+      expect(named.toCaptureLine().barcode, '9999');
+      expect(named.toCaptureLine().description, 'عصير');
+    });
+
+    test('a looked-up name is still a name to check', () {
+      final line = ReviewLine.fromParsed(unknown(name: 'Juhayna 1 L'), id: 'a');
+      expect(line.uncertain, contains(ReviewField.name));
+      expect(line.problems, isNot(contains(ReviewProblem.missingName)));
+    });
+
+    test('linking an item keeps the code, so the item learns it', () {
+      final line = ReviewLine.fromParsed(unknown(), id: 'a').withItem(
+          const QuickPickItem(id: 'i1', nameAr: 'مياه', categoryKey: 'Drinks'));
+      expect(line.problems, isNot(contains(ReviewProblem.missingName)));
+      expect(line.withAmount(800).toCaptureLine().barcode, '9999');
+      expect(line.withAmount(800).toCaptureLine().itemId, 'i1');
+    });
+
+    test('a line with no barcode may still be saved without a name', () {
+      final line = ReviewLine.blank('a').withAmount(500).withCategory('Food');
+      expect(line.isReady, isTrue);
+    });
+  });
+  group('barcodeLines with the product catalogue', () {
+    late FixtureSpendingRepository repo;
+    final catalog = ProductCatalog.parse(
+        File('test/fixtures/catalog/egypt_products_sample.json')
+            .readAsStringSync());
+
+    setUp(() => repo = FixtureSpendingRepository());
+
+    test('a code the user has learned wins over the catalogue', () async {
+      final item = await repo.createItem(
+          nameAr: 'كوكا بتاعتي',
+          categoryKey: 'Drinks',
+          defaultAmountPiastres: 1700,
+          barcode: '5449000000996');
+      final line = (await barcodeLines(['5449000000996'],
+              repository: repo, day: day, catalog: catalog))
+          .single;
+      expect(line.itemId, item.id);
+      expect(line.name, 'كوكا بتاعتي');
+      expect(line.amountPiastres, 1700);
+      expect(line.flags, isNot(contains(ParseFlag.catalogue)));
+    });
+
+    test('a catalogue code is prefilled with its name, category, '
+        'subcategory and price, marked as a catalogue suggestion, and the '
+        'online lookup is not asked', () async {
+      var asked = 0;
+      final line = (await barcodeLines(
+              ['6221007012345', '6221007012345'],
+              repository: repo,
+              day: day,
+              catalog: catalog,
+              nameFor: (_) async {
+        asked++;
+        return 'من النت';
+      }))
+          .single;
+      expect(asked, 0);
+      expect(line.itemId, isNull);
+      expect(line.name, 'مكرونة ريجينا قلم');
+      expect(line.categoryKey, 'Pantry');
+      expect(line.subcategoryKey, 'Pasta');
+      expect(line.quantityMilli, 2000);
+      expect(line.unitPricePiastres, 1850);
+      expect(line.amountPiastres, 3700);
+      expect(line.barcode, '6221007012345');
+      expect(line.flags, contains(ParseFlag.catalogue));
+      expect(line.flags, isNot(contains(ParseFlag.noCategory)));
+      // The category it needed was created from the catalogue's additions.
+      expect((await repo.categories()).map((c) => c.key), contains('Pantry'));
+    });
+
+    test('a catalogue product with no price leaves the amount empty',
+        () async {
+      final line = (await barcodeLines(['6223000501234'],
+              repository: repo, day: day, catalog: catalog))
+          .single;
+      expect(line.name, 'عصير جهينة مانجو');
+      expect(line.amountPiastres, isNull);
+      expect(line.flags, containsAll([ParseFlag.catalogue, ParseFlag.noAmount]));
+    });
+
+    test('a code in neither goes to the online lookup, then to typing',
+        () async {
+      final lines = await barcodeLines(['111', '222'],
+          repository: repo,
+          day: day,
+          catalog: catalog,
+          nameFor: (code) async => code == '111' ? 'شاي' : null);
+      expect(lines.map((l) => l.name), ['شاي', '']);
+      expect(lines.every((l) => !l.flags.contains(ParseFlag.catalogue)),
+          isTrue);
+    });
+
+    test('a catalogue line reviews with its name settled and its price '
+        'worth a look', () async {
+      final parsed = (await barcodeLines(['6221007012345'],
+              repository: repo, day: day, catalog: catalog))
+          .single;
+      final line = ReviewLine.fromParsed(parsed, id: 'a');
+      expect(line.fromCatalogue, isTrue);
+      expect(line.uncertain, isNot(contains(ReviewField.name)));
+      expect(line.uncertain, contains(ReviewField.amount));
+      expect(line.isReady, isTrue);
+      expect(line.withAmount(2000).fromCatalogue, isTrue);
+    });
+
+    test('saving a catalogue line makes it the user\'s item, at the price '
+        'paid, and the next scan is that item', () async {
+      final parsed = (await barcodeLines(['6221007012345'],
+              repository: repo, day: day, catalog: catalog))
+          .single;
+      final line = ReviewLine.fromParsed(parsed, id: 'a').withAmount(2000);
+      await repo.saveCapture(CaptureDraft(
+          kind: CaptureKind.barcode, date: day, lines: [line.toCaptureLine()]));
+      final item = await repo.itemByBarcode('6221007012345');
+      expect(item, isNotNull);
+      expect(item!.nameAr, 'مكرونة ريجينا قلم');
+      expect(item.categoryKey, 'Pantry');
+      expect(item.subcategoryKey, 'Pasta');
+      expect(item.defaultAmountPiastres, 2000);
+      final again = (await barcodeLines(['6221007012345'],
+              repository: repo, day: day, catalog: catalog))
+          .single;
+      expect(again.itemId, item.id);
+      expect(again.amountPiastres, 2000);
+      expect(again.flags, isNot(contains(ParseFlag.catalogue)));
+    });
+      test('a kept draft reads a catalogue code back as the catalogue '
+        'product', () async {
+      final kept = await readBarcodeDraft(
+          '#6221007012345 مكرونة ريجينا قلم\n#6221007012345',
+          repository: repo,
+          day: day,
+          catalog: catalog);
+      final line = kept.lines.single;
+      expect(line.name, 'مكرونة ريجينا قلم');
+      expect(line.categoryKey, 'Pantry');
+      expect(line.amountPiastres, 3700);
+      expect(line.flags, contains(ParseFlag.catalogue));
+    });
+  });
+}

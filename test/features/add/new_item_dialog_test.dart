@@ -8,6 +8,16 @@ const _categories = [
   CategoryView(key: 'Food', labelAr: 'أكل', iconName: 'restaurant'),
 ];
 
+const _subcategories = [
+  SubcategoryView(
+      key: 'Soda', categoryKey: 'Drinks', labelAr: 'صودا', iconName: 'local_bar'),
+  SubcategoryView(
+      key: 'Water',
+      categoryKey: 'Drinks',
+      labelAr: 'مياه',
+      iconName: 'water_drop'),
+];
+
 /// Pumps a screen with a single button that opens the dialog when tapped,
 /// storing the pending result Future in [resultBox] so the test can await
 /// it after driving the dialog's fields.
@@ -74,6 +84,114 @@ void main() {
     expect(captured!.nameAr, 'شاي');
     expect(captured.categoryKey, 'Drinks');
     expect(captured.amountPiastres, 1500);
+  });
+
+  testWidgets(
+      'when subcategories are supplied, saving returns the pre-filled '
+      'subcategory too', (tester) async {
+    final resultBox = <Future<NewItemDraft?>?>[null];
+    await tester.pumpWidget(MaterialApp(
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () {
+                resultBox[0] = showNewItemDialog(
+                  context: context,
+                  categories: _categories,
+                  initialCategoryKey: 'Drinks',
+                  subcategories: _subcategories,
+                  initialSubcategoryKey: 'Soda',
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final subcategoryField = tester.widget<DropdownButtonFormField<String?>>(
+        find.byKey(const Key('new-item-subcategory')));
+    expect(subcategoryField.initialValue, 'Soda');
+
+    await tester.enterText(find.byKey(const Key('new-item-name')), 'شاي');
+    await tester.enterText(find.byKey(const Key('new-item-amount')), '15');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('new-item-save')));
+    await tester.pumpAndSettle();
+
+    final captured = await resultBox[0]!;
+    expect(captured!.subcategoryKey, 'Soda');
+  });
+
+  testWidgets(
+      'switching to a category with its own subcategories clears the '
+      'pre-filled subcategory', (tester) async {
+    // Food also has subcategories, so the subcategory field stays on screen
+    // across the switch: it must drop Soda rather than keep a value that is
+    // no longer one of its options.
+    const subcategories = [
+      ..._subcategories,
+      SubcategoryView(
+          key: 'Bread', categoryKey: 'Food', labelAr: 'عيش', iconName: 'bakery'),
+    ];
+    final resultBox = <Future<NewItemDraft?>?>[null];
+    await tester.pumpWidget(MaterialApp(
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () {
+                resultBox[0] = showNewItemDialog(
+                  context: context,
+                  categories: _categories,
+                  initialCategoryKey: 'Drinks',
+                  subcategories: subcategories,
+                  initialSubcategoryKey: 'Soda',
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('new-item-category')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('أكل').last);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    final subcategoryState = tester.state<FormFieldState<String?>>(
+        find.byKey(const Key('new-item-subcategory')));
+    expect(subcategoryState.value, isNull);
+
+    await tester.enterText(find.byKey(const Key('new-item-name')), 'فينو');
+    await tester.enterText(find.byKey(const Key('new-item-amount')), '5');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('new-item-save')));
+    await tester.pumpAndSettle();
+
+    final captured = await resultBox[0]!;
+    expect(captured!.categoryKey, 'Food');
+    expect(captured.subcategoryKey, isNull);
+  });
+
+  testWidgets(
+      'when no subcategories are supplied for the category, no subcategory '
+      'field is shown', (tester) async {
+    final resultBox = <Future<NewItemDraft?>?>[null];
+    await _pumpAndOpen(tester, resultBox);
+
+    expect(find.byKey(const Key('new-item-subcategory')), findsNothing);
   });
 
   testWidgets('cancel closes the dialog and returns null', (tester) async {

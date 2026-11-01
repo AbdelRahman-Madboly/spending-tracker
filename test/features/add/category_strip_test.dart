@@ -61,6 +61,17 @@ void main() {
     );
   });
 
+  testWidgets('chip icons stay on the 16/20/24 icon scale (spec §7.2)',
+      (tester) async {
+    await pumpStrip(tester, selectedKey: 'Food', onSelected: (_) {});
+    final sizes = tester
+        .widgetList<Icon>(find.descendant(
+            of: find.byType(CategoryStrip), matching: find.byType(Icon)))
+        .map((icon) => icon.size)
+        .toSet();
+    expect(sizes, everyElement(isIn([16.0, 20.0, 24.0])));
+  });
+
   testWidgets('tapping a category chip selects that category key',
       (tester) async {
     String? selected;
@@ -88,5 +99,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(selected, isNull);
+  });
+
+  testWidgets('without الكل, no chip is selected when nothing is chosen',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: CategoryStrip(
+          categories: _categories,
+          selectedKey: null,
+          showAll: false,
+          onSelected: (_) {},
+        ),
+      ),
+    ));
+    expect(find.byKey(const Key('category-all')), findsNothing);
+    expect(find.byKey(const Key('category-Food')), findsOneWidget);
   });
 }

@@ -22,7 +22,8 @@ void main() {
 
   tearDown(() => db.close());
 
-  test('seeding loads exactly 87 entries and 3 salary periods totalling '
+  test(
+      'seeding loads exactly 92 entries and 2 salary periods totalling '
       '500000 piastres', () async {
     await db.seedFromJsonString(seedJson);
 
@@ -67,7 +68,8 @@ void main() {
     expect(items.length, 12);
   });
 
-  test('the item catalogue has no duplicate or English-only Arabic names, '
+  test(
+      'the item catalogue has no duplicate or English-only Arabic names, '
       'and every item category is real', () async {
     await db.seedFromJsonString(seedJson);
 
@@ -89,8 +91,7 @@ void main() {
       expect(
         arabicChar.hasMatch(item.nameAr),
         isTrue,
-        reason:
-            'item ${item.id} has no Arabic character in nameAr: '
+        reason: 'item ${item.id} has no Arabic character in nameAr: '
             '"${item.nameAr}"',
       );
     }
@@ -102,6 +103,65 @@ void main() {
         reason: 'item ${item.id} has unknown category ${item.categoryKey}',
       );
     }
+  });
+
+  test(
+      'every non-null subcategoryKey on an entry or item belongs to its '
+      "own row's categoryKey", () async {
+    // A subcategory seeded under a different category (e.g. an entry
+    // tagged Food with a Drinks subcategory) would be a data-integrity
+    // bug, not a valid mapping — this is real money data, so this is
+    // checked exactly rather than sampled.
+    await db.seedFromJsonString(seedJson);
+
+    final entries = await db.select(db.entries).get();
+    final items = await db.select(db.items).get();
+    final subcategories = await db.select(db.subcategories).get();
+    final categoryKeyBySubcategoryKey = {
+      for (final s in subcategories) s.key: s.categoryKey,
+    };
+
+    expect(subcategories, isNotEmpty);
+
+    var entriesWithSubcategory = 0;
+    for (final e in entries) {
+      final subcategoryKey = e.subcategoryKey;
+      if (subcategoryKey == null) continue;
+      entriesWithSubcategory++;
+      expect(
+        categoryKeyBySubcategoryKey,
+        contains(subcategoryKey),
+        reason: 'entry ${e.id} has unknown subcategory $subcategoryKey',
+      );
+      expect(
+        categoryKeyBySubcategoryKey[subcategoryKey],
+        e.categoryKey,
+        reason: 'entry ${e.id} is categoryKey ${e.categoryKey} but its '
+            'subcategory $subcategoryKey belongs to '
+            '${categoryKeyBySubcategoryKey[subcategoryKey]}',
+      );
+    }
+    expect(entriesWithSubcategory, greaterThan(0));
+
+    var itemsWithSubcategory = 0;
+    for (final it in items) {
+      final subcategoryKey = it.subcategoryKey;
+      if (subcategoryKey == null) continue;
+      itemsWithSubcategory++;
+      expect(
+        categoryKeyBySubcategoryKey,
+        contains(subcategoryKey),
+        reason: 'item ${it.id} has unknown subcategory $subcategoryKey',
+      );
+      expect(
+        categoryKeyBySubcategoryKey[subcategoryKey],
+        it.categoryKey,
+        reason: 'item ${it.id} is categoryKey ${it.categoryKey} but its '
+            'subcategory $subcategoryKey belongs to '
+            '${categoryKeyBySubcategoryKey[subcategoryKey]}',
+      );
+    }
+    expect(itemsWithSubcategory, greaterThan(0));
   });
 
   test('no catalogue item is built from a single occurrence', () async {

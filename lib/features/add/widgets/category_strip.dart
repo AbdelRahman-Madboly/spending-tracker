@@ -1,38 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../../core/design/app_icons.dart';
+import '../../../core/design/category_colors.dart';
 import '../../../core/design/tokens.dart';
 import '../../../domain/models.dart';
-
-/// Maps a category's stored `iconName` (an English string, e.g.
-/// `local_drink`) to the Material icon shown for it. Falls back to a
-/// generic icon for anything unrecognised, so a category never renders
-/// with no icon at all.
-IconData iconForName(String name) {
-  switch (name) {
-    case 'local_drink':
-      return Icons.local_drink;
-    case 'cookie':
-      return Icons.cookie;
-    case 'restaurant':
-      return Icons.restaurant;
-    case 'directions_bus':
-      return Icons.directions_bus;
-    case 'receipt_long':
-      return Icons.receipt_long;
-    case 'content_cut':
-      return Icons.content_cut;
-    case 'shopping_bag':
-      return Icons.shopping_bag;
-    case 'groups':
-      return Icons.groups;
-    case 'card_giftcard':
-      return Icons.card_giftcard;
-    case 'handshake':
-      return Icons.handshake;
-    default:
-      return Icons.category_outlined;
-  }
-}
 
 /// A horizontally scrolling strip of category chips, with a leading "الكل"
 /// (all) chip. `selectedKey == null` means "الكل" is selected — the strip
@@ -43,11 +15,16 @@ class CategoryStrip extends StatelessWidget {
   final String? selectedKey;
   final ValueChanged<String?> onSelected;
 
+  /// False drops the "الكل" chip, where a category must be picked (a
+  /// review line) and "none" is not a choice to offer as if it were one.
+  final bool showAll;
+
   const CategoryStrip({
     super.key,
     required this.categories,
     required this.selectedKey,
     required this.onSelected,
+    this.showAll = true,
   });
 
   @override
@@ -62,18 +39,20 @@ class CategoryStrip extends StatelessWidget {
         padding: const EdgeInsetsDirectional.only(end: AppSpacing.xs),
         child: Row(
           children: [
-            _CategoryChip(
-              key: const Key('category-all'),
-              label: 'الكل',
-              icon: Icons.apps,
-              selected: selectedKey == null,
-              onTap: () => onSelected(null),
-            ),
+            if (showAll)
+              SelectableChip(
+                key: const Key('category-all'),
+                label: 'الكل',
+                icon: AppIcons.all,
+                selected: selectedKey == null,
+                onTap: () => onSelected(null),
+              ),
             for (final category in categories)
-              _CategoryChip(
+              SelectableChip(
                 key: Key('category-${category.key}'),
                 label: category.labelAr,
-                icon: iconForName(category.iconName),
+                icon: iconFor(category.iconName),
+                colorKey: category.colorKey,
                 selected: selectedKey == category.key,
                 onTap: () => onSelected(category.key),
               ),
@@ -84,54 +63,91 @@ class CategoryStrip extends StatelessWidget {
   }
 }
 
-class _CategoryChip extends StatelessWidget {
+/// A single chip in a filter row (spec §7.3), used by both [CategoryStrip]
+/// and `SubcategoryStrip` so the two rows look and behave the same.
+///
+/// The chip itself is 36dp tall inside a 48dp tap area. Selected, it takes
+/// its category's ink: a 16% fill, a 1.5dp border and a check in place of
+/// its icon. The border is always drawn (transparent when unselected) so
+/// selecting a chip never nudges its neighbours. With no [colorKey] (the
+/// "الكل" chips) the primary colour stands in for the ink.
+class SelectableChip extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
+  final String? colorKey;
 
-  const _CategoryChip({
+  const SelectableChip({
     super.key,
     required this.label,
     required this.icon,
     required this.selected,
     required this.onTap,
+    this.colorKey,
   });
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
+    final ink = colorKey == null
+        ? palette.primary
+        : palette.categoryInk(colorKey!);
     return Padding(
       padding: const EdgeInsetsDirectional.only(start: AppSpacing.xs),
-      child: Material(
-        color: selected ? AppColors.accent : AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
+      child: Semantics(
+        button: true,
+        selected: selected,
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: onTap,
-          child: Container(
-            // 48dp minimum tap target height, regardless of content.
+          borderRadius: BorderRadius.circular(AppRadii.full),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
+          child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 48),
-            padding: const EdgeInsetsDirectional.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  size: 20,
-                  color: selected ? Colors.white : AppColors.textSecondary,
+            child: Center(
+              widthFactor: 1,
+              child: AnimatedContainer(
+                duration: AppMotion.of(context, AppMotion.chip),
+                curve: AppMotion.enter,
+                height: 36,
+                padding: const EdgeInsetsDirectional.symmetric(
+                  horizontal: AppSpacing.ms,
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  label,
-                  style: AppText.body.copyWith(
-                    color: selected ? Colors.white : AppColors.textPrimary,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                decoration: BoxDecoration(
+                  // surfaceAlt, not surface: the strip sits on the add
+                  // sheet, which is itself surface.
+                  color: selected
+                      ? ink.withValues(alpha: 0.16)
+                      : palette.surfaceAlt,
+                  borderRadius: BorderRadius.circular(AppRadii.full),
+                  border: Border.all(
+                    color: selected ? ink : Colors.transparent,
+                    width: 1.5,
                   ),
                 ),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      selected ? AppIcons.check : icon,
+                      size: 16,
+                      color: selected ? ink : palette.textSecondary,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      label,
+                      style: AppText.label.copyWith(
+                        color: palette.textPrimary,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

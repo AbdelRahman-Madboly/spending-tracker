@@ -10,27 +10,45 @@ import '../../../domain/models.dart';
 class NewItemDraft {
   final String nameAr;
   final String categoryKey;
+  final String? subcategoryKey;
   final int amountPiastres;
+
+  /// The barcode/QR value this item should be learned against, if it was
+  /// opened via an unrecognised scan — carried straight through to
+  /// `createItem` so the next scan of the same code resolves instantly.
+  /// Null for every other way of opening this dialog.
+  final String? barcode;
 
   const NewItemDraft({
     required this.nameAr,
     required this.categoryKey,
+    this.subcategoryKey,
     required this.amountPiastres,
+    this.barcode,
   });
 }
 
 /// Shows the new-item dialog and returns the entered draft, or null if the
-/// user cancelled.
+/// user cancelled. [subcategories] should be [initialCategoryKey]'s own
+/// subcategories (or empty if none are loaded) — together with
+/// [initialSubcategoryKey], this carries the add sheet's current category
+/// *and* subcategory selection into the جديد tile with no extra taps.
 Future<NewItemDraft?> showNewItemDialog({
   required BuildContext context,
   required List<CategoryView> categories,
   required String initialCategoryKey,
+  List<SubcategoryView> subcategories = const [],
+  String? initialSubcategoryKey,
+  String? initialBarcode,
 }) {
   return showDialog<NewItemDraft>(
     context: context,
     builder: (_) => NewItemDialog(
       categories: categories,
       initialCategoryKey: initialCategoryKey,
+      subcategories: subcategories,
+      initialSubcategoryKey: initialSubcategoryKey,
+      initialBarcode: initialBarcode,
     ),
   );
 }
@@ -44,6 +62,7 @@ Future<NewItemDraft?> showEditItemDialog({
   required BuildContext context,
   required List<CategoryView> categories,
   required QuickPickItem item,
+  List<SubcategoryView> subcategories = const [],
 }) {
   return showDialog<NewItemDraft>(
     context: context,
@@ -52,6 +71,8 @@ Future<NewItemDraft?> showEditItemDialog({
       initialCategoryKey: item.categoryKey,
       initialNameAr: item.nameAr,
       initialAmountPiastres: item.defaultAmountPiastres,
+      subcategories: subcategories,
+      initialSubcategoryKey: item.subcategoryKey,
     ),
   );
 }
@@ -60,17 +81,34 @@ class NewItemDialog extends StatefulWidget {
   final List<CategoryView> categories;
   final String initialCategoryKey;
 
+  /// [initialCategoryKey]'s own subcategories, used to populate the
+  /// optional subcategory field. If the user switches the category dropdown
+  /// to one this list wasn't loaded for, the subcategory field simply
+  /// disappears rather than offer the wrong category's options — a rare,
+  /// secondary interaction that isn't worth wiring a live repository lookup
+  /// into this dialog for.
+  final List<SubcategoryView> subcategories;
+  final String? initialSubcategoryKey;
+
   /// When non-null (via [showEditItemDialog]), the dialog opens pre-filled
   /// for editing an existing item rather than a blank "new item" form.
   final String? initialNameAr;
   final int? initialAmountPiastres;
 
+  /// Set when this dialog was opened from an unrecognised barcode/QR scan
+  /// — shown to the user as confirmation and carried through to the
+  /// returned [NewItemDraft] unchanged.
+  final String? initialBarcode;
+
   const NewItemDialog({
     super.key,
     required this.categories,
     required this.initialCategoryKey,
+    this.subcategories = const [],
+    this.initialSubcategoryKey,
     this.initialNameAr,
     this.initialAmountPiastres,
+    this.initialBarcode,
   });
 
   bool get isEditing => initialNameAr != null;
@@ -83,11 +121,17 @@ class _NewItemDialogState extends State<NewItemDialog> {
   final _nameController = TextEditingController();
   final _amountController = TextEditingController();
   late String _categoryKey;
+  late String? _subcategoryKey;
+
+  List<SubcategoryView> get _availableSubcategories => widget.subcategories
+      .where((s) => s.categoryKey == _categoryKey)
+      .toList();
 
   @override
   void initState() {
     super.initState();
     _categoryKey = widget.initialCategoryKey;
+    _subcategoryKey = widget.initialSubcategoryKey;
     final initialNameAr = widget.initialNameAr;
     if (initialNameAr != null) _nameController.text = initialNameAr;
     final initialAmountPiastres = widget.initialAmountPiastres;
@@ -114,12 +158,15 @@ class _NewItemDialogState extends State<NewItemDialog> {
     Navigator.of(context).pop(NewItemDraft(
       nameAr: name,
       categoryKey: _categoryKey,
+      subcategoryKey: _subcategoryKey,
       amountPiastres: amount,
+      barcode: widget.initialBarcode,
     ));
   }
 
   @override
   Widget build(BuildContext context) {
+    final availableSubcategories = _availableSubcategories;
     return AlertDialog(
       title: Text(widget.isEditing ? 'تعديل العنصر' : 'عنصر جديد'),
       content: SingleChildScrollView(
@@ -147,7 +194,7 @@ class _NewItemDialogState extends State<NewItemDialog> {
             const SizedBox(height: AppSpacing.sm),
             DropdownButtonFormField<String>(
               key: const Key('new-item-category'),
-              value: _categoryKey,
+              initialValue: _categoryKey,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'الفئة'),
               items: [
@@ -158,9 +205,50 @@ class _NewItemDialogState extends State<NewItemDialog> {
                   ),
               ],
               onChanged: (value) {
-                if (value != null) setState(() => _categoryKey = value);
+                if (value == null || value == _categoryKey) return;
+                setState(() {
+                  _categoryKey = value;
+                  // A subcategory only ever belongs to one category — moving
+                  // to a different one invalidates whatever was pre-filled
+                  // or picked, the same cross-category rule the catalogue
+                  // itself enforces.
+                  if (!_availableSubcategories
+                      .any((s) => s.key == _subcategoryKey)) {
+                    _subcategoryKey = null;
+                  }
+                });
               },
             ),
+            if (availableSubcategories.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              DropdownButtonFormField<String?>(
+                key: const Key('new-item-subcategory'),
+                initialValue: _subcategoryKey,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'الفئة الفرعية'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('بدون'),
+                  ),
+                  for (final subcategory in availableSubcategories)
+                    DropdownMenuItem<String?>(
+                      value: subcategory.key,
+                      child: Text(subcategory.labelAr),
+                    ),
+                ],
+                onChanged: (value) => setState(() => _subcategoryKey = value),
+              ),
+            ],
+            if (widget.initialBarcode != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'باركود: ${widget.initialBarcode}',
+                key: const Key('new-item-barcode'),
+                style: AppText.caption
+                    .copyWith(color: context.palette.textSecondary),
+              ),
+            ],
           ],
         ),
       ),

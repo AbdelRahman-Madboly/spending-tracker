@@ -1,21 +1,20 @@
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:io';
 
-import 'package:sqlite3/open.dart';
+import 'package:spending_tracker/data/instapay_identity.dart';
+import 'package:spending_tracker/data/product_catalog_source.dart';
+import 'package:spending_tracker/domain/product_catalog.dart';
 
-/// The dev machine this suite runs on has sqlite3's runtime shared library
-/// (`libsqlite3.so.0`) but not the unversioned `libsqlite3.so` symlink that
-/// `package:sqlite3` looks for by default on Linux — that symlink normally
-/// comes from a `libsqlite3-dev`-style package. Real devices don't have this
-/// problem: `sqlite3_flutter_libs` bundles its own binary with the app. This
-/// only points the *test* runner at the library that is actually installed.
+/// Every test starts with an empty product catalogue, the way the app
+/// behaves without the bundled file. Tests that need catalogue products
+/// pass their own `ProductCatalogSource.fixed(...)`; the bundled file
+/// itself is checked in test/domain/bundled_catalog_test.dart.
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
-  if (Platform.isLinux) {
-    open.overrideFor(
-      OperatingSystem.linux,
-      () => DynamicLibrary.open('libsqlite3.so.0'),
-    );
-  }
+  ProductCatalogSource.shared = ProductCatalogSource.fixed(ProductCatalog.empty);
+  // The personal build's InstaPay default, read from disk at once: an
+  // asset load would not finish inside a widget test's fake clock.
+  // test/data/instapay_identity_test.dart checks the bundled one.
+  final defaults = File(personalDefaultsAsset).readAsStringSync();
+  personalInstaPayDefault = () => Future.value(instaPayDefaultFrom(defaults));
   await testMain();
 }

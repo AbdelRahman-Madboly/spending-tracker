@@ -5,3 +5,8 @@ build/
 .idea/
 .flutter-plugins
 .flutter-plugins-dependencies
+__pycache__/
+graphify-out/
+
+# receipts and screenshots hold card and phone details; local only
+receipts/

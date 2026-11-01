@@ -64,7 +64,7 @@ void main() {
             '($screenHeight) — the user cannot reach it');
 
     // And prove it can actually be driven, not merely that it is on screen.
-    await tester.tap(find.text('شويبس'));
+    await tester.tap(find.byKey(const Key('recent-i1'))); // شويبس
     await tester.pumpAndSettle();
     await tester.tap(save);
     await tester.pumpAndSettle();
@@ -86,6 +86,34 @@ void main() {
   testWidgets('no overflow when the sheet is opened at phone size',
       (tester) async {
     await openSheet(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'no overflow with both chip rows visible, and the save button stays '
+      'reachable (by scrolling if needed) at phone size', (tester) async {
+    await openSheet(tester);
+
+    await tester.tap(find.text('مشروبات')); // Drinks — reveals the second row.
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('subcategory-all')), findsOneWidget);
+
+    // The sheet is capped and scrolls internally rather than shrinking tap
+    // targets — ensureVisible proves the save button is still reachable
+    // even if the extra row pushed it below the fold.
+    await tester.ensureVisible(find.byKey(const Key('save-button')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final saveButtonSize =
+        tester.getSize(find.byKey(const Key('save-button')));
+    expect(saveButtonSize.height, greaterThanOrEqualTo(48));
+
+    await tester.tap(find.byKey(const Key('recent-i1'))); // شويبس
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('save-button')));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 }

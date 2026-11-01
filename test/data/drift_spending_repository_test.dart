@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spending_tracker/data/db/database.dart';
@@ -208,6 +208,34 @@ void main() {
     expect(drinks.every((i) => i.categoryKey == 'Drinks'), isTrue);
   });
 
+  test(
+      'itemsInSubcategory only returns items tagged with that subcategory, '
+      'scored', () async {
+    final now = DateTime.now();
+    await db.into(db.items).insert(ItemsCompanion.insert(
+          id: 'soda-1',
+          nameAr: 'كولا',
+          nameEn: 'cola',
+          categoryKey: 'Drinks',
+          subcategoryKey: const Value('Soda'),
+          useCount: const Value(10),
+          lastUsedAt: Value(now),
+        ));
+    await db.into(db.items).insert(ItemsCompanion.insert(
+          id: 'juice-1',
+          nameAr: 'عصير مانجا',
+          nameEn: 'mango juice',
+          categoryKey: 'Drinks',
+          subcategoryKey: const Value('Juice'),
+          useCount: const Value(10),
+          lastUsedAt: Value(now),
+        ));
+
+    final soda = await repo.itemsInSubcategory('Soda', 12);
+    expect(soda.map((i) => i.id), ['soda-1']);
+    expect(soda.every((i) => i.subcategoryKey == 'Soda'), isTrue);
+  });
+
   test('createItem inserts a new item and returns it as a QuickPickItem',
       () async {
     final created = await repo.createItem(
@@ -225,6 +253,118 @@ void main() {
             .getSingleOrNull();
     expect(fromDb != null, isTrue);
     expect(fromDb!.nameAr, 'شاي');
+  });
+
+  test('createItem persists a subcategory when one is given', () async {
+    final created = await repo.createItem(
+      nameAr: 'كولا',
+      categoryKey: 'Drinks',
+      subcategoryKey: 'Soda',
+      defaultAmountPiastres: 1500,
+    );
+
+    expect(created.subcategoryKey, 'Soda');
+
+    final fromDb =
+        await (db.select(db.items)..where((t) => t.id.equals(created.id)))
+            .getSingle();
+    expect(fromDb.subcategoryKey, 'Soda');
+  });
+
+  test('createItem persists a barcode when one is given', () async {
+    final created = await repo.createItem(
+      nameAr: 'مياه',
+      categoryKey: 'Drinks',
+      defaultAmountPiastres: 1000,
+      barcode: '6224000123456',
+    );
+
+    expect(created.barcode, '6224000123456');
+    final fromDb =
+        await (db.select(db.items)..where((t) => t.id.equals(created.id)))
+            .getSingle();
+    expect(fromDb.barcode, '6224000123456');
+  });
+
+  test('itemByBarcode resolves a previously learned item', () async {
+    final created = await repo.createItem(
+      nameAr: 'مياه',
+      categoryKey: 'Drinks',
+      defaultAmountPiastres: 1000,
+      barcode: '6224000123456',
+    );
+
+    final found = await repo.itemByBarcode('6224000123456');
+
+    expect(found != null, isTrue);
+    expect(found!.id, created.id);
+    expect(found.nameAr, 'مياه');
+  });
+
+  test('itemByBarcode returns null for a code that was never learned',
+      () async {
+    final found = await repo.itemByBarcode('0000000000000');
+    expect(found == null, isTrue);
+  });
+
+  test('itemByBarcode ignores an archived item', () async {
+    final created = await repo.createItem(
+      nameAr: 'مياه',
+      categoryKey: 'Drinks',
+      defaultAmountPiastres: 1000,
+      barcode: '6224000123456',
+    );
+    await repo.archiveItem(created.id);
+
+    final found = await repo.itemByBarcode('6224000123456');
+    expect(found == null, isTrue);
+  });
+
+  test("saveEntry persists the draft's subcategoryKey", () async {
+    await repo.saveEntry(const DraftEntry(
+      amountPiastres: 2000,
+      description: 'كولا',
+      categoryKey: 'Drinks',
+      subcategoryKey: 'Soda',
+      paymentMethod: 'Cash',
+      source: EntrySource.quickPick,
+    ));
+
+    final row = await db.select(db.entries).getSingle();
+    expect(row.subcategoryKey, 'Soda');
+  });
+
+  // Since v3 the photo is an attachment row; entries.photoPath is only
+  // kept for rows written before v3.
+  test("saveEntry persists the draft's photo as an attachment", () async {
+    await repo.saveEntry(const DraftEntry(
+      amountPiastres: 2000,
+      description: 'كولا',
+      categoryKey: 'Drinks',
+      paymentMethod: 'Cash',
+      photoPath: 'photos/172000-0.jpg',
+      source: EntrySource.quickPick,
+    ));
+
+    final row = await db.select(db.entries).getSingle();
+    expect(row.photoPath, isNull);
+    final attachment = await db.select(db.attachments).getSingle();
+    expect(attachment.entryId, row.id);
+    expect(attachment.kind, 'photo');
+    expect(attachment.path, 'photos/172000-0.jpg');
+  });
+
+  test('saveEntry leaves photoPath null when the draft has none', () async {
+    await repo.saveEntry(const DraftEntry(
+      amountPiastres: 2000,
+      description: 'كولا',
+      categoryKey: 'Drinks',
+      paymentMethod: 'Cash',
+      source: EntrySource.quickPick,
+    ));
+
+    final row = await db.select(db.entries).getSingle();
+    expect(row.photoPath, null);
   });
 
   test('enabling foreign keys rejects an entry with an unknown category',
@@ -485,5 +625,497 @@ void main() {
     expect(sum, 3000,
         reason: 'both entries must be counted exactly once across weeks, '
             'regardless of the month boundary between their dates');
+  });
+
+  group('category CRUD', () {
+    test('createCategory inserts a new category', () async {
+      final created = await repo.createCategory(
+        key: 'Custom1',
+        labelAr: 'مخصص',
+        iconName: 'pets',
+      );
+
+      expect(created.key, 'Custom1');
+      expect(created.labelAr, 'مخصص');
+      final all = await repo.categories();
+      expect(all.map((c) => c.key), contains('Custom1'));
+    });
+
+    test('updateCategory changes the label and icon but never the key',
+        () async {
+      await repo.updateCategory(
+        key: 'Food',
+        labelAr: 'أكل وشرب',
+        iconName: 'lunch_dining',
+      );
+
+      final all = await repo.categories();
+      final food = all.firstWhere((c) => c.key == 'Food');
+      expect(food.labelAr, 'أكل وشرب');
+      expect(food.iconName, 'lunch_dining');
+    });
+
+    test(
+        'renaming a category never touches a past entry filed under it',
+        () async {
+      await seedEntry(id: 'e1', amount: 3500, categoryKey: 'Food');
+
+      await repo.updateCategory(
+        key: 'Food',
+        labelAr: 'أكل وشرب',
+        iconName: 'lunch_dining',
+      );
+
+      final entry = await (db.select(db.entries)
+            ..where((t) => t.id.equals('e1')))
+          .getSingle();
+      expect(entry.categoryKey, 'Food');
+      expect(entry.amountPiastres, 3500);
+    });
+
+    test(
+        'archiving a category cascades to its subcategories and items, but '
+        'never touches a past entry filed under it', () async {
+      await seedEntry(id: 'e1', amount: 3500, categoryKey: 'Food');
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'food-item',
+            nameAr: 'فول',
+            nameEn: 'foul',
+            categoryKey: 'Food',
+          ));
+
+      await repo.archiveCategory('Food');
+
+      final categories = await repo.categories();
+      expect(categories.map((c) => c.key), isNot(contains('Food')));
+
+      final subcategoriesUnderFood = await (db.select(db.subcategories)
+            ..where((t) => t.categoryKey.equals('Food')))
+          .get();
+      expect(subcategoriesUnderFood.every((s) => s.archived), isTrue);
+      expect(await repo.subcategories('Food'), isEmpty);
+
+      final items = await repo.allItems();
+      expect(items.map((i) => i.id), isNot(contains('food-item')));
+
+      final entry = await (db.select(db.entries)
+            ..where((t) => t.id.equals('e1')))
+          .getSingle();
+      expect(entry.categoryKey, 'Food');
+      expect(entry.amountPiastres, 3500);
+    });
+  });
+
+  group('subcategory CRUD', () {
+    test('createSubcategory inserts a new subcategory under a category',
+        () async {
+      final created = await repo.createSubcategory(
+        key: 'PhoneAccessories',
+        categoryKey: 'Shopping',
+        labelAr: 'إكسسوارات موبايل',
+        iconName: 'devices',
+      );
+
+      expect(created.categoryKey, 'Shopping');
+      final subs = await repo.subcategories('Shopping');
+      expect(subs.map((s) => s.key), contains('PhoneAccessories'));
+    });
+
+    test('updateSubcategory renames the label without changing the key',
+        () async {
+      await repo.updateSubcategory(
+        key: 'Haircut',
+        categoryKey: 'Personal Care',
+        labelAr: 'حلاقة وتقصيص',
+        iconName: 'content_cut',
+      );
+
+      final subs = await repo.subcategories('Personal Care');
+      final haircut = subs.firstWhere((s) => s.key == 'Haircut');
+      expect(haircut.labelAr, 'حلاقة وتقصيص');
+    });
+
+    test(
+        'moving a subcategory to a new category updates the catalogue but '
+        'never re-categorises a past entry filed under it', () async {
+      await seedEntry(
+        id: 'e1',
+        amount: 1500,
+        categoryKey: 'Personal Care',
+      );
+      await db.update(db.entries).write(
+            const EntriesCompanion(subcategoryKey: Value('Haircut')),
+          );
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'haircut-item',
+            nameAr: 'حلاقة',
+            nameEn: 'haircut',
+            categoryKey: 'Personal Care',
+            subcategoryKey: const Value('Haircut'),
+          ));
+
+      await repo.updateSubcategory(
+        key: 'Haircut',
+        categoryKey: 'Shopping',
+        labelAr: 'حلاقة',
+        iconName: 'content_cut',
+      );
+
+      // Catalogue moved: Haircut now lives under Shopping, and its
+      // catalogue item followed it there.
+      expect(await repo.subcategories('Personal Care'),
+          isNot(contains(predicate<SubcategoryView>((s) => s.key == 'Haircut'))));
+      final movedSubs = await repo.subcategories('Shopping');
+      expect(movedSubs.map((s) => s.key), contains('Haircut'));
+      final item = await (db.select(db.items)
+            ..where((t) => t.id.equals('haircut-item')))
+          .getSingle();
+      expect(item.categoryKey, 'Shopping');
+
+      // History untouched: the past entry keeps exactly what it was saved
+      // with.
+      final entry = await (db.select(db.entries)
+            ..where((t) => t.id.equals('e1')))
+          .getSingle();
+      expect(entry.categoryKey, 'Personal Care');
+      expect(entry.subcategoryKey, 'Haircut');
+      expect(entry.amountPiastres, 1500);
+    });
+
+    test(
+        'archiving a subcategory cascades to its items but never touches a '
+        'past entry filed under it', () async {
+      await seedEntry(id: 'e1', amount: 1500, categoryKey: 'Personal Care');
+      await db.update(db.entries).write(
+            const EntriesCompanion(subcategoryKey: Value('Haircut')),
+          );
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'haircut-item',
+            nameAr: 'حلاقة',
+            nameEn: 'haircut',
+            categoryKey: 'Personal Care',
+            subcategoryKey: const Value('Haircut'),
+          ));
+
+      await repo.archiveSubcategory('Haircut');
+
+      final subs = await repo.subcategories('Personal Care');
+      expect(subs.map((s) => s.key), isNot(contains('Haircut')));
+
+      final items = await repo.allItems();
+      expect(items.map((i) => i.id), isNot(contains('haircut-item')));
+
+      final entry = await (db.select(db.entries)
+            ..where((t) => t.id.equals('e1')))
+          .getSingle();
+      expect(entry.categoryKey, 'Personal Care');
+      expect(entry.subcategoryKey, 'Haircut');
+      expect(entry.amountPiastres, 1500);
+    });
+  });
+
+  group('archived items', () {
+    test('archivedItems lists only archived items, and unarchiveItem '
+        'restores one to allItems', () async {
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'gone',
+            nameAr: 'مؤرشف',
+            nameEn: 'archived',
+            categoryKey: 'Food',
+            archived: const Value(true),
+          ));
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'active',
+            nameAr: 'نشط',
+            nameEn: 'active',
+            categoryKey: 'Food',
+          ));
+
+      final archived = await repo.archivedItems();
+      expect(archived.map((i) => i.id), ['gone']);
+
+      await repo.unarchiveItem('gone');
+
+      final all = await repo.allItems();
+      expect(all.map((i) => i.id), contains('gone'));
+      expect(await repo.archivedItems(), isEmpty);
+    });
+  });
+
+  group('unarchive category and subcategory', () {
+    test(
+        'unarchiveCategory restores the category, its subcategories and '
+        'its items', () async {
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'food-item',
+            nameAr: 'فول',
+            nameEn: 'foul',
+            categoryKey: 'Food',
+          ));
+      await repo.archiveCategory('Food');
+
+      expect((await repo.categories()).map((c) => c.key),
+          isNot(contains('Food')));
+      expect(await repo.archivedCategories(),
+          contains(predicate<CategoryView>((c) => c.key == 'Food')));
+
+      await repo.unarchiveCategory('Food');
+
+      expect(
+          (await repo.categories()).map((c) => c.key), contains('Food'));
+      expect(await repo.subcategories('Food'), isNotEmpty);
+      expect((await repo.allItems()).map((i) => i.id),
+          contains('food-item'));
+      expect(await repo.archivedCategories(), isEmpty);
+    });
+
+    test(
+        'unarchiveSubcategory restores its items but never its parent '
+        'category', () async {
+      await db.into(db.items).insert(ItemsCompanion.insert(
+            id: 'haircut-item',
+            nameAr: 'حلاقة',
+            nameEn: 'haircut',
+            categoryKey: 'Personal Care',
+            subcategoryKey: const Value('Haircut'),
+          ));
+      await repo.archiveCategory('Personal Care');
+
+      expect((await repo.categories()).map((c) => c.key),
+          isNot(contains('Personal Care')));
+
+      await repo.unarchiveSubcategory('Haircut');
+
+      // The item is back...
+      expect((await repo.allItems()).map((i) => i.id),
+          contains('haircut-item'));
+      // ...but the parent category is still archived: unarchiving a
+      // subcategory must never cascade upward.
+      expect((await repo.categories()).map((c) => c.key),
+          isNot(contains('Personal Care')));
+      final haircutRow = await (db.select(db.subcategories)
+            ..where((t) => t.key.equals('Haircut')))
+          .getSingle();
+      expect(haircutRow.archived, isFalse);
+    });
+
+    test(
+        'a past entry survives an archive-then-unarchive round trip on its '
+        'category with every field intact, including its date',
+        () async {
+      await seedEntry(
+        id: 'e1',
+        amount: 4200,
+        categoryKey: 'Food',
+        date: '2026-01-15',
+      );
+      await db.update(db.entries).write(
+            const EntriesCompanion(subcategoryKey: Value('Breakfast')),
+          );
+
+      await repo.archiveCategory('Food');
+      await repo.unarchiveCategory('Food');
+
+      final entry = await (db.select(db.entries)
+            ..where((t) => t.id.equals('e1')))
+          .getSingle();
+      expect(entry.categoryKey, 'Food');
+      expect(entry.subcategoryKey, 'Breakfast');
+      expect(entry.amountPiastres, 4200);
+      expect(entry.date, '2026-01-15');
+    });
+
+    test('archivedCategories and archivedSubcategories list only archived '
+        'rows', () async {
+      expect(await repo.archivedCategories(), isEmpty);
+      expect(await repo.archivedSubcategories(), isEmpty);
+
+      await repo.archiveSubcategory('Haircut');
+
+      final archivedSubs = await repo.archivedSubcategories();
+      expect(archivedSubs.map((s) => s.key), ['Haircut']);
+      expect(await repo.archivedCategories(), isEmpty);
+    });
+  });
+
+  group('v3 storage', () {
+    test('the database refuses an attachment that belongs to nothing',
+        () async {
+      await expectLater(
+        db.into(db.attachments).insert(AttachmentsCompanion.insert(
+              id: 'orphan',
+              kind: 'text',
+              body: const Value('x'),
+              createdAt: DateTime.now(),
+            )),
+        throwsA(anything),
+      );
+    });
+
+    test('a fresh install seeds every category with its own colour key',
+        () async {
+      final rows = await db.select(db.categories).get();
+      expect(rows, hasLength(10));
+      for (final c in rows) {
+        expect(c.colorKey, c.key);
+        expect(categoryColorKeys, contains(c.colorKey));
+      }
+    });
+
+    test('knownExternalIds includes salary periods', () async {
+      await db.into(db.salaryPeriods).insert(SalaryPeriodsCompanion.insert(
+            id: 'sp-x',
+            datePaid: '2026-09-23',
+            amountPiastres: 900000,
+            externalId: const Value('wt-salary-7'),
+          ));
+      expect(await repo.knownExternalIds(), {'wt-salary-7'});
+    });
+
+    test('a capture saves entries with the capture kind as their source',
+        () async {
+      final id = await repo.saveCapture(CaptureDraft(
+        kind: CaptureKind.import,
+        date: DateTime(2026, 9, 3),
+        lines: const [
+          CaptureLine(
+              amountPiastres: 700, categoryKey: 'Transport', externalId: 'sn-1'),
+        ],
+      ));
+      final entry = await db.select(db.entries).getSingle();
+      expect(entry.source, 'import');
+      expect(entry.captureGroupId, id);
+      expect(entry.date, '2026-09-03');
+      final group = await db.select(db.captureGroups).getSingle();
+      expect(group.kind, 'import');
+      expect(group.status, 'saved');
+    });
+
+    test('itemByBarcode resolves a barcode two live rows already share',
+        () async {
+      // The repository never writes such a pair, but a row written before
+      // the rule existed must not crash a scan.
+      for (final id in ['dup-1', 'dup-2']) {
+        await db.into(db.items).insert(ItemsCompanion.insert(
+              id: id,
+              nameAr: 'بيبسي',
+              nameEn: 'بيبسي',
+              categoryKey: 'Drinks',
+              barcode: const Value('6229'),
+            ));
+      }
+      final item = await repo.itemByBarcode('6229');
+      expect(['dup-1', 'dup-2'], contains(item!.id));
+    });
+  });
+
+  group('salary periods (dashboard)', () {
+    test('watchPeriods lists every period newest first with its own spend',
+        () async {
+      await seedSalary(id: 'aug', amount: 900000, datePaid: '2026-08-04');
+      await seedSalary(id: 'sep', amount: 800000, datePaid: '2026-09-04');
+      await seedEntry(id: 'e1', amount: 1000, date: '2026-08-10');
+      await seedEntry(id: 'e2', amount: 500, date: '2026-09-03');
+      await seedEntry(id: 'e3', amount: 2000, date: '2026-09-10');
+      await seedEntry(
+          id: 'e4',
+          amount: 9900,
+          date: '2026-09-11',
+          deletedAt: DateTime(2026, 9, 12));
+
+      final periods = await repo.watchPeriods().first;
+
+      expect(periods, hasLength(2));
+      final current = periods.first;
+      expect(current.isCurrent, isTrue);
+      expect(current.start, DateTime(2026, 9, 4));
+      expect(current.salaryPiastres, 800000);
+      expect(current.spentPiastres, 2000);
+      // The current period runs one calendar month: 4 Sep to 3 Oct.
+      expect(current.lengthDays, 30);
+      expect(current.end, DateTime(2026, 10, 3));
+
+      final past = periods.last;
+      expect(past.isCurrent, isFalse);
+      expect(past.start, DateTime(2026, 8, 4));
+      expect(past.end, DateTime(2026, 9, 3));
+      expect(past.lengthDays, 31);
+      expect(past.salaryPiastres, 900000);
+      expect(past.spentPiastres, 1500);
+      expect(past.daysRemaining, 0);
+    });
+
+    test('watchCurrentPeriod reports the same period as watchPeriods',
+        () async {
+      await seedSalary(id: 'sep', datePaid: '2026-09-04');
+      await seedEntry(id: 'e1', amount: 2000, date: '2026-09-10');
+
+      expect(await repo.watchCurrentPeriod().first,
+          (await repo.watchPeriods().first).first);
+    });
+
+    test('two salaries on the same day make one period, not an empty one',
+        () async {
+      await seedSalary(id: 'a', amount: 900000, datePaid: '2026-09-04');
+      await seedSalary(id: 'b', amount: 750000, datePaid: '2026-09-04');
+
+      final periods = await repo.watchPeriods().first;
+      expect(periods, hasLength(1));
+    });
+
+    test('no salary yet is one empty current period', () async {
+      final periods = await repo.watchPeriods().first;
+      expect(periods, hasLength(1));
+      expect(periods.single.start, isNull);
+      expect(periods.single.salaryPiastres, 0);
+    });
+
+    test('an early salary still gives a whole calendar month', () async {
+      await seedSalary(id: 'jul', datePaid: '2026-07-06');
+      await seedSalary(id: 'aug', datePaid: '2026-08-02');
+      await seedSalary(id: 'sep', datePaid: '2026-09-04');
+      await seedSalary(id: 'sep2', datePaid: '2026-09-23');
+
+      final current = (await repo.watchPeriods().first).first;
+
+      expect(current.start, DateTime(2026, 9, 23));
+      expect(current.end, DateTime(2026, 10, 22));
+      expect(current.lengthDays, 30);
+    });
+
+    test('a month-end salary ends the day before the same day next month',
+        () async {
+      await seedSalary(id: 'jan', datePaid: '2027-01-31');
+
+      final current = (await repo.watchPeriods().first).first;
+
+      // 31 Jan + 1 month clamps to 28 Feb, so the period ends 27 Feb.
+      expect(current.end, DateTime(2027, 2, 27));
+    });
+
+    test('watchPeriods switches to a salary recorded while watching',
+        () async {
+      await seedSalary(id: 'old', datePaid: '2026-09-04');
+      final seen = <DateTime?>[];
+      final sub = repo.watchPeriods().listen((p) => seen.add(p.first.start));
+      await pumpEventQueue();
+      await seedSalary(id: 'new', datePaid: '2026-09-23');
+      await pumpEventQueue();
+      await sub.cancel();
+      expect(seen.last, DateTime(2026, 9, 23));
+    });
+
+    test('watchPeriods updates when an entry is saved', () async {
+      await seedSalary(datePaid: _fmt(DateTime.now()));
+      final stream = repo.watchPeriods();
+      final seen = <int>[];
+      final sub = stream.listen((p) => seen.add(p.first.spentPiastres));
+      await pumpEventQueue();
+      await repo.saveEntry(const DraftEntry(
+          amountPiastres: 700, categoryKey: 'Food', source: EntrySource.manual));
+      await pumpEventQueue();
+      await sub.cancel();
+      expect(seen.last, 700);
+    });
   });
 }

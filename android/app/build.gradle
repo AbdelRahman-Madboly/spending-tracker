@@ -7,10 +7,15 @@ plugins {
 
 android {
     namespace = "com.madboly.spending_tracker"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android 14 compiles against platform 37; Flutter
+    // 3.44 still defaults to 36. Compiling higher is backward compatible.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // flutter_local_notifications schedules with java.time, which
+        // needs library desugaring on older Android versions.
+        coreLibraryDesugaringEnabled true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
@@ -30,6 +35,20 @@ android {
         versionName = flutter.versionName
     }
 
+    // Two builds on one application id (lib/core/app_flavor.dart): personal
+    // is the owner's phone and installs over his current build, keeping his
+    // data; shared is for another person's phone. They differ only in the
+    // assets they bundle.
+    flavorDimensions = ["audience"]
+    productFlavors {
+        personal {
+            dimension = "audience"
+        }
+        shared {
+            dimension = "audience"
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
@@ -41,4 +60,8 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }

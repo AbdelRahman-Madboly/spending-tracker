@@ -1,11 +1,25 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_flavor.dart';
+import '../../core/design/app_icons.dart';
+import '../../core/design/app_theme.dart';
+import '../../core/design/category_colors.dart';
 import '../../core/design/tokens.dart';
 import '../../core/money.dart';
+import '../../data/backup/data_transfer.dart';
+import '../../data/gemini_key_store.dart';
+import '../../data/import_sources.dart';
+import '../../data/instapay_identity.dart';
+import '../../data/net/gemini_client.dart';
+import '../../data/net/network_gate.dart';
 import '../../domain/models.dart';
 import '../../domain/spending_repository.dart';
-import '../add/widgets/category_strip.dart' show iconForName;
-import '../add/widgets/new_item_dialog.dart' show showEditItemDialog;
+import '../products/products_screen.dart';
+import 'import_screen.dart';
+import 'widgets/category_dialogs.dart';
+import 'recurring_bills_screen.dart';
+import 'widgets/data_settings_section.dart';
+import 'widgets/online_settings_section.dart';
 
 /// App name shown in the "about" block and used as the Android launcher
 /// label — kept as one constant so the two never drift apart.
@@ -17,10 +31,34 @@ const appName = 'مصاريفي';
 /// task, spent on `flutter_launcher_icons`), so it is kept in sync by hand.
 const appVersion = '1.0.0';
 
+/// Generates a fresh, permanent English key for a new category or
+/// subcategory. Keys are the storage/export identity and are never shown to
+/// the user, so there is no reason to make them type one — a timestamp is
+/// unique enough for a single-user local catalogue that only ever grows a
+/// few rows at a time.
+String _generateKey(String prefix) =>
+    '${prefix}_${DateTime.now().microsecondsSinceEpoch}';
+
 class SettingsScreen extends StatefulWidget {
   final SpendingRepository repository;
 
-  const SettingsScreen({super.key, required this.repository});
+  /// Where the Gemini key is saved. Defaults to secure storage.
+  final GeminiKeyStore? geminiKeyStore;
+
+  /// Tests the key. Defaults to one through a [NetworkGate] of its own.
+  final GeminiClient? gemini;
+
+  /// Export, backup and restore. Defaults to one over the app's
+  /// [DatabaseHostScope]; with neither, البيانات is not shown.
+  final DataTransfer? dataTransfer;
+
+  const SettingsScreen({
+    super.key,
+    required this.repository,
+    this.geminiKeyStore,
+    this.gemini,
+    this.dataTransfer,
+  });
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -28,8 +66,18 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _salaryController = TextEditingController();
+  final _instaPayController = TextEditingController();
   List<CategoryView> _categories = const [];
+  Map<String, List<SubcategoryView>> _subcategoriesByCategory = const {};
   List<QuickPickItem> _items = const [];
+  List<CategoryView> _archivedCategories = const [];
+  List<SubcategoryView> _archivedSubcategories = const [];
+  final Set<String> _expandedCategories = {};
+  late final GeminiKeyStore _geminiKeys =
+      widget.geminiKeyStore ?? SecureGeminiKeyStore();
+  late final GeminiClient _gemini = widget.gemini ??
+      GeminiClient(NetworkGate(widget.repository), widget.repository,
+          _geminiKeys);
   bool _loaded = false;
   String? _salaryError;
 
@@ -39,21 +87,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _load();
   }
 
+  Future<void> _openImport() async {
+    await Navigator.of(context).push(MaterialPageRoute<bool>(
+      builder: (_) => ImportScreen(
+        repository: widget.repository,
+        importer: appImporter(widget.repository),
+        loadBundled:
+            AppFlavor.current.bundlesImportPacks ? loadBundledPacks : null,
+        pickFile: pickImportFile,
+      ),
+    ));
+    // New categories may have come with the import.
+    if (mounted) await _load();
+  }
+
   @override
   void dispose() {
     _salaryController.dispose();
+    _instaPayController.dispose();
     super.dispose();
+  }
+
+  DataTransfer? _dataTransfer(BuildContext context) {
+    if (widget.dataTransfer case final transfer?) return transfer;
+    final host = DatabaseHostScope.maybeOf(context);
+    if (host == null) return null;
+    final repository = widget.repository;
+    return DataTransfer(host: host, repository: () => repository);
   }
 
   Future<void> _load() async {
     final summary = await widget.repository.watchCurrentPeriod().first;
     final categories = await widget.repository.categories();
     final items = await widget.repository.allItems();
+    final archivedCategories = await widget.repository.archivedCategories();
+    final archivedSubcategories =
+        await widget.repository.archivedSubcategories();
+    final instaPay = await instaPayIdentity(widget.repository);
+    final subcategoriesByCategory = <String, List<SubcategoryView>>{};
+    for (final category in categories) {
+      subcategoriesByCategory[category.key] =
+          await widget.repository.subcategories(category.key);
+    }
     if (!mounted) return;
     setState(() {
       _salaryController.text = formatPiastres(summary.salaryPiastres);
+      _instaPayController.text = instaPay;
       _categories = categories;
+      _subcategoriesByCategory = subcategoriesByCategory;
       _items = items;
+      _archivedCategories = archivedCategories;
+      _archivedSubcategories = archivedSubcategories;
       _loaded = true;
     });
   }
@@ -74,31 +158,138 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _archiveItem(String itemId) async {
-    await widget.repository.archiveItem(itemId);
+  Future<void> _saveInstaPay() async {
+    await widget.repository.setSetting(
+        instaPayIdentitySettingKey, _instaPayController.text.trim());
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ اسمك على InstaPay')),
+      );
+    }
+  }
+
+  Future<void> _openProducts() async {
+    await openProductsScreen(context, widget.repository);
+    // A product added from the catalogue may have brought its category.
+    if (mounted) await _load();
+  }
+
+  Future<void> _addCategory() async {
+    final result = await showCategoryDialog(context: context);
+    if (result == null) return;
+    await widget.repository.createCategory(
+      key: _generateKey('cat'),
+      labelAr: result.labelAr,
+      iconName: result.iconName,
+      colorKey: result.colorKey,
+    );
     await _load();
   }
 
-  Future<void> _editItem(QuickPickItem item) async {
-    final result = await showEditItemDialog(
+  Future<void> _editCategory(CategoryView category) async {
+    final result = await showCategoryDialog(
       context: context,
-      categories: _categories,
-      item: item,
+      initialLabelAr: category.labelAr,
+      initialIconName: category.iconName,
+      initialColorKey: category.colorKey,
     );
     if (result == null) return;
-    await widget.repository.updateItem(
-      itemId: item.id,
-      nameAr: result.nameAr,
-      categoryKey: result.categoryKey,
-      defaultAmountPiastres: result.amountPiastres,
+    await widget.repository.updateCategory(
+      key: category.key,
+      labelAr: result.labelAr,
+      iconName: result.iconName,
+      colorKey: result.colorKey,
     );
     await _load();
+  }
+
+  Future<void> _archiveCategory(CategoryView category) async {
+    final subCount = _subcategoriesByCategory[category.key]?.length ?? 0;
+    final itemCount =
+        _items.where((i) => i.categoryKey == category.key).length;
+    if (subCount > 0 || itemCount > 0) {
+      final confirmed = await showArchiveCascadeConfirmationDialog(
+        context: context,
+        labelAr: category.labelAr,
+        childrenSummary: '$subCount فئة فرعية و $itemCount منتج',
+      );
+      if (confirmed != true) return;
+    }
+    await widget.repository.archiveCategory(category.key);
+    await _load();
+  }
+
+  Future<void> _unarchiveCategory(String key) async {
+    await widget.repository.unarchiveCategory(key);
+    await _load();
+  }
+
+  Future<void> _addSubcategory(String categoryKey) async {
+    final result = await showSubcategoryDialog(
+      context: context,
+      categories: _categories,
+      initialCategoryKey: categoryKey,
+    );
+    if (result == null) return;
+    await widget.repository.createSubcategory(
+      key: _generateKey('sub'),
+      categoryKey: result.categoryKey,
+      labelAr: result.labelAr,
+      iconName: result.iconName,
+    );
+    await _load();
+  }
+
+  Future<void> _editSubcategory(SubcategoryView subcategory) async {
+    final result = await showSubcategoryDialog(
+      context: context,
+      categories: _categories,
+      initialCategoryKey: subcategory.categoryKey,
+      initialLabelAr: subcategory.labelAr,
+      initialIconName: subcategory.iconName,
+    );
+    if (result == null) return;
+    await widget.repository.updateSubcategory(
+      key: subcategory.key,
+      categoryKey: result.categoryKey,
+      labelAr: result.labelAr,
+      iconName: result.iconName,
+    );
+    await _load();
+  }
+
+  Future<void> _archiveSubcategory(SubcategoryView subcategory) async {
+    final itemCount =
+        _items.where((i) => i.subcategoryKey == subcategory.key).length;
+    if (itemCount > 0) {
+      final confirmed = await showArchiveCascadeConfirmationDialog(
+        context: context,
+        labelAr: subcategory.labelAr,
+        childrenSummary: '$itemCount منتج',
+      );
+      if (confirmed != true) return;
+    }
+    await widget.repository.archiveSubcategory(subcategory.key);
+    await _load();
+  }
+
+  Future<void> _unarchiveSubcategory(String key) async {
+    await widget.repository.unarchiveSubcategory(key);
+    await _load();
+  }
+
+  void _toggleExpanded(String categoryKey) {
+    setState(() {
+      if (!_expandedCategories.remove(categoryKey)) {
+        _expandedCategories.add(categoryKey);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('الإعدادات')),
       body: !_loaded
           ? const Center(child: CircularProgressIndicator())
@@ -133,61 +324,228 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsetsDirectional.only(bottom: AppSpacing.sm),
+                Padding(
+                  padding:
+                      const EdgeInsetsDirectional.only(bottom: AppSpacing.sm),
                   child: Text(
                     'حفظ الراتب يسجل فترة راتب جديدة بتاريخ اليوم، ولا يغيّر سجل الرواتب السابقة.',
-                    style: AppText.caption,
+                    style: AppText.caption
+                        .copyWith(color: palette.textSecondary),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.sm),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          key: const Key('settings-instapay-field'),
+                          controller: _instaPayController,
+                          decoration: const InputDecoration(
+                            labelText: 'اسمك أو حسابك على InstaPay',
+                            hintText: 'Sara Ahmed، sara@instapay',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      FilledButton(
+                        key: const Key('settings-instapay-save'),
+                        onPressed: _saveInstaPay,
+                        child: const Text('حفظ'),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding:
+                      const EdgeInsetsDirectional.only(bottom: AppSpacing.sm),
+                  child: Text(
+                    'بيه نعرف التحويل اللي جالك من اللي بعته في صورة InstaPay. '
+                    'اكتب اسمك زي ما بيظهر للي بيحوّلك وحسابك، وافصل بينهم بفاصلة.',
+                    style: AppText.caption
+                        .copyWith(color: palette.textSecondary),
                   ),
                 ),
                 const Divider(height: AppSpacing.lg),
-                const _SectionHeader('الأقسام'),
-                for (final category in _categories)
+                _SectionHeader(
+                  'الأقسام',
+                  trailing: IconButton(
+                    key: const Key('add-category'),
+                    icon: const Icon(AppIcons.addCircle),
+                    tooltip: 'إضافة قسم',
+                    onPressed: _addCategory,
+                  ),
+                ),
+                for (final category in _categories) ...[
                   ListTile(
                     key: ValueKey('settings-category-${category.key}'),
-                    leading: Icon(iconForName(category.iconName),
-                        color: AppColors.accent),
+                    leading: Icon(iconFor(category.iconName),
+                        color: palette.categoryInk(category.colorKey)),
                     title: Text(category.labelAr, style: AppText.body),
+                    onTap: () => _editCategory(category),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          key: ValueKey('archive-category-${category.key}'),
+                          icon: const Icon(AppIcons.archive),
+                          tooltip: 'أرشفة',
+                          onPressed: () => _archiveCategory(category),
+                        ),
+                        IconButton(
+                          key: ValueKey('expand-category-${category.key}'),
+                          icon: Icon(
+                            _expandedCategories.contains(category.key)
+                                ? AppIcons.expandLess
+                                : AppIcons.expandMore,
+                          ),
+                          tooltip: 'عرض الفئات الفرعية',
+                          onPressed: () => _toggleExpanded(category.key),
+                        ),
+                      ],
+                    ),
                   ),
+                  if (_expandedCategories.contains(category.key))
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(start: 32),
+                      child: Column(
+                        children: [
+                          for (final subcategory
+                              in _subcategoriesByCategory[category.key] ??
+                                  const <SubcategoryView>[])
+                            ListTile(
+                              key: ValueKey(
+                                  'settings-subcategory-${subcategory.key}'),
+                              leading: Icon(iconFor(subcategory.iconName),
+                                  color: palette.textSecondary),
+                              title: Text(subcategory.labelAr,
+                                  style: AppText.body),
+                              onTap: () => _editSubcategory(subcategory),
+                              trailing: IconButton(
+                                key: ValueKey(
+                                    'archive-subcategory-${subcategory.key}'),
+                                icon: const Icon(AppIcons.archive),
+                                tooltip: 'أرشفة',
+                                onPressed: () =>
+                                    _archiveSubcategory(subcategory),
+                              ),
+                            ),
+                          Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: TextButton.icon(
+                              key: ValueKey('add-subcategory-${category.key}'),
+                              onPressed: () => _addSubcategory(category.key),
+                              icon: const Icon(AppIcons.add),
+                              label: const Text('إضافة فئة فرعية'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
                 const Divider(height: AppSpacing.lg),
-                const _SectionHeader('المنتجات'),
-                for (final item in _items)
+                ListTile(
+                  key: const Key('settings-products'),
+                  minTileHeight: 56,
+                  leading: const Icon(AppIcons.barcode),
+                  title: const Text('المنتجات', style: AppText.body),
+                  subtitle: const Text(
+                      'منتجاتك وأسعارها وباركودها، ودليل المنتجات',
+                      style: AppText.caption),
+                  trailing: const Icon(AppIcons.chevronStart),
+                  onTap: _openProducts,
+                ),
+                const Divider(height: AppSpacing.lg),
+                const _SectionHeader('الأقسام والفئات الفرعية المؤرشفة'),
+                if (_archivedCategories.isEmpty &&
+                    _archivedSubcategories.isEmpty)
+                  Padding(
+                    padding:
+                        const EdgeInsetsDirectional.only(bottom: AppSpacing.sm),
+                    child: Text(
+                      'لا يوجد أقسام أو فئات فرعية مؤرشفة.',
+                      style: AppText.caption
+                          .copyWith(color: palette.textSecondary),
+                    ),
+                  ),
+                for (final category in _archivedCategories)
                   ListTile(
-                    key: ValueKey('settings-item-${item.id}'),
-                    onTap: () => _editItem(item),
-                    title: Text(item.nameAr, style: AppText.body),
+                    key: ValueKey('settings-archived-category-${category.key}'),
+                    leading: Icon(iconFor(category.iconName),
+                        color: palette.textSecondary),
+                    title: Text(category.labelAr, style: AppText.body),
+                    trailing: IconButton(
+                      key: ValueKey('unarchive-category-${category.key}'),
+                      icon: const Icon(AppIcons.unarchive),
+                      tooltip: 'استعادة',
+                      onPressed: () => _unarchiveCategory(category.key),
+                    ),
+                  ),
+                for (final subcategory in _archivedSubcategories)
+                  ListTile(
+                    key: ValueKey(
+                        'settings-archived-subcategory-${subcategory.key}'),
+                    leading: Icon(iconFor(subcategory.iconName),
+                        color: palette.textSecondary),
+                    title: Text(subcategory.labelAr, style: AppText.body),
                     subtitle: Text(
-                      _categories
+                      [..._categories, ..._archivedCategories]
                           .firstWhere(
-                            (c) => c.key == item.categoryKey,
+                            (c) => c.key == subcategory.categoryKey,
                             orElse: () => CategoryView(
-                                key: item.categoryKey,
-                                labelAr: item.categoryKey,
+                                key: subcategory.categoryKey,
+                                labelAr: subcategory.categoryKey,
                                 iconName: ''),
                           )
                           .labelAr,
                       style: AppText.caption,
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (item.defaultAmountPiastres != null)
-                          Padding(
-                            padding: const EdgeInsetsDirectional.only(
-                                end: AppSpacing.sm),
-                            child: Text(
-                                formatPiastres(item.defaultAmountPiastres!),
-                                style: AppText.body),
-                          ),
-                        IconButton(
-                          key: ValueKey('archive-item-${item.id}'),
-                          icon: const Icon(Icons.archive_outlined),
-                          tooltip: 'أرشفة',
-                          onPressed: () => _archiveItem(item.id),
-                        ),
-                      ],
+                    trailing: IconButton(
+                      key: ValueKey(
+                          'unarchive-subcategory-${subcategory.key}'),
+                      icon: const Icon(AppIcons.unarchive),
+                      tooltip: 'استعادة',
+                      onPressed: () => _unarchiveSubcategory(subcategory.key),
                     ),
                   ),
+                const Divider(height: AppSpacing.lg),
+                ListTile(
+                  key: const Key('settings-recurring-bills'),
+                  leading: const Icon(AppIcons.bill),
+                  title: const Text('الفواتير المتكررة', style: AppText.body),
+                  subtitle: const Text('تذكير قبل الميعاد وتسجيل الدفع',
+                      style: AppText.caption),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) =>
+                        RecurringBillsScreen(repository: widget.repository),
+                  )),
+                ),
+                const Divider(height: AppSpacing.lg),
+                const _SectionHeader('البيانات'),
+                ListTile(
+                  key: const Key('settings-import'),
+                  leading: const Icon(AppIcons.importData),
+                  title: const Text('استيراد', style: AppText.body),
+                  subtitle: const Text(
+                      'البيانات المرفقة، ملف JSON أو ZIP أو ملاحظة سامسونج أو نص',
+                      style: AppText.caption),
+                  onTap: _openImport,
+                ),
+                if (_dataTransfer(context) case final transfer?)
+                  DataSettingsSection(transfer: transfer),
+                const Divider(height: AppSpacing.lg),
+                const _SectionHeader('المزايا الأونلاين'),
+                OnlineSettingsSection(
+                  repository: widget.repository,
+                  keyStore: _geminiKeys,
+                  gemini: _gemini,
+                ),
+                if (ThemeModeScope.maybeOf(context) case final themeMode?) ...[
+                  const Divider(height: AppSpacing.lg),
+                  const _SectionHeader('المظهر'),
+                  _ThemeModeSelector(controller: themeMode),
+                ],
                 const Divider(height: AppSpacing.lg),
                 const _SectionHeader('عن التطبيق'),
                 const ListTile(
@@ -203,16 +561,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
+  final Widget? trailing;
 
-  const _SectionHeader(this.title);
+  const _SectionHeader(this.title, {this.trailing});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.xs),
-      child: Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: Text(title, style: AppText.title),
+      child: Row(
+        children: [
+          Expanded(
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(title, style: AppText.title),
+            ),
+          ),
+          ?trailing,
+        ],
+      ),
+    );
+  }
+}
+
+/// System / light / dark. The choice applies the moment it is tapped and
+/// is remembered in `app_settings` by [ThemeModeController].
+class _ThemeModeSelector extends StatelessWidget {
+  final ThemeModeController controller;
+
+  const _ThemeModeSelector({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: SegmentedButton<ThemeMode>(
+        key: const Key('settings-theme-mode'),
+        showSelectedIcon: false,
+        style: SegmentedButton.styleFrom(minimumSize: const Size(0, 48)),
+        segments: const [
+          ButtonSegment(
+            value: ThemeMode.system,
+            icon: Icon(AppIcons.themeSystem, key: Key('settings-theme-system')),
+            label: Text('تلقائي'),
+          ),
+          ButtonSegment(
+            value: ThemeMode.light,
+            icon: Icon(AppIcons.themeLight, key: Key('settings-theme-light')),
+            label: Text('فاتح'),
+          ),
+          ButtonSegment(
+            value: ThemeMode.dark,
+            icon: Icon(AppIcons.themeDark, key: Key('settings-theme-dark')),
+            label: Text('داكن'),
+          ),
+        ],
+        selected: {controller.value},
+        onSelectionChanged: (selection) =>
+            controller.select(selection.single),
       ),
     );
   }

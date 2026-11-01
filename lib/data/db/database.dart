@@ -6,13 +6,25 @@ import 'package:drift/native.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
+import '../../core/app_flavor.dart';
+import 'pre_migration_backup.dart';
 import 'tables.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Categories, Items, Entries, SalaryPeriods])
+@DriftDatabase(tables: [
+  Categories,
+  Items,
+  Entries,
+  SalaryPeriods,
+  Subcategories,
+  CaptureGroups,
+  Attachments,
+  ItemAliases,
+  RecurringBills,
+  AppSettings,
+])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
@@ -28,16 +40,22 @@ class AppDatabase extends _$AppDatabase {
   /// doesn't have those.
   AppDatabase.forTesting(super.executor, {this.seedJsonLoader});
 
-  /// Loads assets/seed/seed.json. Set at construction: [AppDatabase()]
-  /// (the real app) always seeds from the bundled asset; [forTesting]
-  /// defaults to `null`, meaning "don't seed real data at all".
+  /// Loads the build's seed ([AppFlavor.seedAsset]: the sample history in
+  /// the personal build, only the catalogue in the shared one). Set at
+  /// construction: [AppDatabase()] (the real app) always seeds from the
+  /// bundled asset; [forTesting] defaults to `null`, meaning "don't seed
+  /// real data at all".
   Future<String> Function()? seedJsonLoader = _defaultSeedLoader;
 
   static Future<String> _defaultSeedLoader() =>
-      rootBundle.loadString('assets/seed/seed.json');
+      rootBundle.loadString(AppFlavor.current.seedAsset);
+
+  /// The schema this build writes. Also the target the pre-migration
+  /// backup compares the on-disk `user_version` against.
+  static const latestSchemaVersion = 4;
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => latestSchemaVersion;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -53,10 +71,52 @@ class AppDatabase extends _$AppDatabase {
         onCreate: (m) async {
           await m.createAll();
           await _seedCategories(this);
+          await _seedSubcategories(this);
           final loadSeedJson = seedJsonLoader;
           if (loadSeedJson != null) {
             await seedFromJsonString(await loadSeedJson());
           }
+        },
+        // v1 -> v2 introduces the Subcategories table (the second level of
+        // the Category -> Subcategory -> Item structure) plus a nullable
+        // `subcategoryKey` on both Items and Entries. This is an additive
+        // migration only — it never drops or rewrites an existing table,
+        // so every row the user already has on their phone (his real
+        // spending history) survives untouched; existing rows simply get
+        // `subcategoryKey = NULL` until re-categorised.
+        //
+        // v2 -> v3 is additive in the same way (spec §5): new nullable
+        // columns, five new tables, indexes, and a backfill that only
+        // inserts rows or fills columns that did not exist before. No
+        // existing value is changed. The file itself was already copied to
+        // documents/backups before drift opened it (see
+        // [openDatabaseFileWithBackup]).
+        //
+        // v3 -> v4 adds two nullable columns to items (the unit a loose
+        // product is sold by and the quantity usually bought). Nothing is
+        // rewritten: existing products keep a null unit and behave exactly
+        // as before.
+        //
+        // Every step runs in one transaction. SQLite DDL is transactional,
+        // so a failure half-way leaves the file exactly on its old version
+        // instead of with some columns added, which would make the next
+        // attempt fail on "duplicate column".
+        onUpgrade: (m, from, to) async {
+          await transaction(() async {
+            if (from < 2) {
+              await m.createTable(subcategories);
+              await m.addColumn(items, items.subcategoryKey);
+              await m.addColumn(entries, entries.subcategoryKey);
+              await _seedSubcategories(this);
+            }
+            if (from < 3) {
+              await _migrateToV3(m);
+            }
+            if (from < 4) {
+              await m.addColumn(items, items.unit);
+              await m.addColumn(items, items.defaultQuantityMilli);
+            }
+          });
         },
         // SQLite ignores foreign key constraints unless this pragma is set
         // on every connection — drift's `.references()` is otherwise only a
@@ -66,6 +126,52 @@ class AppDatabase extends _$AppDatabase {
           await customStatement('PRAGMA foreign_keys = ON');
         },
       );
+
+  Future<void> _migrateToV3(Migrator m) async {
+    // capture_groups first: entries.capture_group_id references it.
+    await m.createTable(captureGroups);
+    await m.addColumn(entries, entries.quantityMilli);
+    await m.addColumn(entries, entries.unit);
+    await m.addColumn(entries, entries.unitPricePiastres);
+    await m.addColumn(entries, entries.captureGroupId);
+    await m.addColumn(entries, entries.externalId);
+    await m.addColumn(entries, entries.reference);
+    await m.addColumn(categories, categories.colorKey);
+    await m.addColumn(salaryPeriods, salaryPeriods.externalId);
+    await m.createTable(attachments);
+    await m.createTable(itemAliases);
+    await m.createTable(recurringBills);
+    await m.createTable(appSettings);
+    for (final index in [
+      entriesDate,
+      entriesCaptureGroupId,
+      entriesDeletedAt,
+      entriesExternalId,
+      salaryPeriodsExternalId,
+      attachmentsEntryId,
+      attachmentsCaptureGroupId,
+    ]) {
+      await m.create(index);
+    }
+
+    // One photo attachment per pre-v3 photo. The id is derived from the
+    // entry id, so it is unique and stable, and the path is copied as-is
+    // (already relative to the documents directory).
+    await customStatement(
+      'INSERT INTO attachments (id, entry_id, kind, path, created_at) '
+      "SELECT 'photo-' || id, id, 'photo', photo_path, created_at "
+      'FROM entries WHERE photo_path IS NOT NULL',
+    );
+
+    // A category takes its own key as its colour when §7.2 has one for
+    // it; a category the user created gets the neutral `Other`.
+    final known = categoryColorKeys.map((k) => "'${k.replaceAll("'", "''")}'");
+    await customStatement(
+      'UPDATE categories SET color_key = CASE WHEN key IN '
+      '(${known.join(', ')}) THEN key ELSE \'Other\' END '
+      'WHERE color_key IS NULL',
+    );
+  }
 
   /// Inserts the parsed seed JSON's items, entries and salary periods, but
   /// only the first time — idempotent, a no-op whenever `entries` already
@@ -82,71 +188,151 @@ class AppDatabase extends _$AppDatabase {
         (data['salaryPeriods'] as List).cast<Map<String, dynamic>>();
 
     await transaction(() async {
+      await _seedExtraCatalogue(data);
       // Items before entries: entries reference items by id via itemId.
       for (final item in items) {
         await into(this.items).insert(
-              ItemsCompanion.insert(
-                id: item['id'] as String,
-                nameAr: item['nameAr'] as String,
-                nameEn: item['nameEn'] as String,
-                categoryKey: item['categoryKey'] as String,
-                defaultAmountPiastres: Value(
-                  item['defaultAmountPiastres'] as int?,
-                ),
-                barcode: Value(item['barcode'] as String?),
-                useCount: Value(item['useCount'] as int? ?? 0),
-                lastUsedAt: Value(
-                  item['lastUsedAt'] == null
-                      ? null
-                      : DateTime.parse(item['lastUsedAt'] as String),
-                ),
-                archived: Value(item['archived'] as bool? ?? false),
-              ),
-            );
+          mode: InsertMode.insertOrIgnore,
+          ItemsCompanion.insert(
+            id: item['id'] as String,
+            nameAr: item['nameAr'] as String,
+            nameEn: item['nameEn'] as String,
+            categoryKey: item['categoryKey'] as String,
+            subcategoryKey: Value(item['subcategoryKey'] as String?),
+            defaultAmountPiastres: Value(
+              item['defaultAmountPiastres'] as int?,
+            ),
+            barcode: Value(item['barcode'] as String?),
+            useCount: Value(item['useCount'] as int? ?? 0),
+            lastUsedAt: Value(
+              item['lastUsedAt'] == null
+                  ? null
+                  : DateTime.parse(item['lastUsedAt'] as String),
+            ),
+            archived: Value(item['archived'] as bool? ?? false),
+          ),
+        );
       }
 
       for (final row in entryRows) {
         await into(entries).insert(
-              EntriesCompanion.insert(
-                id: row['id'] as String,
-                date: row['date'] as String,
-                amountPiastres: row['amountPiastres'] as int,
-                categoryKey: row['categoryKey'] as String,
-                itemId: Value(row['itemId'] as String?),
-                description: Value(row['description'] as String? ?? ''),
-                paymentMethod: Value(
-                  row['paymentMethod'] as String? ?? 'Cash',
-                ),
-                photoPath: Value(row['photoPath'] as String?),
-                source: Value(row['source'] as String? ?? 'manual'),
-                note: Value(row['note'] as String?),
-                createdAt: DateTime.parse(row['createdAt'] as String),
-                updatedAt: DateTime.parse(row['updatedAt'] as String),
-                deletedAt: Value(
-                  row['deletedAt'] == null
-                      ? null
-                      : DateTime.parse(row['deletedAt'] as String),
-                ),
-              ),
-            );
+          EntriesCompanion.insert(
+            id: row['id'] as String,
+            date: row['date'] as String,
+            amountPiastres: row['amountPiastres'] as int,
+            categoryKey: row['categoryKey'] as String,
+            subcategoryKey: Value(row['subcategoryKey'] as String?),
+            itemId: Value(row['itemId'] as String?),
+            description: Value(row['description'] as String? ?? ''),
+            paymentMethod: Value(
+              row['paymentMethod'] as String? ?? 'Cash',
+            ),
+            photoPath: Value(row['photoPath'] as String?),
+            source: Value(row['source'] as String? ?? 'manual'),
+            note: Value(row['note'] as String?),
+            createdAt: DateTime.parse(row['createdAt'] as String),
+            updatedAt: DateTime.parse(row['updatedAt'] as String),
+            deletedAt: Value(
+              row['deletedAt'] == null
+                  ? null
+                  : DateTime.parse(row['deletedAt'] as String),
+            ),
+          ),
+        );
       }
 
       for (final row in salaryRows) {
         await into(salaryPeriods).insert(
-              SalaryPeriodsCompanion.insert(
-                id: row['id'] as String,
-                datePaid: row['datePaid'] as String,
-                amountPiastres: row['amountPiastres'] as int,
-                evidencePhotoPath: Value(
-                  row['evidencePhotoPath'] as String?,
-                ),
-                note: Value(row['note'] as String?),
-              ),
-            );
+          SalaryPeriodsCompanion.insert(
+            id: row['id'] as String,
+            datePaid: row['datePaid'] as String,
+            amountPiastres: row['amountPiastres'] as int,
+            evidencePhotoPath: Value(
+              row['evidencePhotoPath'] as String?,
+            ),
+            note: Value(row['note'] as String?),
+          ),
+        );
       }
     });
   }
+
+  /// The seed's categories and subcategories beyond the fixed ones (the
+  /// shared build's Health, Home, Subscriptions and theirs), each after
+  /// those already there. A row the database has, or one without a label
+  /// and an icon (the personal seed lists the fixed ones by key only), is
+  /// left alone.
+  Future<void> _seedExtraCatalogue(Map<String, dynamic> data) async {
+    bool complete(Map<String, dynamic> row) =>
+        row['labelAr'] is String && row['iconName'] is String;
+
+    final knownCategories = {
+      for (final c in await select(categories).get()) c.key,
+    };
+    var order = knownCategories.length;
+    for (final row
+        in (data['categories'] as List? ?? const [])
+            .cast<Map<String, dynamic>>()) {
+      final key = row['key'] as String;
+      if (knownCategories.contains(key) || !complete(row)) continue;
+      final color = row['colorKey'] as String?;
+      await into(categories).insert(
+        CategoriesCompanion.insert(
+          key: key,
+          labelAr: row['labelAr'] as String,
+          iconName: row['iconName'] as String,
+          colorKey: Value(categoryColorKeys.contains(color) ? color : 'Other'),
+          sortOrder: Value(order++),
+        ),
+      );
+      knownCategories.add(key);
+    }
+
+    final knownSubcategories = {
+      for (final s in await select(subcategories).get()) s.key,
+    };
+    order = knownSubcategories.length;
+    for (final row
+        in (data['subcategories'] as List? ?? const [])
+            .cast<Map<String, dynamic>>()) {
+      final key = row['key'] as String;
+      if (knownSubcategories.contains(key) ||
+          !complete(row) ||
+          !knownCategories.contains(row['categoryKey'])) {
+        continue;
+      }
+      await into(subcategories).insert(
+        SubcategoriesCompanion.insert(
+          key: key,
+          categoryKey: row['categoryKey'] as String,
+          labelAr: row['labelAr'] as String,
+          iconName: row['iconName'] as String,
+          sortOrder: Value(order++),
+        ),
+      );
+      knownSubcategories.add(key);
+    }
+  }
 }
+
+/// The colour keys of spec §7.2, one per category family plus `Other`.
+/// A category's `colorKey` is always one of these.
+const categoryColorKeys = [
+  'Drinks',
+  'Snacks',
+  'Food',
+  'Transport',
+  'Bills',
+  'Personal Care',
+  'Shopping',
+  'Family/Social',
+  'Gifts',
+  'Loans',
+  'Health',
+  'Education',
+  'Home',
+  'Other',
+];
 
 /// The ten fixed categories this app understands. Keys are English and are
 /// never shown to the user; labels are Arabic.
@@ -171,6 +357,55 @@ Future<void> _seedCategories(AppDatabase db) async {
             key: key,
             labelAr: labelAr,
             iconName: iconName,
+            colorKey: Value(key),
+            sortOrder: Value(i),
+          ),
+        );
+  }
+}
+
+/// The subcategories seeded under each of the ten categories above — the
+/// second level of the Category -> Subcategory -> Item structure. Keys are
+/// English and never shown to the user; labels are Arabic.
+const _seedSubcategoryRows = [
+  ('Soda', 'Drinks', 'صودا', 'local_bar'),
+  ('Water', 'Drinks', 'مياه', 'water_drop'),
+  ('Milk', 'Drinks', 'لبن', 'local_drink'),
+  ('Juice', 'Drinks', 'عصير', 'emoji_food_beverage'),
+  ('HotDrinks', 'Drinks', 'مشروبات ساخنة', 'local_cafe'),
+  ('Chips', 'Snacks', 'شيبسي', 'tapas'),
+  ('Chocolate', 'Snacks', 'شوكولاتة', 'cake'),
+  ('Biscuits', 'Snacks', 'بسكوت', 'cookie'),
+  ('Sweets', 'Snacks', 'حلويات', 'icecream'),
+  ('FastFood', 'Snacks', 'وجبات سريعة', 'fastfood'),
+  ('Breakfast', 'Food', 'فطار', 'free_breakfast'),
+  ('Lunch', 'Food', 'غدا', 'lunch_dining'),
+  ('Dinner', 'Food', 'عشا', 'dinner_dining'),
+  ('Groceries', 'Food', 'بقالة', 'local_grocery_store'),
+  ('PublicTransport', 'Transport', 'مواصلات عامة', 'directions_bus'),
+  ('Taxi', 'Transport', 'تاكسي', 'local_taxi'),
+  ('PhoneBill', 'Bills', 'فاتورة موبايل', 'smartphone'),
+  ('HomeInternet', 'Bills', 'إنترنت المنزل', 'wifi'),
+  ('Haircut', 'Personal Care', 'حلاقة', 'content_cut'),
+  ('Cosmetics', 'Personal Care', 'مستحضرات', 'spa'),
+  ('Clothes', 'Shopping', 'ملابس', 'checkroom'),
+  ('Electronics', 'Shopping', 'إلكترونيات', 'devices'),
+  ('OnlineShopping', 'Shopping', 'تسوق أونلاين', 'shopping_cart'),
+  ('Trips', 'Family/Social', 'رحلات', 'flight'),
+  ('Visits', 'Family/Social', 'زيارات', 'people'),
+  ('Gifts', 'Gifts', 'هدايا', 'card_giftcard'),
+  ('Loans', 'Loans', 'سلف', 'handshake'),
+];
+
+Future<void> _seedSubcategories(AppDatabase db) async {
+  for (var i = 0; i < _seedSubcategoryRows.length; i++) {
+    final (key, categoryKey, labelAr, iconName) = _seedSubcategoryRows[i];
+    await db.into(db.subcategories).insert(
+          SubcategoriesCompanion.insert(
+            key: key,
+            categoryKey: categoryKey,
+            labelAr: labelAr,
+            iconName: iconName,
             sortOrder: Value(i),
           ),
         );
@@ -179,12 +414,36 @@ Future<void> _seedCategories(AppDatabase db) async {
 
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
-    await applyWorkaroundToOpenSqlite3OnOldAndroidVersions();
     final directory = await getApplicationDocumentsDirectory();
-    final file = File(p.join(directory.path, 'spending.sqlite'));
+    return openDatabaseFileWithBackup(
+      dbFile: File(p.join(directory.path, 'spending.sqlite')),
+      backupsDir: Directory(p.join(directory.path, 'backups')),
+    );
+  });
+}
+
+/// Opens [dbFile], first copying it into [backupsDir] when it is on an
+/// older schema than [AppDatabase.latestSchemaVersion] (see
+/// [backupBeforeMigration]).
+///
+/// The copy runs inside the lazy opener, so it finishes before drift ever
+/// touches the file: drift only reads `user_version` and runs `onUpgrade`
+/// once this returns. If the copy cannot be verified the open fails and
+/// the file is left exactly as it was, rather than migrating real data
+/// with no way back.
+LazyDatabase openDatabaseFileWithBackup({
+  required File dbFile,
+  required Directory backupsDir,
+}) {
+  return LazyDatabase(() async {
+    await backupBeforeMigration(
+      dbFile: dbFile,
+      backupsDir: backupsDir,
+      targetVersion: AppDatabase.latestSchemaVersion,
+    );
     // A background isolate buys nothing here: this is a small, single-user
     // local file with modest query volume, and opening in the same isolate
     // avoids an extra isolate to tear down on every dispose.
-    return NativeDatabase(file);
+    return NativeDatabase(dbFile);
   });
 }

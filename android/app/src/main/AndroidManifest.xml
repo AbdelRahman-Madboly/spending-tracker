@@ -1,9 +1,35 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- This application performs no network I/O. Do not add INTERNET permission. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- INTERNET is declared, but nothing opens a socket unless the user has
+         switched an online feature on in Settings: every request goes through
+         lib/data/net/network_gate.dart, which refuses while the switches are
+         off. ACCESS_NETWORK_STATE is still stripped from the Play Services
+         archive the barcode scanner pulls in; the app never checks
+         connectivity, it just tries through the gate. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Voice capture: speech recognition and voice-note recording. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Not required: lets the app install and run (camera button simply
+         has nothing to do) on a device with no camera hardware, e.g. some
+         tablets. -->
+    <!-- Bill reminders: a local notification a few days before a
+         recurring bill is due (POST_NOTIFICATIONS comes from the
+         notifications plugin, asked for on first use), rescheduled after
+         a reboot. Inexact on purpose: no exact-alarm permission. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <!-- No Android cloud backup: it would upload the spending data outside
+         NetworkGate with every online switch off, and bring back
+         secure-storage values whose Keystore key never left the old phone.
+         Settings -> البيانات makes the backups this app relies on. -->
     <application
         android:label="مصاريفي"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -25,7 +51,41 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Share target (import): a note's text, or a Samsung Notes
+                 .sdocx / a JSON pack, which other apps share as a file. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/*"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/*"/>
+            </intent-filter>
+            <!-- Share target (photo capture): an InstaPay screenshot, gallery
+                 photos or a WhatsApp image, one or several, read and reviewed
+                 like a photo taken in the app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="image/*"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="image/*"/>
+            </intent-filter>
         </activity>
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -41,6 +101,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Lets speech_to_text find the system speech recogniser under
+             Android 11+ package visibility rules. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
         </intent>
     </queries>
 </manifest>
