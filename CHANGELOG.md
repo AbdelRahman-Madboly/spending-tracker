@@ -2,21 +2,24 @@
 
 ## 3.1.0 (2026-11-01)
 
-- Two flavours from one codebase: `personal` with the owner's data and
-  `shared` with categories, items and the catalogue but no entries.
+- Two flavours from one codebase: `personal` with a populated history
+  (sample data in this repository) and `shared` with categories, items and
+  the catalogue but no entries.
 - Schema v4: products sold loose by the litre, kilo or gram, with a usual
   quantity and a price per unit across the add sheet, parser, review and
   scan and check.
 - Barcode menu: log a purchase, scan and check a price, or open the products.
 - InstaPay transfers in are told from transfers out by the name set in
   Settings.
-- Bundled catalogue of Egyptian supermarket products by barcode; its new
-  categories are created on start.
+- Bundled product catalogue by barcode (a 20-product sample in this
+  repository); its new categories are created on start.
 - A welcome card in the shared build asks for the salary on first run.
 - Fixes: the transactions list follows new attachments at once; a product
   whose name carries its size is matched by its whole name.
 - README, pubspec description and this changelog; a date-independent home
   screen test; direct tests for the .xlsx writer.
+- Public release: personal records removed from every commit and replaced
+  with made-up sample data; MIT licence and CI.
 
 ## 3.0.0 (2026-09-29)
 

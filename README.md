@@ -47,8 +47,14 @@ There are two flavours on one application id:
 
 | Flavour | Ships with |
 |---|---|
-| `personal` (default) | The owner's history, his import packs and his own defaults. Private, never published |
+| `personal` (default) | Sample data: two months of made-up entries and salaries, two sample import packs and a sample InstaPay name, so every screen has something to show |
 | `shared` | Every category, subcategory and generic item and the product catalogue, no entries. A short welcome asks for the salary |
+
+All bundled data is fake. `assets/catalog/SOURCES.md` describes the sample
+product catalogue and its format.
+
+The online features are optional and need the user's own API key. With no
+key, or with the online switch off, everything runs on the phone.
 
 ## Build and test
 
@@ -58,7 +64,7 @@ Requires Flutter 3.44.4 (see `.fvmrc`), JDK 17 and the Android SDK.
 flutter pub get
 flutter analyze
 flutter test
-flutter build apk --debug                      # personal flavour
+flutter build apk --debug                      # personal flavour, sample data
 flutter build apk --release --flavor shared    # for anyone else
 ```
 
@@ -71,16 +77,23 @@ After changing `lib/data/db/tables.dart`, regenerate the Drift code with
   a backup file.
 - No bank or card connection. Entries are typed, spoken, scanned or imported.
 - No iOS build. Only Android is configured and tested.
-- Prices in the bundled catalogue are typical shelf prices from September 2026,
-  not live prices.
+- The bundled product catalogue is a 20-product sample, not a real price
+  list.
 
-## Docs
+## Changes
 
-Design specs and implementation plans are in `docs/specs/` and `docs/plans/`.
-`CHANGELOG.md` lists the versions.
+`CHANGELOG.md` lists the versions. The commit history is the app's real
+development history from September 2026 on. Personal records were taken
+out of every commit and replaced with the sample data above, so older
+commits do not build with the data they were written against.
 
 ## Status
 
-Version 3.1.0. In daily use on the owner's phone. Analyzer clean; the test
-suite covers money math, parsing, import, the database migrations from v1 to
-v4 and every screen.
+Version 3.1.0. In daily use by its author. Analyzer clean; the test suite
+covers money math, parsing, import, the database migrations from v1 to v4
+and every screen. CI runs analyze, the tests and a debug APK build on every
+push.
+
+## License
+
+MIT, see `LICENSE`.
