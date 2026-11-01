@@ -1,0 +1,161 @@
+{
+  "format": "manual-import/1",
+  "extractedOn": "2026-09-30",
+  "salaryPeriods": [
+    {
+      "ref": "sal-2026-09-30",
+      "datePaid": "2026-09-30",
+      "amountPiastres": 900000,
+      "evidencePhotoPath": "evidence/2026-09-30_Sample-Salary.png",
+      "note": "Sample InstaPay transfer, reference SAMPLE-SALARY-01"
+    }
+  ],
+  "entries": [
+    {
+      "ref": "man-001",
+      "date": "2026-09-21",
+      "amountPiastres": 50000,
+      "description": "مصروف البيت",
+      "quantity": 1,
+      "unit": null,
+      "categoryKey": "Family/Social",
+      "subcategoryKey": "FamilySupport",
+      "itemId": null,
+      "paymentMethod": "InstaPay",
+      "source": "import",
+      "flags": [
+        "category: new catalogue addition, see catalogueAdditions"
+      ],
+      "reference": "SAMPLE-TRANSFER-01",
+      "evidencePhotoPath": "evidence/2026-09-21_Sample-Transfer.png"
+    },
+    {
+      "ref": "man-002",
+      "date": "2026-09-21",
+      "amountPiastres": 15000,
+      "description": "باقة موبايل",
+      "quantity": 1,
+      "unit": null,
+      "categoryKey": "Bills",
+      "subcategoryKey": "PhoneBill",
+      "itemId": "item-11",
+      "paymentMethod": "InstaPay",
+      "source": "import",
+      "flags": []
+    },
+    {
+      "ref": "man-003",
+      "date": "2026-09-24",
+      "amountPiastres": 30000,
+      "description": "هدية",
+      "quantity": 1,
+      "unit": null,
+      "categoryKey": "Gifts",
+      "subcategoryKey": "Gifts",
+      "itemId": null,
+      "paymentMethod": "Cash",
+      "source": "import",
+      "flags": []
+    },
+    {
+      "ref": "man-004",
+      "date": "2026-09-25",
+      "amountPiastres": 60000,
+      "description": "Power bank 10000mAh",
+      "quantity": 1,
+      "unit": "قطعة",
+      "categoryKey": "Shopping",
+      "subcategoryKey": "Electronics",
+      "itemId": null,
+      "paymentMethod": "Cash",
+      "source": "import",
+      "flags": [],
+      "unitPricePiastres": 60000,
+      "captureGroup": "sample-order-1001",
+      "reference": "Sample Electronics order #1001",
+      "evidencePhotoPath": "evidence/2026-09-25_Sample-Order-1001_slip.pdf"
+    },
+    {
+      "ref": "man-005",
+      "date": "2026-09-25",
+      "amountPiastres": 12000,
+      "description": "USB-C cable",
+      "quantity": 3,
+      "unit": "قطعة",
+      "categoryKey": "Shopping",
+      "subcategoryKey": "Electronics",
+      "itemId": null,
+      "paymentMethod": "Cash",
+      "source": "import",
+      "flags": [],
+      "unitPricePiastres": 4000,
+      "barcode": "2000000000015",
+      "captureGroup": "sample-order-1001",
+      "reference": "Sample Electronics order #1001",
+      "evidencePhotoPath": "evidence/2026-09-25_Sample-Order-1001_slip.pdf"
+    },
+    {
+      "ref": "man-006",
+      "date": "2026-09-25",
+      "amountPiastres": 25000,
+      "description": "Power adapter 20W",
+      "quantity": 1,
+      "unit": "قطعة",
+      "categoryKey": "Shopping",
+      "subcategoryKey": "Electronics",
+      "itemId": null,
+      "paymentMethod": "Cash",
+      "source": "import",
+      "flags": [],
+      "unitPricePiastres": 25000,
+      "captureGroup": "sample-order-1001",
+      "reference": "Sample Electronics order #1001",
+      "evidencePhotoPath": "evidence/2026-09-25_Sample-Order-1001_slip.pdf"
+    },
+    {
+      "ref": "man-007",
+      "date": "2026-09-26",
+      "amountPiastres": 25000,
+      "description": "إنترنت المنزل",
+      "quantity": 1,
+      "unit": null,
+      "categoryKey": "Bills",
+      "subcategoryKey": "HomeInternet",
+      "itemId": null,
+      "paymentMethod": "Cash",
+      "source": "import",
+      "flags": [],
+      "note": "Plan Home Internet sample, paid at the shop"
+    }
+  ],
+  "catalogueAdditions": {
+    "categories": [
+      {
+        "key": "Health",
+        "labelAr": "صحة",
+        "iconName": "medication",
+        "colorKey": "Health"
+      }
+    ],
+    "subcategories": [
+      {
+        "key": "Medicine",
+        "categoryKey": "Health",
+        "labelAr": "أدوية",
+        "iconName": "medication"
+      },
+      {
+        "key": "Laundry",
+        "categoryKey": "Personal Care",
+        "labelAr": "مغسلة",
+        "iconName": "local_laundry_service"
+      },
+      {
+        "key": "FamilySupport",
+        "categoryKey": "Family/Social",
+        "labelAr": "مصروف البيت",
+        "iconName": "family_restroom"
+      }
+    ]
+  }
+}

@@ -1,0 +1,289 @@
+{
+  "format": "product-catalog/1",
+  "builtOn": "2026-10-31",
+  "country": "EG",
+  "catalogueAdditions": {
+    "categories": [
+      {
+        "key": "Home",
+        "labelAr": "البيت",
+        "iconName": "home",
+        "colorKey": "Home"
+      },
+      {
+        "key": "Health",
+        "labelAr": "صحة",
+        "iconName": "medication",
+        "colorKey": "Health"
+      }
+    ],
+    "subcategories": [
+      {
+        "key": "Cleaning",
+        "categoryKey": "Home",
+        "labelAr": "منظفات",
+        "iconName": "cleaning_services"
+      },
+      {
+        "key": "Laundry",
+        "categoryKey": "Personal Care",
+        "labelAr": "غسيل",
+        "iconName": "checkroom"
+      },
+      {
+        "key": "Medicine",
+        "categoryKey": "Health",
+        "labelAr": "أدوية",
+        "iconName": "medication"
+      },
+      {
+        "key": "QuickMeals",
+        "categoryKey": "Food",
+        "labelAr": "أكل سريع التحضير",
+        "iconName": "ramen_dining"
+      }
+    ]
+  },
+  "products": [
+    {
+      "barcode": "2000000000022",
+      "nameAr": "مياه معدنية 1.5 لتر",
+      "nameEn": "Mineral water 1.5 L",
+      "brand": "Sample",
+      "size": "1.5 لتر",
+      "categoryKey": "Drinks",
+      "subcategoryKey": "Water",
+      "pricePiastres": 900,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000039",
+      "nameAr": "مياه معدنية 600 مل",
+      "nameEn": "Mineral water 600 ml",
+      "brand": "Sample",
+      "size": "600 مل",
+      "categoryKey": "Drinks",
+      "subcategoryKey": "Water",
+      "pricePiastres": 500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000046",
+      "nameAr": "بيبسي 1 لتر",
+      "nameEn": "Cola 1 L",
+      "brand": "Sample",
+      "size": "1 لتر",
+      "categoryKey": "Drinks",
+      "subcategoryKey": "Soda",
+      "pricePiastres": 2500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000053",
+      "nameAr": "صودا ليمون كانز",
+      "nameEn": "Lemon soda can",
+      "brand": "Sample",
+      "size": "330 مل",
+      "categoryKey": "Drinks",
+      "subcategoryKey": "Soda",
+      "pricePiastres": 1500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000060",
+      "nameAr": "لبن كامل الدسم 1 لتر",
+      "nameEn": "Full cream milk 1 L",
+      "brand": "Sample",
+      "size": "1 لتر",
+      "categoryKey": "Drinks",
+      "subcategoryKey": "Milk",
+      "pricePiastres": 4200,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000077",
+      "nameAr": "عصير مانجو 1 لتر",
+      "nameEn": "Mango juice 1 L",
+      "brand": "Sample",
+      "size": "1 لتر",
+      "categoryKey": "Drinks",
+      "subcategoryKey": "Juice",
+      "pricePiastres": 3500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000084",
+      "nameAr": "شاي 100 فتلة",
+      "nameEn": "Tea, 100 bags",
+      "brand": "Sample",
+      "size": "100 فتلة",
+      "categoryKey": "Drinks",
+      "subcategoryKey": "HotDrinks",
+      "pricePiastres": 9500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000091",
+      "nameAr": "بن تركي 200 جم",
+      "nameEn": "Turkish coffee 200 g",
+      "brand": "Sample",
+      "size": "200 جم",
+      "categoryKey": "Drinks",
+      "subcategoryKey": "HotDrinks",
+      "pricePiastres": 16000,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000107",
+      "nameAr": "شيبس ملح 75 جم",
+      "nameEn": "Salted chips 75 g",
+      "brand": "Sample",
+      "size": "75 جم",
+      "categoryKey": "Snacks",
+      "subcategoryKey": "Chips",
+      "pricePiastres": 1000,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000114",
+      "nameAr": "ويفر شوكولاتة",
+      "nameEn": "Chocolate wafer",
+      "brand": "Sample",
+      "size": "1 قطعة",
+      "categoryKey": "Snacks",
+      "subcategoryKey": "Chocolate",
+      "pricePiastres": 500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000121",
+      "nameAr": "بسكويت شاي",
+      "nameEn": "Tea biscuits",
+      "brand": "Sample",
+      "size": "1 علبة",
+      "categoryKey": "Snacks",
+      "subcategoryKey": "Biscuits",
+      "pricePiastres": 1500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000138",
+      "nameAr": "مكرونة قلم 400 جم",
+      "nameEn": "Penne pasta 400 g",
+      "brand": "Sample",
+      "size": "400 جم",
+      "categoryKey": "Food",
+      "subcategoryKey": "Groceries",
+      "pricePiastres": 1800,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000145",
+      "nameAr": "أرز مصري 1 كيلو",
+      "nameEn": "Egyptian rice 1 kg",
+      "brand": "Sample",
+      "size": "1 كيلو",
+      "categoryKey": "Food",
+      "subcategoryKey": "Groceries",
+      "pricePiastres": 3500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000152",
+      "nameAr": "زيت عباد الشمس 800 مل",
+      "nameEn": "Sunflower oil 800 ml",
+      "brand": "Sample",
+      "size": "800 مل",
+      "categoryKey": "Food",
+      "subcategoryKey": "Groceries",
+      "pricePiastres": 7500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000169",
+      "nameAr": "نودلز سريعة التحضير",
+      "nameEn": "Instant noodles",
+      "brand": "Sample",
+      "size": "1 كيس",
+      "categoryKey": "Food",
+      "subcategoryKey": "QuickMeals",
+      "pricePiastres": 1200,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000176",
+      "nameAr": "كورن فليكس 375 جم",
+      "nameEn": "Corn flakes 375 g",
+      "brand": "Sample",
+      "size": "375 جم",
+      "categoryKey": "Food",
+      "subcategoryKey": "Breakfast",
+      "pricePiastres": 6500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000183",
+      "nameAr": "سائل غسيل أطباق 1 لتر",
+      "nameEn": "Dish soap 1 L",
+      "brand": "Sample",
+      "size": "1 لتر",
+      "categoryKey": "Home",
+      "subcategoryKey": "Cleaning",
+      "pricePiastres": 4500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000190",
+      "nameAr": "مسحوق غسيل 1 كيلو",
+      "nameEn": "Washing powder 1 kg",
+      "brand": "Sample",
+      "size": "1 كيلو",
+      "categoryKey": "Personal Care",
+      "subcategoryKey": "Laundry",
+      "pricePiastres": 9000,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000206",
+      "nameAr": "شامبو 400 مل",
+      "nameEn": "Shampoo 400 ml",
+      "brand": "Sample",
+      "size": "400 مل",
+      "categoryKey": "Personal Care",
+      "subcategoryKey": "Cosmetics",
+      "pricePiastres": 8500,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    },
+    {
+      "barcode": "2000000000213",
+      "nameAr": "معجون أسنان 100 مل",
+      "nameEn": "Toothpaste 100 ml",
+      "brand": "Sample",
+      "size": "100 مل",
+      "categoryKey": "Personal Care",
+      "subcategoryKey": "Cosmetics",
+      "pricePiastres": 4000,
+      "priceSource": "sample",
+      "priceDate": "2026-10-31"
+    }
+  ]
+}
