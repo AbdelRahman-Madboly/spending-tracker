@@ -1,5 +1,7 @@
 # مصاريفي (Spending Tracker)
 
+<img src="docs/readme-icon.png" width="96" align="right" alt="مصاريفي (Spending Tracker) icon">
+
 An Android app for logging personal spending in Egyptian pounds, built in
 Flutter. The interface is Arabic and right to left. A purchase is meant to be
 logged at the till in a few seconds: a known item takes two taps and the
@@ -97,3 +99,7 @@ push.
 ## License
 
 MIT, see `LICENSE`.
+
+## Author
+
+Designed and built by Abdel Rahman Mohamad EL-Sayed ([AbdelRahman-Madboly](https://github.com/AbdelRahman-Madboly) on GitHub).
