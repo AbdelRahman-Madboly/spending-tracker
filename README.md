@@ -15,7 +15,7 @@
 ![SQLite](https://img.shields.io/badge/storage-SQLite%20(Drift)-003B57?logo=sqlite&logoColor=white)
 ![Arabic RTL](https://img.shields.io/badge/UI-Arabic%20RTL-555555)
 
-[How it works](#how-it-works) · [Screens](#screens) · [Quick start](#quick-start) · [How data is stored](#how-data-is-stored) · [What it does not do](#what-it-does-not-do)
+**[Download the APK](https://github.com/AbdelRahman-Madboly/spending-tracker/releases/latest/download/spending-tracker-3.1.1-arm64.apk)** · [How it works](#how-it-works) · [Screens](#screens) · [Quick start](#quick-start) · [How data is stored](#how-data-is-stored) · [What it does not do](#what-it-does-not-do)
 
 <img src="docs/screenshots/01-home.png" width="260" alt="Home"> <img src="docs/screenshots/07-statistics.png" width="260" alt="Statistics"> <img src="docs/screenshots/03-add-sheet.png" width="260" alt="Add sheet">
 
@@ -90,6 +90,8 @@ switches are off.
 <sub>Screenshots from the emulator with the sample data. All names and amounts are made up.</sub>
 
 ## Quick start
+
+**Just install it:** download [`spending-tracker-3.1.1-arm64.apk`](https://github.com/AbdelRahman-Madboly/spending-tracker/releases/latest/download/spending-tracker-3.1.1-arm64.apk) on an Android phone, open it and allow installing from this source. It starts empty and asks for the salary. A demo build with two months of made-up entries is on the [release page](https://github.com/AbdelRahman-Madboly/spending-tracker/releases/latest). To build it yourself:
 
 Requires Flutter 3.44.4 (see `.fvmrc`), JDK 17 and the Android SDK.
 
