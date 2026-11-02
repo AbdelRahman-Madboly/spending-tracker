@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/AbdelRahman-Madboly/spending-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/AbdelRahman-Madboly/spending-tracker/actions/workflows/ci.yml)
 ![Status](https://img.shields.io/badge/status-used%20daily-green)
-![Version](https://img.shields.io/badge/version-3.1.0-blue)
+![Version](https://img.shields.io/badge/version-3.1.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Flutter](https://img.shields.io/badge/Flutter-3.44.4-02569B?logo=flutter&logoColor=white)
 ![Android](https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white)
@@ -16,6 +16,10 @@
 ![Arabic RTL](https://img.shields.io/badge/UI-Arabic%20RTL-555555)
 
 [How it works](#how-it-works) · [Screens](#screens) · [Quick start](#quick-start) · [How data is stored](#how-data-is-stored) · [What it does not do](#what-it-does-not-do)
+
+<img src="docs/screenshots/01-home.png" width="260" alt="Home"> <img src="docs/screenshots/07-statistics.png" width="260" alt="Statistics"> <img src="docs/screenshots/03-add-sheet.png" width="260" alt="Add sheet">
+
+<sub>The <code>personal</code> flavour with its made-up sample data.</sub>
 
 </div>
 
@@ -70,6 +74,20 @@ switches are off.
 | Capture | Voice note, photo of a receipt, barcode scan or a typed note, each parsed into lines and shown in the review sheet |
 | امسح واعرف (scan and check) | Scan a barcode to see the last price paid and the catalogue price without logging anything |
 | المنتجات (Products) | Edit a product's name, category, price, unit and barcode, with its price history |
+
+| Home | Trend and categories | Add sheet | Review sheet |
+|---|---|---|---|
+| <img src="docs/screenshots/01-home.png" width="200" alt="Home"> | <img src="docs/screenshots/02-home-trend-categories.png" width="200" alt="Trend and categories"> | <img src="docs/screenshots/03-add-sheet.png" width="200" alt="Add sheet"> | <img src="docs/screenshots/04-review-sheet.png" width="200" alt="Review sheet"> |
+
+| Import review | Transactions | Statistics | Month history |
+|---|---|---|---|
+| <img src="docs/screenshots/05-import-review.png" width="200" alt="Import review"> | <img src="docs/screenshots/06-history.png" width="200" alt="Transactions"> | <img src="docs/screenshots/07-statistics.png" width="200" alt="Statistics"> | <img src="docs/screenshots/08-statistics-months.png" width="200" alt="Month history"> |
+
+| Settings | Excel export | Recurring bills |
+|---|---|---|
+| <img src="docs/screenshots/09-settings.png" width="200" alt="Settings"> | <img src="docs/screenshots/10-export.png" width="200" alt="Excel export"> | <img src="docs/screenshots/11-recurring-bills.png" width="200" alt="Recurring bills"> |
+
+<sub>Screenshots from the emulator with the sample data. All names and amounts are made up.</sub>
 
 ## Quick start
 

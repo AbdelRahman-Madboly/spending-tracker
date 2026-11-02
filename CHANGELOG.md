@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.1.1 (2026-11-02)
+
+- Settings, About showed version 1.0.0; it now shows the real version.
+
 ## 3.1.0 (2026-11-01)
 
 - Two flavours from one codebase: `personal` with a populated history

@@ -29,7 +29,7 @@ const appName = 'مصاريفي';
 /// `version:` field; there is no `package_info_plus` dependency available
 /// to read it at runtime (only one new dependency is permitted for this
 /// task, spent on `flutter_launcher_icons`), so it is kept in sync by hand.
-const appVersion = '1.0.0';
+const appVersion = '3.1.1';
 
 /// Generates a fresh, permanent English key for a new category or
 /// subcategory. Keys are the storage/export identity and are never shown to
