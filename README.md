@@ -43,6 +43,10 @@ a few seconds, and everything works offline on one phone with no account.
   and the database is copied and checked before every schema migration.
 - **Your data stays portable.** Export to .xlsx, and full backup and restore as a zip.
 
+<img src="docs/concept-in-use.jpg" width="640" alt="spending-tracker in use">
+
+<sub>Concept image of the app on a phone. The screen shows a real screenshot from demo data.</sub>
+
 ## How it works
 
 ```mermaid
